@@ -2,7 +2,7 @@
 For compute-clusters, you must first run 'make' in the 'brute-force-search/' directory and then make
 sure that the executable 'optimal_cluster_assignment' is in your PATH.
 """
-
+import os
 import argparse
 import logging
 import sys
@@ -48,6 +48,7 @@ def main():
         print(f"There are {len(clusters)} clusters of size {[len(c) for c in clusters]}")
         print(clusters)
     elif args.command == 'compute-overlay':
+        os.chdir("python_fbas/constellation")
         with open(args.fbas, 'r', encoding='utf-8') as f:
             fbas = json.load(f)
         overlay:nx.Graph = constellation_overlay(fbas)
@@ -55,9 +56,11 @@ def main():
         avg_degree = sum([d for n,d in overlay.degree()])/len(overlay.nodes())
         print(f"Average degree: {avg_degree}")
         # save the overlay graph to an the output file in JSON format:
+        # instead we print overlay data for docker img
         graph_data = nx.node_link_data(overlay)
-        with open(args.output, 'w', encoding='utf-8') as f:
-            json.dump(graph_data, f, indent=4)
+        print(f"Graph data: {graph_data}")
+        # with open(args.output, 'w', encoding='utf-8') as f:
+        #     json.dump(graph_data, f, indent=4)
     
     # print help:
     elif args.command is None:
