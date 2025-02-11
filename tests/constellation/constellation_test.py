@@ -31,7 +31,7 @@ def test_compute_overlay():
     clusters = compute_clusters(fbas)
     logging.info("clusters: %s", clusters)
     g = clusters_to_overlay(clusters)
-    # logging.info("overlay: %s", g.edges())
+    logging.info("overlay: %s", g.edges())
     assert len(g.edges()) == 12
     fbas = {'A':2, 'B':2, 'C':2}
     clusters = compute_clusters(fbas)
@@ -50,6 +50,12 @@ def test_compute_overlay():
     g = clusters_to_overlay(compute_clusters(fbas))
     # logging.info("overlay: %s", g.edges())
     assert len(g.edges()) == 195
+    fbas = {'A':1, 'B':1}
+    clusters = compute_clusters(fbas)
+    logging.info("clusters: %s", clusters)
+    g = clusters_to_overlay(clusters, num_validators={'A':3, 'B':5})
+    logging.info("overlay: %s", g.edges())
+    assert len(g.edges()) == 25
 
 def test_random_constellation_overlay():
     for _ in range(10):

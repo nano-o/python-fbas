@@ -4,10 +4,29 @@ import subprocess
 import random
 from collections import defaultdict
 from itertools import combinations, combinations_with_replacement, product
-from typing import Optional
+from typing import Optional, Tuple
 import networkx as nx
 from python_fbas.fbas_graph import FBASGraph
 import python_fbas.constellation.config as config
+
+def fbas_graph_to_single_universe_regular(fbas_graph:FBASGraph) -> Tuple[dict[str,int], dict[str,int]]:
+    """
+    Convert a FBASGraph to a single-universe regular FBAS, along with the number of validators of each organization.
+    """
+    thresholds:dict[str,int] = {}
+    num_validators:dict[str,int] = {}
+    # TODO validate we indeed have a regular FBAS, and if not single-universe then make it so.
+    for v, attrs in fbas_graph.vertices(data=True):
+        if v in fbas_graph.validators:
+            # assert v has homeDomain:
+            assert 'homeDomain' in attrs
+            org = attrs['homeDomain']
+            thresholds[org] = fbas_graph.qsets[fbas_graph.qset_vertex_of(v)].threshold
+            if org in num_validators:
+                num_validators[org] += 1
+            else:
+                num_validators[org] = 1
+    return thresholds, num_validators
 
 def single_universe_to_regular(fbas: dict[str,int]) -> dict[str,tuple[int,list[str]]]:
     """
@@ -16,11 +35,36 @@ def single_universe_to_regular(fbas: dict[str,int]) -> dict[str,tuple[int,list[s
     orgs = list(fbas.keys())
     return {org: (fbas[org], orgs) for org in fbas}
 
-def random_single_universe_regular_fbas(n:int, low:int, high:int) -> dict:
+def random_single_universe_regular_fbas(n:int, low:int, high:int, num_thresholds:Optional[int] = None) -> dict:
     """
-    Generate a random single-universe regular FBAS with n organizations and thresholds between low and high.
+    Generate a random single-universe regular FBAS with n organizations and thresholds between low
+    and high. This is just a dict from organization names to thresholds.
+
+    Optionally limit the number of different threshold that appear.
     """
-    return {f"O_{i}": random.randint(low, high) for i in range(1, n+1)}
+    if num_thresholds is not None:
+        num_thresholds = min(high-low, num_thresholds)
+        thresholds = random.sample(range(low, high+1), num_thresholds)
+        return {f"O_{i}": random.choice(thresholds) for i in range(1, n+1)}
+    else:
+        return {f"O_{i}": random.randint(low, high) for i in range(1, n+1)}
+
+def single_universe_regular_fbas_to_fbas_graph(fbas:dict[str,int]) -> FBASGraph:
+    """
+    Convert a single-universe regular FBAS to a FBASGraph.
+    """
+    assert isinstance(fbas, dict)
+    for org in fbas:
+        assert isinstance(org, str)
+        assert isinstance(fbas[org], int)
+        assert fbas[org] > 0 and fbas[org] <= len(fbas)
+    fbas_graph = FBASGraph()
+    # Each org has 3 validators and inner threshold 2:
+    inner_qsets = [{'threshold': 2, 'validators': [f'{org}_1', f'{org}_2', f'{org}_3'], 'innerQuorumSets': []} for org in fbas]
+    for org in fbas:
+        for i in range(1, 4):
+            fbas_graph.update_validator(f'{org}_{i}', {'threshold': fbas[org], 'validators': [], 'innerQuorumSets': inner_qsets})
+    return fbas_graph
 
 def load_survey_graph(file_name) -> nx.Graph:
     """
@@ -36,8 +80,6 @@ def load_survey_graph(file_name) -> nx.Graph:
             g.add_edge(v, peer)
     return g
 
-# Constellation handles a specific type of FBAS, where each validator requires agreement from a
-# threshold among a set of organizations, and each organization runs 3 nodes with a threshold of 2.
 def regular_fbas_to_fbas_graph(regular_fbas) -> FBASGraph:
     """
     Convert a regular FBAS to a FBASGraph. A regular FBAS consists of a set of organizations where
@@ -129,49 +171,66 @@ def compute_clusters(fbas:dict[str,int]) -> list[set[str]]:
             n = part.get(index_of_threshold[t]+1, 0)
             clusters[i] |= set(orgs[:n])
             orgs = orgs[n:]
+
+    logging.info("computed %s clusters", len(clusters))
     return clusters
 
-def clusters_to_overlay(clusters:list[set[str]]) -> nx.Graph:
+def clusters_to_overlay(clusters:list[set[str]], num_validators:Optional[dict[str,int]]=None) -> nx.Graph:
     """
     Given a list of clusters, return the Constellation overlay graph.
+    The number of validators of each organization can be specified in the num_validators dict.
+    We assume by default that each organization has 3 validators.
+    Regardless of the its number of validators N, we assume each organization has an inner threshold of int(N/2)+1.
 
-    Each organization O has 3 nodes O_0, O_1, and O_2 that are fully connected.
+    Easy case: each organization O has 3 nodes O_0, O_1, and O_2 that form a fully connected graph.
+    If two organizations are in different clusters, then each node in the first organization is connected to each node in the second organization.
+    If two organizations O and O' are in the same cluster, then O_i is connected to O'_{i+1 mod 3} and O'{i+2 mod 3}.
+
+    In the general case, we still form a fully connected graph among each organization.
     If two organizations are in different clusters, then each node in the first organization is connected to each node in the second organization.
     If two organizations O and O' are in the same cluster, then O_i is connected to O'_{i+1 mod 3} and O'{i+2 mod 3}.
     """
+    # by default, assign 3 validators to each organization
+    num_validators = num_validators or {org: 3 for cluster in clusters for org in cluster}
     g = nx.Graph()
-    orgs = set.union(*clusters)
-    # map orgs to their cluster:
-    cluster_map = {org: i for i, cluster in enumerate(clusters) for org in cluster}
-    for org in orgs:
-        # first, connect the org's nodes in a complete graph:
-        # for all combinations i, j in {0, 1, 2} (where order does not matter), connect org_i to org_j:
-        for i, j in combinations(range(3), 2):
+    # first, connect the org's nodes in a complete graph
+    for org in set.union(*clusters):
+        for i, j in combinations(range(num_validators[org]), 2):
             g.add_edge(f'{org}_{i}', f'{org}_{j}')
-        # now connect the org's nodes to the nodes of other organizations in the same cluster:
-        cluster = clusters[cluster_map[org]]
-        for other_org in cluster:
-            if org == other_org:
-                continue
-            if cluster_map[other_org] == cluster_map[org]:
-                # same cluster:
-                for i in range(3):
-                    g.add_edge(f'{org}_{i}', f'{other_org}_{(i+1)%3}')
-                    g.add_edge(f'{org}_{i}', f'{other_org}_{(i+2)%3}')
+    # now connect the org's nodes to the nodes of other organizations in the same cluster:
+    for c in clusters:
+        for org, other_org in combinations(c, 2):
+            n = num_validators[org]
+            half = int(n/2)+1
+            n_other = num_validators[other_org]
+            half_other = int(n_other/2)+1
+            for i in range(n):
+                for j in range(half_other):
+                    g.add_edge(f'{org}_{i}', f'{other_org}_{(i+j)%n_other}')
+            for j in range(n_other):
+                for i in range(half):
+                    g.add_edge(f'{org}_{(j-i)%n}', f'{other_org}_{j}')
     # now create the inter-cluster edges:
     for c1, c2 in combinations(clusters, 2):
         max_c,min_c = (list(c1),list(c2)) if len(c1) > len(c2) else (list(c2),list(c1))
         for n, org in enumerate(max_c):
             other = min_c[n%len(min_c)]
-            for i,j in product(range(3), range(3)):
+            for i,j in product(range(num_validators[org]), range(num_validators[other])):
                 g.add_edge(f'{org}_{i}', f'{other}_{j}')
+    logging.info("The average degree of the overlay graph is %s", sum([d for n,d in g.degree()])/len(g.nodes()))
     return g
 
-def constellation_overlay(fbas:dict[str,int]) -> nx.Graph:
+def constellation_overlay(fbas:dict[str,int], num_validators:Optional[dict[str,int]]=None) -> nx.Graph:
     """
     Given a regular FBAS, return the Constellation overlay graph.
     """
     # first we transform the regular fbas into a single-universe regular fbas:
     clusters = compute_clusters(fbas)
-    logging.info("got %s clusters", len(clusters))
-    return clusters_to_overlay(clusters)
+    return clusters_to_overlay(clusters, num_validators=num_validators)
+
+def constellation_overlay_of_fbas_graph(fbas_graph:FBASGraph) -> nx.Graph:
+    """
+    Given a FBASGraph, return the Constellation overlay graph.
+    """
+    fbas, num_validators = fbas_graph_to_single_universe_regular(fbas_graph)
+    return constellation_overlay(fbas, num_validators=num_validators)
