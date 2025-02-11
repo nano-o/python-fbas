@@ -69,3 +69,13 @@ def test_overlay_from_file():
     with open(file, 'r', encoding='utf-8') as f:
         fbas = json.load(f)
     constellation_overlay(fbas)
+
+def test_greedy_overlay():
+    fbas = {'A':1, 'B':1}
+    g = greedy_overlay(fbas)
+    fbas = {'A':2, 'B':2, 'C':2, 'D':2}
+    g = greedy_overlay(fbas)
+    fbas = {'A':2, 'B':2, 'C':1, 'D':2}
+    g = greedy_overlay(fbas)
+    fbas = {'A':2, 'B':4, 'C':1, 'D':2}
+    g = greedy_overlay(fbas)

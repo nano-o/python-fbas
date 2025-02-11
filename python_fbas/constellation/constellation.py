@@ -234,3 +234,33 @@ def constellation_overlay_of_fbas_graph(fbas_graph:FBASGraph) -> nx.Graph:
     """
     fbas, num_validators = fbas_graph_to_single_universe_regular(fbas_graph)
     return constellation_overlay(fbas, num_validators=num_validators)
+
+def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
+    """
+    Given a single-universe regular FBAS, compute an overlay using the greedy strategy.
+    """
+    n_orgs = len(fbas.keys())
+    def req(org) -> int: # required number of connections (including to self)
+        return n_orgs - fbas[org] + 1
+    # sort the orgs in descending number of required connections:
+    sorted_orgs = sorted(fbas.keys(), key=lambda org: req(org), reverse=True)
+    g = nx.Graph()
+    for i, org in enumerate(sorted_orgs):
+        # connect org i to orgs i+1 to i+req(org), and if i+req(org) > n_orgs, then pick
+        # i+req(org)-n_orgs random additional orgs (not yet connected to) to connect to.
+        for j in range(i+1, i+req(org)): # only i+req(org)-1 because self counts as a connection
+            if j < n_orgs:
+                g.add_edge(org, sorted_orgs[j])
+            else:
+                # skip j if we already have enough connections:
+                if len(list(g.neighbors(org))) >= j-i:
+                    continue
+                # pick a random org not yet connected to:
+                not_connected = set(sorted_orgs) - (set(g.neighbors(org)) | {org})
+                g.add_edge(org, random.choice(list(not_connected)))
+    # now, until the diameter is 2, pick a longest path in the graph and add an edge between its endpoints:
+    while nx.diameter(g) > 2:
+        # find a longest path:
+        longest_path = max(nx.all_simple_paths(g, sorted_orgs[0], sorted_orgs[-1]), key=len)
+        g.add_edge(longest_path[0], longest_path[-1])
+    return g
