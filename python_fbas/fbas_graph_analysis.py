@@ -479,7 +479,7 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
 
 def num_not_blocked(fbas:FBASGraph, overlay:nx.Graph) -> int:
     """
-    Returns the number of validators that are not blocked by their set of overlay neighbors.
+    Returns the number of validators v such that v is not blocked by its set of neighbors in the overlay.
 
     If this returns 0 then we know that, for every quorum Q, if we remove Q from the overlay graph,
     then each remaining validator still has at least one neighbor. Note that this does not imply
@@ -491,3 +491,13 @@ def num_not_blocked(fbas:FBASGraph, overlay:nx.Graph) -> int:
         if not v in fbas.closure(peers):
             n += 1
     return n
+
+def is_fba_resilient_approx(fbas: FBASGraph, overlay:nx.Graph) -> bool:
+    """
+    Check if every node is blocked by its set of neighbors in the overlay. Note this does not guarantee connectivity under maximal failures (i.e. removing the complement of a quorum).
+    """
+    for v in fbas.validators:
+        peers = list(overlay.neighbors(v)) if v in overlay else []
+        if not v in fbas.closure(peers):
+            return False
+    return True
