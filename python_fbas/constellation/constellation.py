@@ -243,7 +243,7 @@ def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
     def req(org) -> int: # required number of connections (including to self)
         return n_orgs - fbas[org] + 1
     # sort the orgs in descending number of required connections:
-    sorted_orgs = sorted(fbas.keys(), key=lambda org: req(org), reverse=True)
+    sorted_orgs = sorted(fbas.keys(), key=req, reverse=True)
     g = nx.Graph()
     for i, org in enumerate(sorted_orgs):
         # connect org i to orgs i+1 to i+req(org), and if i+req(org) > n_orgs, then pick
@@ -258,9 +258,12 @@ def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
                 # pick a random org not yet connected to:
                 not_connected = set(sorted_orgs) - (set(g.neighbors(org)) | {org})
                 g.add_edge(org, random.choice(list(not_connected)))
-    # now, until the diameter is 2, pick a longest path in the graph and add an edge between its endpoints:
+    # now, until the diameter is 2, add random edges
+    # (picking a longest path in the graph and add an edge between its endpoints is too slow)
     while nx.diameter(g) > 2:
-        # find a longest path:
-        longest_path = max(nx.all_simple_paths(g, sorted_orgs[0], sorted_orgs[-1]), key=len)
-        g.add_edge(longest_path[0], longest_path[-1])
+        # add a random edge:
+        u, v = random.sample(g.nodes(), 2)
+        # add edge if distance > 2:
+        if nx.shortest_path_length(g, u, v) > 2:
+            g.add_edge(u, v)
     return g
