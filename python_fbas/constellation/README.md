@@ -10,11 +10,13 @@ Either use the docker image or install locally.
 
 ### Docker image
 
-The functionality is available as a pre-built docker image available at [https://hub.docker.com/r/giulianolosa/constellation/].
+The functionality is available as a pre-built docker image available at https://hub.docker.com/r/giulianolosa/constellation/.
 
 Use `docker pull giulianolosa/constellation` to pull the latest version.
 
 ### Local installation
+
+This is an alternative to using the docker image.
 
 Start in the top-level directory (i.e., the grand-parent of the directory this file belongs to).
 Create a virtual environment and activate it:
