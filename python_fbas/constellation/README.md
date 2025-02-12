@@ -33,3 +33,12 @@ To compute the Constellation overlay graph give a single-universe, regular FBAS 
 ```
 constellation compute-overlay --fbas data/11_orgs_single_univ.json --output overlay.json
 ```
+
+## Notebooks
+
+```
+cd ../../
+docker build -t constellation .
+docker run --rm -p 8888:8888 constellation start_jupyter
+```
+The follow the instructions.

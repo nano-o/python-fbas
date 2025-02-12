@@ -16,8 +16,16 @@ USER appuser
 # Set working directory
 WORKDIR /app
 
-# Copy the entire project
+# Copy only dependency files first (helps with caching)
+COPY --chown=appuser:appuser pyproject.toml ./
+
+# Install Python dependencies before copying the entire project
+RUN pip install --no-cache-dir --user .
+
+# Copy the entire project (triggers rebuild only if source changes)
 COPY --chown=appuser:appuser . .
+
+RUN pip install --no-cache-dir --user --no-deps .
 
 # Run make and install
 RUN make -C python_fbas/constellation/brute-force-search install PREFIX=/home/appuser/.local/bin
@@ -25,10 +33,9 @@ RUN make -C python_fbas/constellation/brute-force-search install PREFIX=/home/ap
 # Ensure the user-installed binaries are accessible
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 
-RUN pip install --no-cache-dir --user .
+# Copy Jupyter helper script into PATH
+COPY --chown=appuser:appuser start_jupyter.sh /home/appuser/.local/bin/start_jupyter
+RUN chmod +x /home/appuser/.local/bin/start_jupyter
 
-# Expose Jupyter Notebook port
-EXPOSE 8888
-
-# Default command to run Jupyter Notebook
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/app/python_fbas/constellation/notebooks/"]
+ENTRYPOINT ["/bin/bash", "-c", "exec \"$@\"", "--"]
+CMD ["bash"]

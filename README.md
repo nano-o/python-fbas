@@ -21,7 +21,12 @@ The paper [Efficient CNF Encoding of Boolean Cardinality Constraints](https://ci
 
 ## Usage
 
-Optionally create a virtual environment:
+We need some build tools. On Ubuntu/Debian:
+```
+sudo apt-get install cmake g++ libzmq3-dev zlib1g-dev
+```
+
+Next, optionally create a virtual environment (encouraged):
 
 ```
 python3 -m venv venv
