@@ -10,6 +10,8 @@ import subprocess
 from python_fbas.constellation.constellation import *
 import python_fbas.constellation.config as config
 
+# TODO allow taking a fbas in stellarbeat format as input
+
 def main():
     parser = argparse.ArgumentParser(description="Constellation CLI")
     # specify log level with --log-level, with default WARNING:

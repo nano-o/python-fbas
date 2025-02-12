@@ -1,11 +1,15 @@
 # Ignore large data files
-python_fbas/constellation/notebooks/data/tmp/
-python_fbas/constellation/data/random/
+**/tmp/
+**/random/
 
 # Ignore compiled Python files and cache directories
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+
+# virtual envs
+.venv
+venv
 
 # Ignore IDE configurations and version control files
 .git/

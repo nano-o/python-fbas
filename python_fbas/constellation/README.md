@@ -6,6 +6,16 @@ Constellation is described in an upcoming FC 2025 paper.
 
 ## Installation
 
+Either use the docker image or install locally.
+
+### Docker image
+
+The functionality is available as a pre-built docker image available at [https://hub.docker.com/r/giulianolosa/constellation/].
+
+Use `docker pull giulianolosa/constellation` to pull the latest version.
+
+### Local installation
+
 Start in the top-level directory (i.e., the grand-parent of the directory this file belongs to).
 Create a virtual environment and activate it:
 ```
@@ -15,7 +25,18 @@ source venv/bin/activate
 Next, run `pip install .` (or `pip install -e .` to keep updated during development).
 Finally, go to `python_fbas/constellation/brute-force-search/` and run `make install` (note this calls the gcc compiler).
 
-## Examples
+## Jupyter Notebooks
+
+There are several notebooks in `python_fbas/constellation/notebooks/` which allow reproducing some of the results in the paper.
+
+You can use the docker image to access them from a browser.
+Run `docker run --rm -p 8888:8888 giulianolosa/constellation:latest start_jupyter`
+Then look for the URL to access in the output of this command.
+
+## Commands
+
+There are two main commands available: `python-fbas` and `constellation`, which each prints its own help.
+`python-fbas` is additionally documented at the root of the project.
 
 To compute the Constellation clusters when there are 200 organizations where 100 have threshold 130 and 100 have threshold 140, try
 ```
@@ -34,11 +55,7 @@ To compute the Constellation overlay graph give a single-universe, regular FBAS 
 constellation compute-overlay --fbas data/11_orgs_single_univ.json --output overlay.json
 ```
 
-## Notebooks
-
+To run a command using the docker image, run e.g.
 ```
-cd ../../
-docker build -t constellation .
-docker run --rm -p 8888:8888 constellation start_jupyter
+docker run --rm -it giulianolosa/constellation:latest constellation compute-overlay --fbas python_fbas/constellation/data/11_orgs_single_univ.json --output=/dev/stdout
 ```
-Then follow the instructions.
