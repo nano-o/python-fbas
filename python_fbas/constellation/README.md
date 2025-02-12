@@ -41,4 +41,4 @@ cd ../../
 docker build -t constellation .
 docker run --rm -p 8888:8888 constellation start_jupyter
 ```
-The follow the instructions.
+Then follow the instructions.
