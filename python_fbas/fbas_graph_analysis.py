@@ -424,7 +424,7 @@ def min_history_loss_critical_set(fbas: FBASGraph) -> Tuple[Collection[str], Col
         logging.info("Quorum: %s", [fbas.with_name(v) for v in quorum])
         return (min_critical, quorum)
     
-def find_min_quorum(fbas: FBASGraph, not_subset_of = None, restrict_to_scc = True) -> Collection[str]:
+def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, restrict_to_scc = True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.
     If not_subset_of is a set of validators, then the quorum should contain at least one validator outside this set.
@@ -448,8 +448,6 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, restrict_to_scc = Tru
         # Now we have an scc that contains a quorum. Find a minimal quorum in it.
         scc = sccs[0]
         fbas = fbas.project(scc & fbas.validators)
-    else:
-        scc = fbas.validators
 
     if not fbas.validators:
         logging.info("The projected FBAS is empty!")
@@ -469,21 +467,29 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, restrict_to_scc = Tru
     
     def quorum_constraints_(q:str) -> list[Formula]:
         constraints:list[Formula] = []
-        constraints += [Or(*[in_quorum(q, n) for n in fbas.validators & set(scc) if fbas.threshold(n) > 0])]
+        constraints += [Or(*[in_quorum(q, n) for n in fbas.validators if fbas.threshold(n) > 0])]
         constraints += quorum_constraints(fbas, lambda n: in_quorum(q, n))
         return constraints
 
     # The set 'A' is a quorum in the scc:
     qa_constraints:list[Formula] = quorum_constraints_('A')
+
     # it contains at least one validator outside not_subset_of:
     if not_subset_of:
-        qa_constraints += [Or(*[in_quorum('A', n) for n in fbas.validators & set(scc) if n not in not_subset_of])]
+        qa_constraints += [Or(*[in_quorum('A', n) for n in fbas.validators if n not in not_subset_of])]
+    # it is not equal to any of the quorums in not_equal_to:
+    if not_equal_to:
+        for s in not_equal_to:
+            assert set(s) <= fbas.validators
+            qa_constraints += [Or(
+                Or(*[Not(in_quorum('A', n)) for n in s]),
+                Or(*[in_quorum('A', n) for n in fbas.validators - set(s)]))]
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
+    # TODO does not seem to work...
     qb_quorum = And(*quorum_constraints_('B'))
-    qb_subset_qa = And(*(
-        [Or(Not(in_quorum('B', n)), in_quorum('A', n)) for n in fbas.validators]
-        + [Or(And(in_quorum('A', n), Not(in_quorum('B', n)))) for n in fbas.validators]))
+    qb_subset_qa = And(
+        *[Implies(in_quorum('B', n), in_quorum('A', n)) for n in fbas.validators])
     qb_constraints = Implies(qb_subset_qa, Not(qb_quorum))
 
     qa_clauses = to_cnf(qa_constraints)
@@ -502,6 +508,11 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, restrict_to_scc = Tru
     if res:
         model = s.get_model()
         qa = get_quorum_(model, 'A', fbas)
+        assert fbas.is_quorum(qa, over_approximate=True)
+        if not_subset_of:
+            assert not set(qa) <= set(not_subset_of)
+            if fbas.is_quorum(not_subset_of, over_approximate=False):
+                assert not set(not_subset_of) <= set(qa)
         logging.info("Minimal quorum found: %s", qa)
         return qa
     else:
@@ -564,7 +575,7 @@ def top_tier(fbas: FBASGraph) -> Collection[str]:
 
 def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
     """
-    Check if the overlay is FBA-resilient. That is, for every quorum Q, remove the complement of Q should not disconnect the overlay graph.
+    Check if the overlay is FBA-resilient. That is, for every quorum Q, removing the complement of Q should not disconnect the overlay graph.
     """
     quorum_tag:int = 0
     def in_quorum(v:str) -> Atom:
