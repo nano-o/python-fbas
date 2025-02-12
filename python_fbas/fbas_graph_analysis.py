@@ -545,7 +545,6 @@ def max_scc(fbas: FBASGraph) -> Collection[str]:
 def top_tier(fbas: FBASGraph) -> Collection[str]:
     """
     Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
-    TODO: could probably be improved.
     """
 
     # First, find all sccs that contain at least one quorum:
