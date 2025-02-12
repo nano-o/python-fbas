@@ -39,6 +39,16 @@ class QSet:
             case _:
                 raise ValueError(f"Invalid qset: {qset}")
 
+    def to_dict(self) -> dict:
+        """
+        Returns a JSON-serializable dict in stellarbeat.io format.
+        """
+        return {
+            'threshold': self.threshold,
+            'validators': list(self.validators),
+            'innerQuorumSets': [iqs.to_dict() for iqs in self.inner_quorum_sets]
+        }
+    
 class FBASGraph:
     """
     A graph whose vertices are either validators or QSets.

@@ -12,6 +12,8 @@ import python_fbas.constellation.config as config
 def fbas_graph_to_single_universe_regular(fbas_graph:FBASGraph) -> Tuple[dict[str,int], dict[str,int]]:
     """
     Convert a FBASGraph to a single-universe regular FBAS, along with the number of validators of each organization.
+
+    TODO this should return a dict mapping to pairs no?
     """
     thresholds:dict[str,int] = {}
     num_validators:dict[str,int] = {}
@@ -62,8 +64,10 @@ def single_universe_regular_fbas_to_fbas_graph(fbas:dict[str,int]) -> FBASGraph:
     # Each org has 3 validators and inner threshold 2:
     inner_qsets = [{'threshold': 2, 'validators': [f'{org}_1', f'{org}_2', f'{org}_3'], 'innerQuorumSets': []} for org in fbas]
     for org in fbas:
+        qset = {'threshold': fbas[org], 'validators': [], 'innerQuorumSets': inner_qsets}
+        attrs = {'homeDomain': org}
         for i in range(1, 4):
-            fbas_graph.update_validator(f'{org}_{i}', {'threshold': fbas[org], 'validators': [], 'innerQuorumSets': inner_qsets})
+            fbas_graph.update_validator(f'{org}_{i}', qset, attrs)
     return fbas_graph
 
 def load_survey_graph(file_name) -> nx.Graph:
