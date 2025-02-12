@@ -18,7 +18,7 @@ WORKDIR /app
 # Copy the entire project
 COPY --chown=appuser:appuser . .
 
-# Run make and install to /app/bin/
+# Run make and install
 RUN make -C python_fbas/constellation/brute-force-search install PREFIX=/home/appuser/.local/bin
 
 # Ensure the user-installed binaries are accessible
@@ -30,6 +30,6 @@ RUN pip install --no-cache-dir --user .
 EXPOSE 8888
 
 # Default command to run Jupyter Notebook
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/app/python_fbas/constellation"]
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/app/python_fbas/constellation/notebooks/"]
 
 # apt-get -y install cmake g++ libzmq3-dev zlib1g-dev
