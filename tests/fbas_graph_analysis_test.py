@@ -86,6 +86,24 @@ def test_min_blocking_set_4():
         config.card_encoding = 'totalizer'
         find_minimal_blocking_set(fbas_graph)
 
+def test_min_quorum():
+    qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
+    fbas1 = FBASGraph()
+    for v in ['PK1','PK2','PK3','PK4']:
+        fbas1.update_validator(v, qset1)
+    assert len(find_min_quorum(fbas1)) == 3
+
+def test_min_quorum_2():
+    data = get_test_data_list()
+    for f,d in data.items():
+        if "validators" in f:
+            logging.info("skipping %s", f)
+            continue
+        else:
+            logging.info("loading graph of %s", f)
+            fbas_graph = FBASGraph.from_json(d)
+            find_min_quorum(fbas_graph)
+
 def test_contains_quorum():
     qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
     fbas1 = FBASGraph()

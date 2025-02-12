@@ -4,6 +4,7 @@ FROM python:3.11
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    cmake g++ libzmq3-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user and group
@@ -31,5 +32,3 @@ EXPOSE 8888
 
 # Default command to run Jupyter Notebook
 CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/app/python_fbas/constellation/notebooks/"]
-
-# apt-get -y install cmake g++ libzmq3-dev zlib1g-dev
