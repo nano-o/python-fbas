@@ -154,7 +154,8 @@ def compute_clusters(fbas:dict[str,int]) -> list[set[str]]:
     args = args + [config.min_cluster_size, config.max_num_clusters if config.max_num_clusters else n_orgs]
     # obtain the optimal partition:
     logging.debug("calling optimal_cluster_assignment with args: %s", args)
-    output = subprocess.run(['optimal_cluster_assignment'] + [str(x) for x in args], capture_output=True, text=True, check=True)
+    output = subprocess.run(['optimal_cluster_assignment'] + [str(x) for x in args],
+                            capture_output=True, text=True, check=True, timeout=config.timeout) # exception on timeout
     partition = parse_output(output.stdout) # TODO error handling
     # now assign organizations to the clusters
     threshold_map:dict[int,list[str]] = {} # map each threshold to the set of organizations that have it
@@ -235,35 +236,60 @@ def constellation_overlay_of_fbas_graph(fbas_graph:FBASGraph) -> nx.Graph:
     fbas, num_validators = fbas_graph_to_single_universe_regular(fbas_graph)
     return constellation_overlay(fbas, num_validators=num_validators)
 
+import networkx as nx
+import random
+
+def reduce_diameter_to_2(g):
+    """ Randomly adds edges to reduce the graph's diameter to at most 2. """
+    # Check initial diameter
+    if nx.diameter(g) <= 2:
+        return g
+    # Find shortest paths up to distance 3
+    shortest_paths = dict(nx.all_pairs_shortest_path_length(g, cutoff=3))
+    # Identify node pairs at distance >= 3
+    distant_pairs = [(u, v) for u in shortest_paths for v in shortest_paths[u] if shortest_paths[u][v] >= 3]
+    # Randomly shuffle distant pairs
+    random.shuffle(distant_pairs)
+    # Add edges iteratively until diameter is 2
+    for u, v in distant_pairs:
+        g.add_edge(u, v)
+        if nx.diameter(g) <= 2:
+            break  # Stop early if diameter is already reduced
+    return g
+
 def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
     """
     Given a single-universe regular FBAS, compute an overlay using the greedy strategy.
     """
-    n_orgs = len(fbas.keys())
+
+    # first we create a graph over orgs
+    orgs = list(fbas.keys())
+    n_orgs = len(orgs)
     def req(org) -> int: # required number of connections (including to self)
         return n_orgs - fbas[org] + 1
     # sort the orgs in descending number of required connections:
     sorted_orgs = sorted(fbas.keys(), key=req, reverse=True)
-    g = nx.Graph()
+    orgs_graph = nx.Graph()
     for i, org in enumerate(sorted_orgs):
         # connect org i to orgs i+1 to i+req(org), and if i+req(org) > n_orgs, then pick
         # i+req(org)-n_orgs random additional orgs (not yet connected to) to connect to.
         for j in range(i+1, i+req(org)): # only i+req(org)-1 because self counts as a connection
             if j < n_orgs:
-                g.add_edge(org, sorted_orgs[j])
+                orgs_graph.add_edge(org, sorted_orgs[j])
             else:
                 # skip j if we already have enough connections:
-                if len(list(g.neighbors(org))) >= j-i:
+                if len(list(orgs_graph.neighbors(org))) >= j-i:
                     continue
                 # pick a random org not yet connected to:
-                not_connected = set(sorted_orgs) - (set(g.neighbors(org)) | {org})
-                g.add_edge(org, random.choice(list(not_connected)))
-    # now, until the diameter is 2, add random edges
-    # (picking a longest path in the graph and add an edge between its endpoints is too slow)
-    while nx.diameter(g) > 2:
-        # add a random edge:
-        u, v = random.sample(g.nodes(), 2)
-        # add edge if distance > 2:
-        if nx.shortest_path_length(g, u, v) > 2:
-            g.add_edge(u, v)
+                not_connected = set(sorted_orgs) - (set(orgs_graph.neighbors(org)) | {org})
+                orgs_graph.add_edge(org, random.choice(list(not_connected)))
+
+    # next we make the node to node connections
+    g = nx.Graph()
+    for o1, o2 in combinations(orgs, 2):
+        for i in range(1, 4):
+            for j in range(-1,2):
+                g.add_edge(f'{o1}_{i}', f'{o2}_{(i+j)%3+1}')
+    # finally, we reduce the diameter to 2:
+    g = reduce_diameter_to_2(g)
     return g
