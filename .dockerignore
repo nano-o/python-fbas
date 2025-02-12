@@ -1,6 +1,6 @@
 # Ignore large data files
+python_fbas/constellation/notebooks/data/tmp/
 python_fbas/constellation/data/random/
-python_fbas/constellation/data/tmp/
 
 # Ignore compiled Python files and cache directories
 **/__pycache__/
