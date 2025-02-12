@@ -21,11 +21,16 @@ TARGET2 = optimal_cluster_assignment
 all: $(TARGET1) $(TARGET2)
 
 install: $(TARGET2)
-	if [ -n "$(VIRTUAL_ENV)" ]; then \
+	if [ -n "$(PREFIX)" ]; then \
+		mkdir -p $(PREFIX); \
+		cp $(TARGET2) $(PREFIX)/; \
+		echo "Executable installed to $(PREFIX)/"; \
+	elif [ -n "$(VIRTUAL_ENV)" ]; then \
 		cp $(TARGET2) $(VIRTUAL_ENV)/bin/; \
 		echo "Executable installed to $(VIRTUAL_ENV)/bin/"; \
 	else \
-		echo "No virtual environment detected! Aborting."; \
+		echo "No installation path provided and no virtual environment detected! Aborting."; \
+		exit 1; \
 	fi
 
 # Rule to build program1
