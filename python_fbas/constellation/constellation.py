@@ -62,11 +62,11 @@ def single_universe_regular_fbas_to_fbas_graph(fbas:dict[str,int]) -> FBASGraph:
         assert fbas[org] > 0 and fbas[org] <= len(fbas)
     fbas_graph = FBASGraph()
     # Each org has 3 validators and inner threshold 2:
-    inner_qsets = [{'threshold': 2, 'validators': [f'{org}_1', f'{org}_2', f'{org}_3'], 'innerQuorumSets': []} for org in fbas]
+    inner_qsets = [{'threshold': 2, 'validators': [f'{org}_0', f'{org}_1', f'{org}_2'], 'innerQuorumSets': []} for org in fbas]
     for org in fbas:
         qset = {'threshold': fbas[org], 'validators': [], 'innerQuorumSets': inner_qsets}
         attrs = {'homeDomain': org}
-        for i in range(1, 4):
+        for i in range(0, 3):
             fbas_graph.update_validator(f'{org}_{i}', qset, attrs)
     return fbas_graph
 
@@ -103,13 +103,13 @@ def regular_fbas_to_fbas_graph(regular_fbas) -> FBASGraph:
 
     # now build the FBASGraph
     def org_inner_qset(o):
-        return {'threshold': 2, 'validators': [f'{o}_1', f'{o}_2', f'{o}_3'], 'innerQuorumSets': []}
+        return {'threshold': 2, 'validators': [f'{o}_0', f'{o}_1', f'{o}_2'], 'innerQuorumSets': []}
     fbas_graph = FBASGraph()
     for org in regular_fbas:
         match regular_fbas[org]:
             case (threshold, orgs):
                 qset = {'threshold': threshold, 'validators': [],'innerQuorumSets': [org_inner_qset(o) for o in orgs]}
-                for n in range(1, 4):
+                for n in range(0, 3):
                     fbas_graph.update_validator(f'{org}_{n}', qset)
     return fbas_graph
 
