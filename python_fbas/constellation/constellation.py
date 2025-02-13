@@ -291,9 +291,9 @@ def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
     # next we make the node to node connections
     g = nx.Graph()
     for o1, o2 in combinations(orgs, 2):
-        for i in range(1, 4):
-            for j in range(-1,2):
-                g.add_edge(f'{o1}_{i}', f'{o2}_{(i+j)%3+1}')
+        for i in range(0, 3):
+            for j in range(0,3):
+                g.add_edge(f'{o1}_{i}', f'{o2}_{(i+j)%3}')
     # finally, we reduce the diameter to 2:
     g = reduce_diameter_to_2(g)
     return g
