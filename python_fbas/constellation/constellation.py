@@ -231,7 +231,9 @@ def constellation_overlay(fbas:dict[str,int], num_validators:Optional[dict[str,i
     """
     # first we transform the regular fbas into a single-universe regular fbas:
     clusters = compute_clusters(fbas)
-    return clusters_to_overlay(clusters, num_validators=num_validators)
+    g = clusters_to_overlay(clusters, num_validators=num_validators)
+    assert nx.diameter(g) <= 2, "The diameter of the overlay graph is greater than 2"
+    return g
 
 def constellation_overlay_of_fbas_graph(fbas_graph:FBASGraph) -> nx.Graph:
     """
@@ -268,32 +270,36 @@ def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
 
     # first we create a graph over orgs
     orgs = list(fbas.keys())
-    n_orgs = len(orgs)
-    def req(org) -> int: # required number of connections (including to self)
-        return n_orgs - fbas[org] + 1
-    # sort the orgs in descending number of required connections:
-    sorted_orgs = sorted(fbas.keys(), key=req, reverse=True)
+    num_orgs = len(orgs)
     orgs_graph = nx.Graph()
-    for i, org in enumerate(sorted_orgs):
-        # connect org i to orgs i+1 to i+req(org), and if i+req(org) > n_orgs, then pick
-        # i+req(org)-n_orgs random additional orgs (not yet connected to) to connect to.
-        for j in range(i+1, i+req(org)): # only i+req(org)-1 because self counts as a connection
-            if j < n_orgs:
+    def req(org) -> int: # required number of connections (including to self)
+        num_neighbors = len(list(orgs_graph.neighbors(org))) if org in orgs_graph else 0
+        return num_orgs - fbas[org] - num_neighbors
+    # while some organization has a non-zero required number of connections:
+    while (any(req(org) > 0 for org in orgs)):
+        # sort the orgs by their required number of connections, in reverse order:
+        sorted_orgs = sorted(orgs, key=req, reverse=True)
+        # pick the first org in the sorted list:
+        org = sorted_orgs[0]
+        j = 1
+        while (req(org) > 0):
+            # connect org to orgs[j] if we don't already have an edge to it:
+            if not orgs_graph.has_edge(org, sorted_orgs[j]):
                 orgs_graph.add_edge(org, sorted_orgs[j])
-            else:
-                # skip j if we already have enough connections:
-                if len(list(orgs_graph.neighbors(org))) >= j-i:
-                    continue
-                # pick a random org not yet connected to:
-                not_connected = set(sorted_orgs) - (set(orgs_graph.neighbors(org)) | {org})
-                orgs_graph.add_edge(org, random.choice(list(not_connected)))
+            j += 1
+            assert j <= num_orgs
 
     # next we make the node to node connections
     g = nx.Graph()
+    # first, inter-org connections:
     for o1, o2 in combinations(orgs, 2):
         for i in range(0, 3):
-            for j in range(0,3):
+            for j in range(0, 2):
                 g.add_edge(f'{o1}_{i}', f'{o2}_{(i+j)%3}')
+    # then, intra-org connections:
+    for o in orgs:
+        for i in range(0, 2):
+            g.add_edge(f'{o}_{i}', f'{o}_{i+1}')
     # finally, we reduce the diameter to 2
     # NOTE seems diameter is already 2 in most cases
     g = reduce_diameter_to_2(g)
