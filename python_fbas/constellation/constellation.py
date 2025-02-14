@@ -240,20 +240,20 @@ def constellation_overlay_of_fbas_graph(fbas_graph:FBASGraph) -> nx.Graph:
     fbas, num_validators = fbas_graph_to_single_universe_regular(fbas_graph)
     return constellation_overlay(fbas, num_validators=num_validators)
 
-import networkx as nx
-import random
 
 def reduce_diameter_to_2(g):
     """ Randomly adds edges to reduce the graph's diameter to at most 2. """
     # Check initial diameter
     if nx.diameter(g) <= 2:
         return g
-    # Find shortest paths up to distance 3
-    shortest_paths = dict(nx.all_pairs_shortest_path_length(g, cutoff=3))
+    # Find shortest paths
+    shortest_paths = dict(nx.all_pairs_shortest_path_length(g))
     # Identify node pairs at distance >= 3
     distant_pairs = [(u, v) for u in shortest_paths for v in shortest_paths[u] if shortest_paths[u][v] >= 3]
-    # Randomly shuffle distant pairs
-    random.shuffle(distant_pairs)
+    # remove permutations:
+    distant_pairs = set(tuple(sorted(pair)) for pair in distant_pairs)
+    # sort by decreasing shortest path:
+    distant_pairs = sorted(distant_pairs, key=lambda x: shortest_paths[x[0]][x[1]], reverse=True)
     # Add edges iteratively until diameter is 2
     for u, v in distant_pairs:
         g.add_edge(u, v)
@@ -294,6 +294,7 @@ def greedy_overlay(fbas:dict[str,int]) -> nx.Graph:
         for i in range(0, 3):
             for j in range(0,3):
                 g.add_edge(f'{o1}_{i}', f'{o2}_{(i+j)%3}')
-    # finally, we reduce the diameter to 2:
+    # finally, we reduce the diameter to 2
+    # NOTE seems diameter is already 2 in most cases
     g = reduce_diameter_to_2(g)
     return g
