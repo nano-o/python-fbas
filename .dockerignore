@@ -1,0 +1,20 @@
+build/
+
+# Ignore large data files
+**/tmp/
+**/random/
+
+# Ignore compiled Python files and cache directories
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.mypy_cache/
+
+# virtual envs
+.venv
+venv
+
+# Ignore IDE configurations and version control files
+.git/
+.vscode/
+.idea/

@@ -19,7 +19,17 @@ When reasoning about a FBAS, we often encounter cardinality constraints that ass
 To encode this efficiently in propositional logic, we use the totalizer encoding provided by pysat.
 The paper [Efficient CNF Encoding of Boolean Cardinality Constraints](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=a9481bf4ce2b5c20d2e282dd69dcb92bddcc36c9) describes the theory behind it, and it is a nice trick.
 
-## Usage
+## Installation
+
+Either use the docker image or install locally.
+
+### Docker image
+
+The functionality is available as a pre-built docker image available at https://hub.docker.com/r/giulianolosa/constellation/.
+
+Use `docker pull giulianolosa/python-fbas` to pull the latest version.
+
+### Local installation
 
 Optionally create a virtual environment:
 
@@ -38,10 +48,15 @@ Run the tests:
 pip install pytest
 python3 -m pytest
 ```
+## Usage
 
 Run the main script and obtain the help message:
 ```
 python-fbas
+```
+If you are using the docker image:
+```
+docker run --rm -it giulianolosa/python-fbas:latest python-fbas
 ```
 
 To check whether the current Stellar network, according to data from [stellarbeat.io](https://stellarbeat.io), has quorum intersection:

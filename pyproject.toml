@@ -11,8 +11,10 @@ dependencies = [
     "pytest==8.3.3",
     "python-sat==1.8.dev13",
     "requests==2.32.3",
-    "pyqbf@git+https://gitlab.sai.jku.at/qbf/pyqbf@b7a65070901de2cc9fdc9e3911947463127a4183",
-    "z3-solver==4.13.3.0"
+    "z3-solver==4.13.3.0",
+    "matplotlib==3.9.2",
+    "jupyter==1.1.1",
+    "pyqbf@git+https://gitlab.sai.jku.at/qbf/pyqbf@b7a65070901de2cc9fdc9e3911947463127a4183"
 ]
 
 [project.scripts]
