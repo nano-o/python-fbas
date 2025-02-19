@@ -74,6 +74,9 @@ class Card(Formula):
         self.threshold = threshold
         self.operands = list(operands)
 
+def equiv(f1, f2) -> Formula:
+    return And(Implies(f1, f2), Implies(f2, f1))
+
 # Now on to CNF conversion
 
 Clauses = list[list[int]]

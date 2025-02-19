@@ -1,8 +1,9 @@
 import logging
+import networkx as nx
 from test_utils import get_test_data_list, get_validators_from_test_fbas
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas import config
-from python_fbas.fbas_graph_analysis import find_minimal_splitting_set, find_disjoint_quorums, find_minimal_blocking_set, find_min_quorum, contains_quorum, top_tier
+from python_fbas.fbas_graph_analysis import *
 
 def test_qi_():
     config.card_encoding = 'totalizer'
@@ -137,3 +138,41 @@ def test_top_tier_2():
             logging.info("loading graph of %s", f)
             fbas_graph = FBASGraph.from_json(d)
             top_tier(fbas_graph)
+
+def test_is_overlay_resilient():
+    qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
+    fbas1 = FBASGraph()
+    for v in ['PK1','PK2','PK3','PK4']:
+        fbas1.update_validator(v, qset1)
+    g1 = nx.complete_graph(iter(['PK1','PK2','PK3','PK4']))
+    assert is_overlay_resilient(fbas1, g1)
+    g2 = nx.Graph()
+    assert not is_overlay_resilient(fbas1, g2)
+    g3 = nx.Graph()
+    g3.add_edges_from([('PK1','PK2'), ('PK3','PK4')])
+    assert not is_overlay_resilient(fbas1, g3)
+    g4 = nx.Graph()
+    g4.add_edges_from([('PK1','PK2'), ('PK2','PK3'), ('PK3','PK4')])
+    assert not is_overlay_resilient(fbas1, g4)
+    g5 = nx.Graph()
+    g5.add_edges_from([('PK1','PK2'), ('PK2','PK3'), ('PK3','PK4'), ('PK4','PK1')])
+    assert is_overlay_resilient(fbas1, g5)
+
+def test_num_not_blocked():
+    qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
+    fbas1 = FBASGraph()
+    for v in ['PK1','PK2','PK3','PK4']:
+        fbas1.update_validator(v, qset1)
+    g1 = nx.complete_graph(iter(['PK1','PK2','PK3','PK4']))
+    assert num_not_blocked(fbas1, g1) == 0
+    g2 = nx.Graph()
+    assert num_not_blocked(fbas1, g2) == 4
+    g3 = nx.Graph()
+    g3.add_edges_from([('PK1','PK2'), ('PK3','PK4')])
+    assert num_not_blocked(fbas1, g3) == 4
+    g4 = nx.Graph()
+    g4.add_edges_from([('PK1','PK2'), ('PK2','PK3'), ('PK3','PK4')])
+    assert num_not_blocked(fbas1, g4) == 2
+    g5 = nx.Graph()
+    g5.add_edges_from([('PK1','PK2'), ('PK2','PK3'), ('PK3','PK4'), ('PK4','PK1')])
+    assert num_not_blocked(fbas1, g5) == 0
