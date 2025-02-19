@@ -25,7 +25,7 @@ Either use the docker image or install locally.
 
 ### Docker image
 
-The functionality is available as a pre-built docker image available at https://hub.docker.com/r/giulianolosa/constellation/.
+The functionality is available as a pre-built docker image available at https://hub.docker.com/r/giulianolosa/python-fbas/.
 
 Use `docker pull giulianolosa/python-fbas` to pull the latest version.
 
