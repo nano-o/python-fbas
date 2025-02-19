@@ -87,7 +87,7 @@ def find_disjoint_quorums(fbas: FBASGraph) -> Optional[Tuple[Collection, Collect
         return [variables_inv[v][2] for v in set(atoms) & set(variables_inv.keys())
                 if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
                     and variables_inv[v][2] in fbas.validators]
-    
+
     start_time = time.time()
     constraints : list[Formula] = []
     for q in ['A', 'B']: # our two quorums
@@ -127,7 +127,7 @@ def find_disjoint_quorums(fbas: FBASGraph) -> Optional[Tuple[Collection, Collect
         assert not set(q1) & set(q2)
         return (q1, q2)
     return None
-    
+
 def maximize(wcnf:WCNF) -> Optional[Tuple[int, Any]]:
     """
     Solve a MaxSAT CNF problem.
@@ -177,7 +177,7 @@ def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Co
         """Given a list of atoms, returns the faulty validators."""
         return [variables_inv[v][1] for v in set(atoms) & set(variables_inv.keys()) \
                 if variables_inv[v][0] == faulty_tag]
-    
+
     start_time = time.time()
     constraints : list[Formula] = []
 
@@ -276,7 +276,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
     def faulty(v:str) -> Atom:
         return Atom((faulty_tag,v))
-    
+
     def blocked(v:str) -> Atom:
         return Atom((blocked_tag,v))
 
@@ -285,10 +285,10 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         v1 is strictly lower than v2
         """
         return Atom((v1, v2))
-    
+
     def blocking_threshold(v) -> int:
         return len(list(fbas.graph.successors(v))) - fbas.threshold(v) + 1
-    
+
     # first, the threshold constraints:
     for v in fbas.vertices():
         constraints.append(Or(faulty(v), blocked(v)))
@@ -317,7 +317,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             for v2 in scc:
                 for v3 in scc:
                     constraints.append(Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
-    
+
     groups = set()
     if config.group_by:
         # we add constraints assert that the group is faulty if and only if all its members are faulty
@@ -365,7 +365,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             return s
         else:
             return [g for g in s if g in groups]
-        
+
 def min_history_loss_critical_set(fbas: FBASGraph) -> Tuple[Collection[str], Collection[str]]:
     """
     Return a set of minimal cardinality such that, should the validators in the set stop publishing valid history, the history may be lost.
@@ -381,10 +381,10 @@ def min_history_loss_critical_set(fbas: FBASGraph) -> Tuple[Collection[str], Col
 
     def has_hist_error(v) -> Atom:
         return Atom((hist_error_tag,v))
-    
+
     def in_critical_quorum(v) -> Atom:
         return Atom((in_critical_quorum_tag,v))
-    
+
     def in_crit_no_error(v) -> Atom:
         return Atom((in_crit_no_error_tag,v))
 
@@ -423,7 +423,7 @@ def min_history_loss_critical_set(fbas: FBASGraph) -> Tuple[Collection[str], Col
         logging.info("Minimal-cardinality history-critical set: %s", [fbas.with_name(v) for v in min_critical])
         logging.info("Quorum: %s", [fbas.with_name(v) for v in quorum])
         return (min_critical, quorum)
-    
+
 def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, restrict_to_scc = True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.
@@ -444,7 +444,7 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
         if len(sccs) == 0:
             logging.warning("Found no SCC that contains a quorum. This should not happen!")
             return []
-        
+
         # Now we have an scc that contains a quorum. Find a minimal quorum in it.
         scc = sccs[0]
         fbas = fbas.project(scc & fbas.validators)
@@ -458,13 +458,13 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
     def in_quorum(q:str, n:str) -> Atom:
         """Returns an atom denoting whether node n is in quorum q."""
         return Atom((quorum_tag, q, n))
-    
+
     def get_quorum_(atoms:list[int], q:str, fbas:FBASGraph) -> list[str]:
         """Given a list of atoms, returns the validators in quorum q."""
         return [variables_inv[v][2] for v in set(atoms) & set(variables_inv.keys())
                 if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
                     and variables_inv[v][2] in fbas.validators]
-    
+
     def quorum_constraints_(q:str) -> list[Formula]:
         constraints:list[Formula] = []
         constraints += [Or(*[in_quorum(q, n) for n in fbas.validators if fbas.threshold(n) > 0])]
@@ -486,7 +486,6 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
                 Or(*[in_quorum('A', n) for n in fbas.validators - set(s)]))]
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
-    # TODO does not seem to work...
     qb_quorum = And(*quorum_constraints_('B'))
     qb_subset_qa = And(
         *[Implies(in_quorum('B', n), in_quorum('A', n)) for n in fbas.validators])
@@ -501,7 +500,7 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
     qb_tseitin_atoms:set[int] = atoms_of_clauses(qb_clauses) - (qb_vertex_atoms | qa_atoms)
 
     pcnf.exists(*list(qa_atoms)).forall(*list(qb_vertex_atoms)).exists(*list(qb_tseitin_atoms))
-    
+
     # solvers: 'depqbf', 'qute', 'rareqs', 'qfun', 'caqe'
     s = QSolver(name='depqbf', bootstrap_with=pcnf)
     res = s.solve()
@@ -518,12 +517,11 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
     else:
         logging.info("No minimal quorum found!")
         return []
-    
+
 
 def max_scc(fbas: FBASGraph) -> Collection[str]:
     """
-    Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
-    TODO: for now, just return the max scc (pyqbf causing issues)
+    Compute a maximal strongly-connected component that contains a quorum
     """
 
     # First, find all sccs that contain at least one quorum:
@@ -559,7 +557,7 @@ def top_tier(fbas: FBASGraph) -> Collection[str]:
         logging.warning("There are disjoint quorums")
     if len(sccs) == 0:
         logging.warning("Found no SCC that contains a quorum. This should not happen!")
-        return []    
+        return []
     # Project onto one of the sccs:
     scc = sccs[0]
     fbas = fbas.project(scc & fbas.validators)
