@@ -63,10 +63,10 @@ class FBASGraph:
         fbas.qset_count = self.qset_count
         fbas.qsets = self.qsets.copy()
         return fbas
-    
+
     def vertices(self, data=False) -> NodeView:
         return self.graph.nodes(data=data)
-    
+
     def vertice_attrs(self, n: str) -> dict:
         return self.graph.nodes[n]
 
@@ -100,7 +100,7 @@ class FBASGraph:
                 assert n in self.qsets.keys()
             if n in self.graph.successors(n):
                 raise ValueError(f"Integrity check failed: vertex {n} has a self-loop")
-            
+
     def stats(self):
         """Compute some basic statistics"""
         def thresholds_distribution():
@@ -110,13 +110,13 @@ class FBASGraph:
             'num_edges' : len(self.graph.edges()),
             'thresholds_distribution' : thresholds_distribution()
         }
-    
+
     def with_name(self, validator:str) -> str:
         if 'name' in self.vertice_attrs(validator) and self.vertice_attrs(validator)['name']:
             return validator + " (" + self.vertice_attrs(validator)['name'] + ")"
         else:
             return validator
-        
+
     def add_validator(self, v:Any) -> None:
         """Add a validator to the graph."""
         self.graph.add_node(v)
@@ -147,7 +147,7 @@ class FBASGraph:
             out_edges = list(self.graph.out_edges(v))
             self.graph.remove_edges_from(out_edges)
             self.graph.add_edge(v, fqs)
-    
+
     def add_qset(self, qset: dict) -> str:
         """
         Takes a qset as a JSON-serializable dict in stellarbeat.io format.
@@ -189,7 +189,7 @@ class FBASGraph:
             return -1
         else:
             raise ValueError(f"Vertex {n} has no threshold attribute and out-degree > 1")
-    
+
     def qset_vertex_of(self, n: str) -> str:
         """
         n must be a validator vertex that has a successor.
@@ -198,7 +198,7 @@ class FBASGraph:
         assert n in self.validators
         assert self.graph.out_degree(n) == 1
         return next(self.graph.successors(n))
-    
+
     @staticmethod
     def from_json(data : list, from_stellarbeat = False) -> 'FBASGraph':
         """
@@ -236,7 +236,7 @@ class FBASGraph:
             fbas.update_validator(v['publicKey'], v['quorumSet'], v)
         fbas.check_integrity()
         return fbas
-    
+
     def is_qset_sat(self, q: str, s: Collection[str]) -> bool:
         """
         Returns True if and only if q's agreement requirements are satisfied by s.
@@ -252,7 +252,7 @@ class FBASGraph:
                 sum(1 for c in self.graph.successors(q) if
                     c not in self.validators and self.is_qset_sat(c, s)
                     or c in self.validators and c in s)
-    
+
     def is_sat(self, n: Any, s: Collection, over_approximate=True) -> bool:
         """
         Returns True if and only if n's agreement requirements are satisfied by s.
@@ -278,7 +278,7 @@ class FBASGraph:
             logging.error("Quorum made of validators which do not have a qset: %s (%s are excluded)", vs, no_requirements or set())
             assert False
         return all(self.is_sat(v, vs, over_approximate) for v in to_check)
-    
+
     def find_disjoint_quorums(self) -> Optional[tuple[set, set]]:
         """
         Naive, brute-force search for disjoint quorums.
@@ -287,7 +287,7 @@ class FBASGraph:
         assert len(self.validators) < 10
         quorums = [q for q in powerset(list(self.validators)) if self.is_quorum(q, over_approximate=True)]
         return next(((q1, q2) for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
-    
+
     def blocks(self, s : Collection, n : Any) -> bool:
         """
         Returns True if and only if s blocks v.
@@ -295,7 +295,7 @@ class FBASGraph:
         if self.threshold(n) <= 0:
             return False
         return self.threshold(n) + sum(1 for c in self.graph.successors(n) if c in s) > self.graph.out_degree(n)
-    
+
     def closure(self, vs: Collection) -> frozenset:
         """
         Returns the closure of the set of validators vs.
@@ -310,7 +310,7 @@ class FBASGraph:
 
     def project(self, vs: Collection) -> 'FBASGraph':
         """
-        Returns a new fbas that only contains the validators in vs.
+        Returns a new fbas that only contains the validators reachable from the set vs.
         """
         assert set(vs) <= self.validators
         reachable = set.union(*[set(nx.descendants(self.graph, v)) | {v} for v in vs])
@@ -325,7 +325,7 @@ class FBASGraph:
         Returns a new fbas that only contains what's reachable from v.
         """
         return self.project({v})
-    
+
     # Fast heuristic checks:
 
     def self_intersecting(self, n: str) -> bool:
@@ -338,7 +338,7 @@ class FBASGraph:
         return all(c in self.validators for c in self.graph.successors(n)) \
             and self.threshold(n) > 0 \
             and 2*self.threshold(n) > self.graph.out_degree(n)
-        
+
     def intersection_bound_heuristic(self, n1: str, n2: str) -> int:
         """
         If n1 and n2's children are self-intersecting,
@@ -360,7 +360,7 @@ class FBASGraph:
             return max((m1 + m2) - c, 0)
         else:
             return 0
-        
+
     def fast_intersection_check(self) -> Literal['true', 'unknown']:
         """
         This is a fast, sound, but incomplete heuristic to check whether all of a FBAS's quorums intersect (i.e. is intertwined). It does not rely on a SAT solver.
@@ -369,7 +369,7 @@ class FBASGraph:
 
         We use an important properties of FBASs: if a set of validators S is intertwined, then the closure of S is also intertwined.
         Thus our strategy is to try to find a small intertwined set whose closure covers all validators.
-        
+
         To find such a set, we look inside the maximal strongly-connected component (the mscc) of the FBAS graph. First, we build a new graph over the validators in the mscc where there is an edge between v1 and v2 when v1 and v2 are intertwined, as computed by a sound but incomplete heuristic. Since the heuristic is sound, we know that any clique in this new graph is an intertwined set.
         """
         # first obtain a max scc:
@@ -400,7 +400,7 @@ class FBASGraph:
             else:
                 logging.debug("Validators not covered by clique: %s", validators_with_qset - self.closure(clique))
         return 'unknown'
-    
+
     def splitting_set_bound(self) -> int:
         """
         Computes a lower bound on the mimimum splitting-set size. We just take the minimum of the intersection bound over all pairs of validators.
@@ -471,8 +471,8 @@ class FBASGraph:
         while True:
             for n in self.vertices():
                 if collapse_diamond(n):
-                    self.check_integrity() # canary 
+                    self.check_integrity() # canary
                     break
             else:
                 return
-            
+
