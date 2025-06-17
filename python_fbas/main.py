@@ -9,7 +9,7 @@ import logging
 import sys
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import find_disjoint_quorums, find_minimal_splitting_set, find_minimal_blocking_set, min_history_loss_critical_set, find_min_quorum, top_tier, solvers
-from python_fbas.stellarbeat_data import get_validators as get_stellarbeat_validators
+from python_fbas.pubnet_data import get_validators
 import python_fbas.config as config
 
 def _load_json_from_file(validators_file):
@@ -18,8 +18,8 @@ def _load_json_from_file(validators_file):
 
     
 def _load_fbas_graph(args) -> FBASGraph:
-    if args.fbas == 'stellarbeat':
-        return FBASGraph.from_json(get_stellarbeat_validators())
+    if args.fbas == 'pubnet':
+        return FBASGraph.from_json(get_validators())
     return FBASGraph.from_json(_load_json_from_file(args.fbas))
 
 def main():
@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--log-level', default='WARNING', help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     
     # specify a data source:
-    parser.add_argument('--fbas', default='stellarbeat', help="Where to find the description of the FBAS to analyze (must be 'stellarbeat' or a path to a JSON file)")
+    parser.add_argument('--fbas', default='pubnet', help="Where to find the description of the FBAS to analyze. Must be 'pubnet' or a path to a JSON file. The pubnet data source is set in config.py")
     parser.add_argument('--reachable-from', default=None, help="Restrict the FBAS to what's reachable from the provided validator")
     parser.add_argument('--group-by', default=None, help="Group by the provided field (e.g. min-splitting-set with --group-by=homeDomain will compute the minimum number of home domains to corrupt to create disjoint quorums)")
 
@@ -40,8 +40,8 @@ def main():
     # subcommands:
     subparsers = parser.add_subparsers(dest="command", help="sub-command help")
 
-    # Command for updating the data from Stellarbeat
-    subparsers.add_parser('update-stellarbeat-cache', help="Update data downloaded from stellarbeat.io")
+    # Command for updating cached data
+    subparsers.add_parser('update-cache', help=f"Update data form {config.stellar_data_url}")
 
     # Command for checking intersection
     parser_is_intertwined = subparsers.add_parser('check-intersection', help="Check that the FBAS is intertwined (i.e. whether all quorums intersect)")
@@ -86,8 +86,8 @@ def main():
 
     # Run commands:
 
-    if args.command == 'update-stellarbeat-cache':
-        get_stellarbeat_validators(update=True)
+    if args.command == 'update-cache':
+        get_validators(update=True)
         sys.exit(0)
 
     fbas = _load_fbas_graph(args)

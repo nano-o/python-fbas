@@ -1,5 +1,6 @@
 """
-Module to fetch data from stellarbeat.io
+Module to fetch data from a source conforming to the stellarbeat.io API.
+
 """
 
 import json
@@ -7,28 +8,27 @@ import os
 import logging
 from requests import get
 from platformdirs import user_cache_dir
-
-STELLARBEAT_URL = "https://api.stellarbeat.io/v1/node"
+from python_fbas.config import stellar_data_url
 
 def _fetch_from_url() -> list[dict]:
     """
-    Get data from stellarbeat
+    Get data from url defined in the config file.
     """
-    logging.info("Fetching data from stellarbeat.io")
-    response = get(STELLARBEAT_URL, timeout=5)
+    logging.info("Fetching data from {stellar_data_url}")
+    response = get(stellar_data_url, timeout=5)
     if response.status_code == 200:
         return response.json()
     response.raise_for_status()
-    raise IOError("Failed to fetch data from stellarbeat")
+    raise IOError("Failed to fetch Stellar network data")
 
 def get_validators(update=False) -> list[dict]:
     """
-    When update is true, fetch new data from stellarbeat and update the file in the cache directory.
+    When update is true, fetch new data from the url and update the file in the cache directory.
     """
     cache_dir = user_cache_dir('python-fbas', 'SDF', ensure_exists=True)
-    path = os.path.join(cache_dir, 'stellarbeat.json')
+    path = os.path.join(cache_dir, 'stellar_network_data.json')
     def update_cache_file(_validators):
-        logging.info("Writing stellarbeat data at %s", path)
+        logging.info("Writing Stellar network data at %s", path)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(_validators, f)
     if update:
@@ -37,7 +37,7 @@ def get_validators(update=False) -> list[dict]:
         update_cache_file(_validators)
     else:
         try:
-            logging.info("Reading stellarbeat data from %s", path)
+            logging.info("Reading Stellar network data from %s", path)
             with open(path, 'r', encoding='utf-8') as f:
                 _validators = json.load(f)
         except FileNotFoundError:
