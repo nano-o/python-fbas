@@ -13,6 +13,7 @@ import networkx as nx
 from networkx.classes.reportviews import NodeView
 from python_fbas.utils import powerset
 
+
 @dataclass(frozen=True)
 class QSet:
     """
@@ -39,17 +40,21 @@ class QSet:
             case _:
                 raise ValueError(f"Invalid qset: {qset}")
 
+
 class FBASGraph:
     """
-    A graph whose vertices are either validators or QSets.
-    If n is a validator vertex, then it has at most one successor, which is a qset vertex. If it does not have a successor, then it's because its qset is unknown.
-    If n is a qset vertex, then it has a threshold attribute and its successors are its validators and inner qsets.
-    Each vertex has optional metadata attibutes.
+    A graph whose vertices are either validators or QSets.  If n is a validator
+    vertex, then it has at most one successor, which is a qset vertex. If it
+    does not have a successor, then it's because its qset is unknown.  If n is a
+    qset vertex, then it has a threshold attribute and its successors are
+    validators and inner qsets.  Each vertex has optional metadata attibutes.
     """
-    graph: nx.DiGraph # vertices are strings
-    validators: set[str] # only a subset of the vertices in the graph represent validators
+    graph: nx.DiGraph  # vertices are strings
+    # only a subset of the vertices in the graph represent validators:
+    validators: set[str]
     qset_count = 1
-    qsets: dict[str, QSet] # maps qset vertices (str) to a description of the associated qset
+    # maps qset vertices (str) to a description of the associated qset:
+    qsets: dict[str, QSet]
 
     def __init__(self):
         self.graph = nx.DiGraph()
@@ -58,7 +63,7 @@ class FBASGraph:
 
     def __copy__(self):
         fbas = FBASGraph()
-        fbas.graph = self.graph.copy()
+        fbas.graph = nx.DiGraph(self.graph)
         fbas.validators = self.validators.copy()
         fbas.qset_count = self.qset_count
         fbas.qsets = self.qsets.copy()
@@ -76,8 +81,11 @@ class FBASGraph:
         if not self.validators <= self.vertices():
             raise ValueError(f"Some validators are not in the graph: {self.validators - self.vertices()}")
         for n, attrs in self.vertices(data=True):
-            # a graph vertex that does not have a threshold attribute must be a validator.
-            # Moreover, it must have at most one successor. The threshold is implicitely 1 if it has 1 successor and implicitely -1 (indicating we do not know its agreeement requirements) if it has no successors; see the threshold method.
+            # A graph vertex that does not have a threshold attribute must be a
+            # validator.  Moreover, it must have at most one successor. The
+            # threshold is implicitely 1 if it has 1 successor and implicitely
+            # -1 (indicating we do not know its agreeement requirements) if it
+            # has no successors; see the threshold method.
             if 'threshold' not in attrs:
                 assert n in self.validators
                 assert self.graph.out_degree(n) <= 1
@@ -90,7 +98,9 @@ class FBASGraph:
             if n in self.validators:
                 # threshold is not explicitly set for validators:
                 assert 'threshold' not in self.vertices()
-                # a validator either has one successor (its qset vertex) or no successors (in case we do not know its agreement requirements):
+                # a validator either has one successor (its qset vertex) or no
+                # successors (in case we do not know its agreement
+                # requirements):
                 if self.graph.out_degree(n) > 1:
                     raise ValueError(f"Integrity check failed: validator {n} has an out-degree greater than 1 ({self.graph.out_degree(n)})")
                 # a validator's successor must be a qset vertex:
@@ -99,7 +109,8 @@ class FBASGraph:
             else:
                 assert n in self.qsets.keys()
             if n in self.graph.successors(n):
-                raise ValueError(f"Integrity check failed: vertex {n} has a self-loop")
+                raise ValueError(
+                    f"Integrity check failed: vertex {n} has a self-loop")
 
     def stats(self):
         """Compute some basic statistics"""
@@ -107,26 +118,28 @@ class FBASGraph:
             return {t: sum(1 for _, attrs in self.vertices(data=True) if 'threshold' in attrs and attrs['threshold'] == t)
                     for t in nx.get_node_attributes(self.graph, 'threshold').values()}
         return {
-            'num_edges' : len(self.graph.edges()),
-            'thresholds_distribution' : thresholds_distribution()
+            'num_edges': len(self.graph.edges()),
+            'thresholds_distribution': thresholds_distribution()
         }
 
-    def with_name(self, validator:str) -> str:
+    def with_name(self, validator: str) -> str:
         if 'name' in self.vertice_attrs(validator) and self.vertice_attrs(validator)['name']:
             return validator + " (" + self.vertice_attrs(validator)['name'] + ")"
         else:
             return validator
 
-    def add_validator(self, v:Any) -> None:
+    def add_validator(self, v: Any) -> None:
         """Add a validator to the graph."""
         self.graph.add_node(v)
         self.validators.add(v)
 
-    def update_validator(self, v: Any, qset: Optional[dict] = None, attrs: Optional[dict] = None) -> None:
+    def update_validator(self, v: Any, qset: Optional[dict] = None,
+                         attrs: Optional[dict] = None) -> None:
         """
-        Add the validator v to the graph if it does not exist, using the supplied qset and attributes.
-        Otherwise:
-            - Update its attributes with attrs (existing attributes not in attrs remain unchanged).
+        Add the validator v to the graph if it does not exist, using the
+        supplied qset and attributes. Otherwise:
+            - Update its attributes with attrs (existing attributes not in attrs
+                remain unchanged).
             - Replace its outgoing edge with an edge to the given qset.
         Expects a qset, if given, in JSON-serializable stellarbeat.io format.
         """
@@ -200,9 +213,10 @@ class FBASGraph:
         return next(self.graph.successors(n))
 
     @staticmethod
-    def from_json(data : list, from_stellarbeat = False) -> 'FBASGraph':
+    def from_json(data: list, from_stellarbeat=False) -> 'FBASGraph':
         """
-        Create a FBASGraph from a list of validators in serialized stellarbeat.io format.
+        Create a FBASGraph from a list of validators in serialized
+        stellarbeat.io format.
         """
         # first do some validation
         validators = []

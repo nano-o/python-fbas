@@ -4,10 +4,10 @@ SAT-based analysis of FBAS graphs
 
 import logging
 import time
-from typing import Any, Optional, Tuple, Collection, Callable
+from typing import Any, Optional, Tuple, Collection, Callable, Union
 from itertools import combinations
 import networkx as nx
-from pysat.solvers import Solver
+from pysat.solvers import Solver, SolverNames
 from pysat.formula import CNF, WCNF
 from pysat.examples.lsu import LSU # MaxSAT algorithm
 from pysat.examples.rc2 import RC2 # MaxSAT algorithm
@@ -18,7 +18,10 @@ from python_fbas.propositional_logic \
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses
 import python_fbas.config as config
 
-def quorum_constraints(fbas: FBASGraph, make_atom: Callable[[str], Atom], domain=None) -> list[Formula]:
+solvers:list[str] = [
+    list(SolverNames.__dict__[s])[::-1][0] for s in SolverNames.__dict__ if not s.startswith('__')]
+
+def quorum_constraints(fbas: FBASGraph, make_atom: Callable[[str], Atom]) -> list[Formula]:
     """Returns constraints expressing that the set of true atoms is a quorum"""
     constraints:list[Formula] = []
     for v in fbas.vertices():
@@ -36,7 +39,7 @@ def solve_constraints(constraints:list[Formula]) -> Tuple[bool, Solver]:
     clauses = to_cnf(constraints)
     solver = Solver(bootstrap_with=clauses, name=config.sat_solver)
     start_time = time.time()
-    res = solver.solve()
+    res:bool = bool(solver.solve())
     end_time = time.time()
     logging.info("Solving time: %s", end_time - start_time)
     return res, solver
@@ -56,7 +59,8 @@ def contains_quorum(s:set[str], fbas: FBASGraph) -> bool:
 
     res, solver = solve_constraints(constraints)
     if res:
-        model = solver.get_model()
+        model: list[int] = solver.get_model() or []
+        assert model  # error if []
         q = [variables_inv[v] for v in set(model) & set(variables_inv.keys()) if variables_inv[v] in fbas.validators]
         logging.info("Quorum %s is inside %s", q, s)
     else:
@@ -116,7 +120,8 @@ def find_disjoint_quorums(fbas: FBASGraph) -> Optional[Tuple[Collection, Collect
                 f.writelines(dimacs)
 
     if res:
-        model = s.get_model()
+        model = s.get_model() or []
+        assert model  # error if []
         q1 = get_quorum_(model, 'A', fbas)
         q2 = get_quorum_(model, 'B', fbas)
         logging.info("Disjoint quorums found")
@@ -132,14 +137,16 @@ def maximize(wcnf:WCNF) -> Optional[Tuple[int, Any]]:
     """
     Solve a MaxSAT CNF problem.
     """
+    s: Union[LSU, RC2]
     if config.max_sat_algo == 'LSU':
         s = LSU(wcnf)
     else:
         s = RC2(wcnf)
+    
     start_time = time.time()
-    if config.max_sat_algo == 'LSU':
+    if isinstance(s, LSU):
         res = s.solve()
-    else:
+    else:  # RC2
         res = s.compute()
     end_time = time.time()
     logging.info("Solving time: %s", end_time - start_time)
@@ -219,7 +226,7 @@ def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Co
         for v in fbas.validators:
             wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
     else:
-        for g in groups:
+        for g in groups: # type: ignore
             wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
 
     end_time = time.time()
@@ -238,8 +245,8 @@ def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Co
         if not config.group_by:
             logging.info("Minimal-cardinality splitting set: %s", [fbas.with_name(s) for s in ss])
         else:
-            logging.info("Minimal-cardinality splitting set (groups): %s", [s for s in ss if s in groups])
-            logging.info("Minimal-cardinality splitting set (corresponding validators): %s", [fbas.with_name(s) for s in ss if s not in groups])
+            logging.info("Minimal-cardinality splitting set (groups): %s", [s for s in ss if s in groups]) # type: ignore
+            logging.info("Minimal-cardinality splitting set (corresponding validators): %s", [fbas.with_name(s) for s in ss if s not in groups]) # type: ignore
         q1 = get_quorum_(model, 'A', fbas)
         q2 = get_quorum_(model, 'B', fbas)
         assert fbas.is_quorum(q1, over_approximate=True, no_requirements=set(ss))
@@ -249,7 +256,7 @@ def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Co
         if not config.group_by:
             return (ss, q1, q2)
         else:
-            return ([s for s in ss if s in groups], q1, q2)
+            return ([s for s in ss if s in groups], q1, q2) # type: ignore
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
     """
@@ -598,7 +605,8 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
 
     res, solver = solve_constraints(constraints)
     if res:
-        model = solver.get_model()
+        model = solver.get_model() or []
+        assert model  # error if []
         q = [variables_inv[v][1] for v in set(model) & set(variables_inv.keys()) if variables_inv[v][0] == quorum_tag and variables_inv[v][1] in fbas.validators]
         logging.info("Quorum %s is disconnected", q)
     else:

@@ -2,12 +2,13 @@
 Main CLI for the FBAS analysis tool
 """
 
+from collections.abc import Collection
 import json
 import argparse
 import logging
 import sys
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.fbas_graph_analysis import find_disjoint_quorums, find_minimal_splitting_set, find_minimal_blocking_set, min_history_loss_critical_set, find_min_quorum, top_tier
+from python_fbas.fbas_graph_analysis import find_disjoint_quorums, find_minimal_splitting_set, find_minimal_blocking_set, min_history_loss_critical_set, find_min_quorum, top_tier, solvers
 from python_fbas.stellarbeat_data import get_validators as get_stellarbeat_validators
 import python_fbas.config as config
 
@@ -32,7 +33,7 @@ def main():
     parser.add_argument('--group-by', default=None, help="Group by the provided field (e.g. min-splitting-set with --group-by=homeDomain will compute the minimum number of home domains to corrupt to create disjoint quorums)")
 
     parser.add_argument('--cardinality-encoding', default='totalizer', help="Cardinality encoding, either 'naive' or 'totalizer'")
-    parser.add_argument('--sat-solver', default='cryptominisat5', help=f"SAT solver to use ({config.solvers}). See the documentation of the pysat package for more information.")
+    parser.add_argument('--sat-solver', default='cryptominisat5', help=f"SAT solver to use ({solvers}). See the documentation of the pysat package for more information.")
     parser.add_argument('--max-sat-algo', default='LSU', help="MaxSAT algorithm to use (LSU or RC2)")
     parser.add_argument('--output-problem', default=None, help="Write the constraint-satisfaction problem to the provided path")
 
@@ -67,8 +68,8 @@ def main():
 
     config.group_by = args.group_by
 
-    if args.sat_solver not in config.solvers:
-        logging.error("Solver must be one of %s", config.solvers)
+    if args.sat_solver not in solvers:
+        logging.error("Solver must be one of %s", solvers)
         sys.exit(1)
     config.sat_solver = args.sat_solver
 
@@ -95,7 +96,7 @@ def main():
     if args.reachable_from:
         fbas = fbas.restrict_to_reachable(args.reachable_from)
 
-    def with_names(vs:list[str]) -> list[str]:
+    def with_names(vs:Collection[str]) -> list[str]:
         return [fbas.with_name(v) for v in vs]
 
     if args.command == 'check-intersection':
