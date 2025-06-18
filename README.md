@@ -42,6 +42,11 @@ Install the package:
 ```
 pip install .
 ```
+Or, to enable QBF support using pyqbf:
+```
+pip install .[qbf]
+```
+Installing pyqbf often seems to often break, so it is optional. If QBF support is not installed, computing minimal quorums and computing the top-tier (defined as the union of all minimal quorums) is not available.
 
 Run the tests:
 ```
@@ -59,30 +64,30 @@ If you are using the docker image:
 docker run --rm -it giulianolosa/python-fbas:latest python-fbas
 ```
 
-To check whether the current Stellar network, according to data from [stellarbeat.io](https://stellarbeat.io), has quorum intersection:
+To check whether the current Stellar network has quorum intersection:
 ```
-python-fbas --fbas=stellarbeat check-intersection
+python-fbas --fbas=pubnet check-intersection
 ```
 
 To determine what the top-tier (i.e. the union of all minimal quorums) is:
 ```
-python-fbas --fbas=stellarbeat top-tier
+python-fbas --fbas=pubnet top-tier
 ```
-This assumes that the FBAS has quorum intersection.
+Note that this will not make sense if the FBAS does not have quorum intersection.
 
 To determine the minimal number of nodes that, if corrupted, can split the network:
 ```
-python-fbas --fbas=stellarbeat min-splitting-set
+python-fbas --fbas=pubnet min-splitting-set
 ```
 To determine the minimal number of nodes that, if corrupted, can halt the network:
 ```
-python-fbas --fbas=stellarbeat min-blocking-set
+python-fbas --fbas=pubnet min-blocking-set
 ```
 
 For the `min-splitting-set` and `min-blocking-set` commands, you can group validators by attribute.
 For example:
 ```
-python-fbas --fbas=stellarbeat --group-by=homeDomain min-splitting-set
+python-fbas --fbas=pubnet --group-by=homeDomain min-splitting-set
 ```
 This computes the minimal number of home domains that must be corrupted in order to create disjoint quorums.
 
@@ -96,16 +101,16 @@ python-fbas --group-by=homeDomain --reachable-from GCGB2S2KGYARPVIA37HYZXVRM2YZU
 A history-critical set is a set of validators such that, together with the validators that currently have history-archive errors, form a quorum; in a worst-case scenario, if this quorum does not publish useable history archives, it would be possible to loose network history.
 To find a minimal-cardinality history-critical set:
 ```
-python-fbas --fbas=stellarbeat history-loss
+python-fbas --fbas=pubnet history-loss
 ```
 
-Finally, you can also provide a FBAS to check in JSON format:
+Finally, you can also provide a FBAS to check in JASON format:
 ```
 python-fbas --fbas=tests/test_data/random/almost_symmetric_network_13_orgs_delete_prob_factor_1.json check-intersection
 ```
 
-Note that data form [stellarbeat.io](https://stellarbeat.io) is cached in a local file the first time it is needed.
-To update the cache:
+Note that data about the Stellar network is cached in a local file the first time it is needed.
+To update the cache (using the URL set in `config.py`):
 ```
-python-fbas update-stellarbeat-cache
+python-fbas update-cache
 ```
