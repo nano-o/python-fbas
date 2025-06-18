@@ -43,22 +43,22 @@ def test_min_splitting_set_1():
     fbas1 = FBASGraph()
     for v in ['PK1','PK2','PK3','PK4']:
         fbas1.update_validator(v, qset1)
-    assert len(find_minimal_splitting_set(fbas1)[0]) == 2
+    assert len(find_minimal_splitting_set(fbas1)[0]) == 2 # type: ignore
     fbas2 = FBASGraph.from_json(get_validators_from_test_fbas('circular_1.json'))
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2)[0] == ['PK2']
+    assert find_minimal_splitting_set(fbas2)[0] == ['PK2'] # type: ignore
         
 def test_min_splitting_set_2():
     qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1','PK2','PK3','PK4']:
         fbas1.update_validator(v, qset1)
-    assert len(find_minimal_splitting_set(fbas1)[0]) == 2
+    assert len(find_minimal_splitting_set(fbas1)[0]) == 2 # type: ignore
     fbas2 = FBASGraph.from_json(get_validators_from_test_fbas('circular_1.json'))
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2)[0] == ['PK2']
+    assert find_minimal_splitting_set(fbas2)[0] == ['PK2'] # type: ignore
 
 def test_min_splitting_set():
     data = get_test_data_list()
@@ -76,7 +76,7 @@ def test_min_blocking_set_3():
     config.card_encoding = 'totalizer'
     config.max_sat_algo = 'RC2'
     b = find_minimal_blocking_set(fbas1)
-    assert len(b) == 2
+    assert len(b) == 2 # type: ignore
 
 def test_min_blocking_set_4():
     data = get_test_data_list()
