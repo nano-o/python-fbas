@@ -1,13 +1,2 @@
 pytest
 mypy
-# networkx==3.3
-# platformdirs==4.3.6
-# py-aiger==6.2.3
-# py-aiger-cnf==5.0.8
-# pyapproxmc==4.1.24
-# pycryptosat==5.11.21
-# pytest==8.3.3
-# python-sat==1.8.dev13
-# requests==2.32.3
-# pyqbf@git+https://gitlab.sai.jku.at/qbf/pyqbf@b7a65070901de2cc9fdc9e3911947463127a4183
-# z3-solver==4.13.3.0

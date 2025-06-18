@@ -11,12 +11,16 @@ from pysat.solvers import Solver, SolverNames
 from pysat.formula import CNF, WCNF
 from pysat.examples.lsu import LSU # MaxSAT algorithm
 from pysat.examples.rc2 import RC2 # MaxSAT algorithm
-from pyqbf.formula import PCNF
-from pyqbf.solvers import Solver as QSolver
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic \
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses
 import python_fbas.config as config
+try:
+    from pyqbf.formula import PCNF
+    from pyqbf.solvers import Solver as QSolver
+    HAS_QBF = True
+except ImportError:
+    HAS_QBF = False
 
 solvers:list[str] = [
     list(SolverNames.__dict__[s])[::-1][0] for s in SolverNames.__dict__ if not s.startswith('__')]
@@ -436,6 +440,9 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
     Find a minimal quorum in the FBAS graph using pyqbf.
     If not_subset_of is a set of validators, then the quorum should contain at least one validator outside this set.
     """
+    
+    if not HAS_QBF:
+        raise ImportError("QBF support not available. Install with: pip install python-fbas[qbf]")
 
     if restrict_to_scc:
         # First, find all sccs that contain at least one quorum:
@@ -500,7 +507,7 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
 
     qa_clauses = to_cnf(qa_constraints)
     qb_clauses = to_cnf(qb_constraints)
-    pcnf = PCNF(from_clauses=qa_clauses + qb_clauses)
+    pcnf = PCNF(from_clauses=qa_clauses + qb_clauses) # type: ignore
 
     qa_atoms:set[int] = atoms_of_clauses(qa_clauses)
     qb_vertex_atoms:set[int] = set(abs(variables[in_quorum('B', n).identifier]) for n in fbas.vertices())
@@ -509,7 +516,7 @@ def find_min_quorum(fbas: FBASGraph, not_subset_of = None, not_equal_to = None, 
     pcnf.exists(*list(qa_atoms)).forall(*list(qb_vertex_atoms)).exists(*list(qb_tseitin_atoms))
 
     # solvers: 'depqbf', 'qute', 'rareqs', 'qfun', 'caqe'
-    s = QSolver(name='depqbf', bootstrap_with=pcnf)
+    s = QSolver(name='depqbf', bootstrap_with=pcnf) # type: ignore
     res = s.solve()
     if res:
         model = s.get_model()
@@ -551,6 +558,8 @@ def top_tier(fbas: FBASGraph) -> Collection[str]:
     """
     Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
     """
+    if not HAS_QBF:
+        raise ImportError("QBF support not available. Install with: pip install python-fbas[qbf]")
 
     # First, find all sccs that contain at least one quorum:
     sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)

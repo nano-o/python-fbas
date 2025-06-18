@@ -122,22 +122,24 @@ def test_contains_quorum():
     assert contains_quorum({'PK1','PK3'}, fbas2)
 
 def test_top_tier():
-    qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
-    fbas1 = FBASGraph()
-    for v in ['PK1','PK2','PK3','PK4','PK5']:
-        fbas1.update_validator(v, qset1)
-    assert top_tier(fbas1) == {'PK1','PK2','PK3','PK4'}
+    if HAS_QBF:
+        qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
+        fbas1 = FBASGraph()
+        for v in ['PK1','PK2','PK3','PK4','PK5']:
+            fbas1.update_validator(v, qset1)
+        assert top_tier(fbas1) == {'PK1','PK2','PK3','PK4'}
 
 def test_top_tier_2():
-    data = get_test_data_list()
-    for f,d in data.items():
-        if "validators" in f:
-            logging.info("skipping %s", f)
-            continue
-        else:
-            logging.info("loading graph of %s", f)
-            fbas_graph = FBASGraph.from_json(d)
-            top_tier(fbas_graph)
+    if HAS_QBF:
+        data = get_test_data_list()
+        for f,d in data.items():
+            if "validators" in f:
+                logging.info("skipping %s", f)
+                continue
+            else:
+                logging.info("loading graph of %s", f)
+                fbas_graph = FBASGraph.from_json(d)
+                top_tier(fbas_graph)
 
 def test_is_overlay_resilient():
     qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
