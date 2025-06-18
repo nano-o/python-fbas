@@ -19,7 +19,8 @@ WORKDIR /app
 COPY --chown=appuser:appuser pyproject.toml ./
 
 # Install Python dependencies before copying the entire project
-RUN pip install --no-cache-dir --user .
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
+RUN pip install --no-cache-dir --user .[qbf]
 
 # Copy the entire project (triggers rebuild only if source changes)
 COPY --chown=appuser:appuser . .

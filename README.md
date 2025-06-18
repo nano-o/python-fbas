@@ -40,19 +40,20 @@ source venv/bin/activate
 
 Install the package:
 ```
-pip install .
-```
-Or, to enable QBF support using pyqbf:
-```
 pip install .[qbf]
 ```
-Installing pyqbf often seems to often break, so it is optional. If QBF support is not installed, computing minimal quorums and computing the top-tier (defined as the union of all minimal quorums) is not available.
+If this fails because pyqbf fails to build (which tends to happen), disable QBF support:
+```
+pip install .
+```
+In this case, computing minimal quorums and computing the top-tier (defined as the union of all minimal quorums) will not be available.
 
 Run the tests:
 ```
 pip install pytest
 python3 -m pytest
 ```
+
 ## Usage
 
 Run the main script and obtain the help message:
