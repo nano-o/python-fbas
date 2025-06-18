@@ -106,7 +106,7 @@ To find a minimal-cardinality history-critical set:
 python-fbas --fbas=pubnet history-loss
 ```
 
-Finally, you can also provide a FBAS to check in JASON format:
+Finally, you can also provide a FBAS to check in JSON format:
 ```
 python-fbas --fbas=tests/test_data/random/almost_symmetric_network_13_orgs_delete_prob_factor_1.json check-intersection
 ```
