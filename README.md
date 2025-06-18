@@ -8,8 +8,9 @@ python-fbas seems to be able to handle much larger FBASs than [fbas_analyzer](ht
 ## Technical highlights
 
 We encode the problem of finding disjoint quorums as a SAT instance.
-For the other problems, we are after minimal sets with some properties. In this case we encode the problem as a MaxSAT instances.
-We use [pysat](https://pysathq.github.io/) to solve the SAT/MaxSAT instances.
+For minimal splitting/blocking sets, we encode the problem as a MaxSAT instances.
+For minimal quorums, we encode the problem as a QBF instance.
+We use [pysat](https://pysathq.github.io/) to solve the SAT/MaxSAT instances and [pyqbf](https://qbf.pages.sai.jku.at/pyqbf/) for the QBF instances.
 
 Most SAT solvers expect input in conjunctive normal form (CNF), but it is easier to work with full propositional logic (using and, or, implies, not, etc. without restrictions).
 pysat implements a transformation from propositional logic to CNF, but our benchmarks showed that it is way too slow for our purposes.
