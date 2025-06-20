@@ -81,14 +81,14 @@ def test_cmd_min_blocking_set(capsys):
         "min-blocking-set",
     ])
     captured = capsys.readouterr().out
-    assert "No blocking set found" in captured
+    assert "Minimal blocking-set cardinality is:" in captured
     assert ret == 0
 
 
 def test_cmd_history_loss(capsys):
     ret = run_cmd([
         "--fbas",
-        str(DATA_DIR / "circular_1.json"),
+        str(DATA_DIR / "top_tier.json"),
         "history-loss",
     ])
     captured = capsys.readouterr().out

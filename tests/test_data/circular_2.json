@@ -22,8 +22,9 @@
     {
         "publicKey": "PK3",
         "quorumSet": {
-            "threshold": 0,
+            "threshold": 1,
             "validators": [
+                "PK3"
             ],
             "innerQuorumSets": []
         }

@@ -11,9 +11,10 @@ def test_load_fbas():
         fg = FBASGraph.from_json(d)
         fg.check_integrity()
 
+
 def test_collapse():
     data = get_test_data_list()
-    for f,d in data.items():
+    for f, d in data.items():
         logging.info("loading fbas %s", f)
         fg = FBASGraph.from_json(d)
         fg.check_integrity()

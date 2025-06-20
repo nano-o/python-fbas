@@ -83,7 +83,7 @@ class FBASGraph:
             # A graph vertex that does not have a threshold attribute must be a
             # validator.  Moreover, it must have at most one successor. The
             # threshold is implicitely 1 if it has 1 successor and implicitely
-            # -1 (indicating we do not know its agreeement requirements) if it
+            # -1 (indicating we do not know its agreement requirements) if it
             # has no successors; see the threshold method.
             if 'threshold' not in attrs:
                 assert n in self.validators
@@ -93,6 +93,7 @@ class FBASGraph:
                 if attrs['threshold'] < 0 or attrs['threshold'] > self.graph.out_degree(n):
                     raise ValueError(f"Integrity check failed: threshold of {n} not in [0, out_degree={self.graph.out_degree(n)}]")
                 if attrs['threshold'] == 0:
+                    # threshold 0 is the same thing as threshold 1 with a qset that's a singleton containing self?
                     assert self.graph.out_degree(n) == 0
             if n in self.validators:
                 # threshold is not explicitly set for validators, so it should not appear in the attributes of n:

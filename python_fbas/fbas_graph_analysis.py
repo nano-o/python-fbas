@@ -310,8 +310,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             constraints.append(Implies(Card(blocking_threshold(v), *may_block), blocked(v)))
             constraints.append(Implies(And(blocked(v), Not(faulty(v))), Card(blocking_threshold(v), *may_block)))
         if fbas.threshold(v) == 0:
-            # never blocked
-            constraints.append(Not(blocked(v)))
+            # no constraint (asserting it cannot be blocked would create a contradiction)
+            continue
         if fbas.threshold(v) < 0:
             # to be conservative, could be blocked by anything; so, no constraints
             continue
