@@ -344,7 +344,7 @@ class FBASGraph:
 
     def self_intersecting(self, n: str) -> bool:
         """
-        Whether n is self-interescting
+        Whether n is self-intersecting
         """
         assert n in self.graph
         if n in self.validators:

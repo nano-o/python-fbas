@@ -161,7 +161,7 @@ def maximize(wcnf:WCNF) -> Optional[Tuple[int, Any]]:
 def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Collection,Collection]]:
     """
     Find a minimal-cardinality splitting set in the FBAS graph, or prove there is none.
-    Uses one of pysat's MaxSAT procedures (LRU or RC2).
+    Uses one of pysat's MaxSAT procedures (LSU or RC2).
     If found, returns the splitting set and the two quorums that it splits.
     """
 
