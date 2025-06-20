@@ -96,8 +96,8 @@ class FBASGraph:
                 if attrs['threshold'] == 0:
                     assert self.graph.out_degree(n) == 0
             if n in self.validators:
-                # threshold is not explicitly set for validators:
-                assert 'threshold' not in self.vertices()
+                # threshold is not explicitly set for validators, so it should not appear in the attributes of n:
+                assert 'threshold' not in attrs
                 # a validator either has one successor (its qset vertex) or no
                 # successors (in case we do not know its agreement
                 # requirements):
