@@ -40,7 +40,6 @@ class QSet:
             case _:
                 raise ValueError(f"Invalid qset: {qset}")
 
-
 class FBASGraph:
     """
     A graph whose vertices are either validators or QSets.  If n is a validator
@@ -53,8 +52,8 @@ class FBASGraph:
     # only a subset of the vertices in the graph represent validators:
     validators: set[str]
     qset_count = 1
-    # maps qset vertices (str) to a description of the associated qset:
-    qsets: dict[str, QSet]
+    # maps qset vertices (str) to their associated qset:
+    qsets: dict[str, QSet] # TODO: always kept in sync with the graph?
 
     def __init__(self):
         self.graph = nx.DiGraph()
@@ -108,19 +107,10 @@ class FBASGraph:
                     assert self.qset_vertex_of(n) not in self.validators
             else:
                 assert n in self.qsets.keys()
+                assert self.qsets[n] == self.compute_qset(n)
             if n in self.graph.successors(n):
                 raise ValueError(
                     f"Integrity check failed: vertex {n} has a self-loop")
-
-    def stats(self):
-        """Compute some basic statistics"""
-        def thresholds_distribution():
-            return {t: sum(1 for _, attrs in self.vertices(data=True) if 'threshold' in attrs and attrs['threshold'] == t)
-                    for t in nx.get_node_attributes(self.graph, 'threshold').values()}
-        return {
-            'num_edges': len(self.graph.edges()),
-            'thresholds_distribution': thresholds_distribution()
-        }
 
     def with_name(self, validator: str) -> str:
         if 'name' in self.vertice_attrs(validator) and self.vertice_attrs(validator)['name']:
@@ -211,6 +201,29 @@ class FBASGraph:
         assert n in self.validators
         assert self.graph.out_degree(n) == 1
         return next(self.graph.successors(n))
+
+    def compute_qset(self, qset_vertex: str) -> QSet:
+        """
+        Recursively computes the QSet associated with the given qset vertex.
+        """
+        assert qset_vertex not in self.validators
+        threshold = self.threshold(qset_vertex)
+        # validators are the children of the qset vertex that are validators:
+        validators = frozenset(v for v in self.graph.successors(qset_vertex) if v in self.validators)
+        # inner_qsets are the children of the qset vertex that are qset vertices:
+        inner_qsets = frozenset(self.compute_qset(q) for q in self.graph.successors(qset_vertex) if q not in self.validators)
+        return QSet(threshold, validators, inner_qsets)
+
+    def qset_of(self, n: str) -> Optional[QSet]:
+        """
+        Computes the QSet associated with the given vertex n based on the graph (does not use the qsets dict).
+        n must be a validator vertex.
+        """
+        assert n in self.validators
+        # if n has no successors, then we don't know its qset:
+        if self.graph.out_degree(n) == 0:
+            return None
+        return self.compute_qset(self.qset_vertex_of(n))
 
     @staticmethod
     def from_json(data: list, from_stellarbeat=False) -> 'FBASGraph':
@@ -479,6 +492,12 @@ class FBASGraph:
             else:
                 for e in in_edges:
                     self.graph.add_edge(e[0], new_vertex)
+            # fixup the qsets dict:
+            # TODO: not efficient, we should only update what's changed
+            for n in self.graph.nodes():
+                if n not in self.qsets:
+                    continue
+                self.qsets[n] = self.compute_qset(n)
             return True
 
         # now collapse vertices until nothing changes:

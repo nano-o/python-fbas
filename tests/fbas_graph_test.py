@@ -17,9 +17,9 @@ def test_collapse():
         logging.info("loading fbas %s", f)
         fg = FBASGraph.from_json(d)
         fg.check_integrity()
-        logging.info("graph of %s before flattening:\n %s", f, fg.stats())
+        logging.info("graph of %s before flattening has %s nodes", f, fg.graph.number_of_nodes())
         fg.flatten_diamonds()
-        logging.info("graph of %s after flattening:\n %s", f, fg.stats())
+        logging.info("graph of %s after flattening has %s nodes", f, fg.graph.number_of_nodes())
 
 def test_is_quorum():
     fbas = FBASGraph.from_json(get_validators_from_test_fbas('conflicted.json'))
@@ -56,7 +56,7 @@ def test_is_sat():
 
 def test_find_disjoint_quorums():
     fbas1 = FBASGraph.from_json(get_validators_from_test_fbas('conflicted.json'))
-    q1, q2 = fbas1.find_disjoint_quorums()
+    q1, q2 = fbas1.find_disjoint_quorums() # type: ignore
     logging.info("disjoint quorums: %s, %s", q1, q2)
     fbas2 = FBASGraph.from_json(get_validators_from_test_fbas('circular_1.json'))
     assert not fbas2.find_disjoint_quorums()
@@ -171,3 +171,14 @@ def test_is_qset_sat():
     assert not fbas.is_qset_sat(n2, {'PK1','PK2','PK3'})
     assert fbas.is_qset_sat(n2, {'PK1','PK2','PK3','PK4'})
     assert not fbas.is_qset_sat(n2, {'PK1','PK2','PK5'})
+
+def test_qset_of():
+    data = get_test_data_list()
+    for f,d in data.items():
+        logging.info("loading fbas %s", f)
+        fg = FBASGraph.from_json(d)
+        for v in fg.validators:
+            if list(fg.graph.successors(v)):
+                qset = fg.qset_of(v)
+                qset_vertex = fg.qset_vertex_of(v)
+                assert qset == fg.qsets[qset_vertex], f"QSet of {v} does not match the expected QSet: {fg.qsets[qset_vertex]} != {qset}"
