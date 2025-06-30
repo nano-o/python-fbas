@@ -1,5 +1,7 @@
 """
-Federated Byzantine Agreement System (FBAS) represented as graphs.
+Federated Byzantine Agreement System (FBAS) represented as directed graphs.
+
+TODO: Think about how to better deal with validators that do not have a qset.
 """
 
 from copy import copy
@@ -17,7 +19,9 @@ from python_fbas.utils import powerset
 @dataclass(frozen=True)
 class QSet:
     """
-    Represents a quorum set.
+    Represents a quorum set. Note that a quorum set is _not_ a set of quorums.
+    Instead, a quorum set represents agreement requirements. For quorums, see
+    `is_quorum` in `FBASGraph`.
     """
     threshold: int
     validators: Set[str]
@@ -26,7 +30,8 @@ class QSet:
     @staticmethod
     def make(qset: dict) -> 'QSet':
         """
-        Expects a JSON-serializable quorum-set (in stellarbeat.io format) and returns a QSet instance.
+        Expects a JSON-serializable quorum-set (in stellarbeat.io format) and
+        returns a QSet instance.
         """
         match qset:
             case {'threshold': t, 'validators': vs, 'innerQuorumSets': iqs}:
@@ -34,26 +39,32 @@ class QSet:
                 validators = frozenset(vs)
                 inner_qsets = frozenset(QSet.make(iq) for iq in iqs)
                 card = len(validators) + len(inner_qsets)
-                if not (0 <= threshold <= card) or (threshold == 0 and card > 0):
+                if not (0 <= threshold <= card):
                     raise ValueError(f"Invalid qset: {qset}")
                 return QSet(threshold, validators, inner_qsets)
             case _:
                 raise ValueError(f"Invalid qset: {qset}")
 
+
 class FBASGraph:
     """
-    A graph whose vertices are either validators or QSets.  If n is a validator
-    vertex, then it has at most one successor, which is a qset vertex. If it
-    does not have a successor, then it's because its qset is unknown.  If n is a
-    qset vertex, then it has a threshold attribute and its successors are
-    validators and inner qsets.  Each vertex has optional metadata attibutes.
+    An FBAS graph is a directed graph. Each vertex is either a validator or a
+    qset vertex, and may have a threshold attribute.
+
+    A validator vertex must have at most one sucessor in the graph, which must
+    be a qset vertex, and has no threshold. If it does not have a successor,
+    this means its quorum set is unknown.
+
+    A qset vertex may have any number of successors (including none), which may
+    be validator or qset vertices, but which must not include itself. It must
+    have a threshold between 0 and its number of successors.
     """
-    graph: nx.DiGraph  # vertices are strings
+    graph: nx.DiGraph
     # only a subset of the vertices in the graph represent validators:
     validators: set[str]
-    qset_count = 1
+    qset_count = 1  # used to create unique qset identifiers
     # maps qset vertices (str) to their associated qset:
-    qsets: dict[str, QSet] # TODO: always kept in sync with the graph?
+    qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph?
 
     def __init__(self):
         self.graph = nx.DiGraph()
@@ -78,24 +89,19 @@ class FBASGraph:
         """Basic integrity checks"""
         # check that all validators are in the graph:
         if not self.validators <= self.vertices():
-            raise ValueError(f"Some validators are not in the graph: {self.validators - self.vertices()}")
+            missing = self.validators - self.vertices()
+            raise ValueError(
+                f"Some validators are not in the graph: {missing}")
         for n, attrs in self.vertices(data=True):
-            # A graph vertex that does not have a threshold attribute must be a
-            # validator.  Moreover, it must have at most one successor. The
-            # threshold is implicitely 1 if it has 1 successor and implicitely
-            # -1 (indicating we do not know its agreeement requirements) if it
-            # has no successors; see the threshold method.
             if 'threshold' not in attrs:
                 assert n in self.validators
-                assert self.graph.out_degree(n) <= 1
             else:
-                # otherwise, the threshold must be in [0, out_degree]
-                if attrs['threshold'] < 0 or attrs['threshold'] > self.graph.out_degree(n):
+                if attrs['threshold'] < 0 \
+                   or attrs['threshold'] > self.graph.out_degree(n):
                     raise ValueError(f"Integrity check failed: threshold of {n} not in [0, out_degree={self.graph.out_degree(n)}]")
-                if attrs['threshold'] == 0:
-                    assert self.graph.out_degree(n) == 0
             if n in self.validators:
-                # threshold is not explicitly set for validators, so it should not appear in the attributes of n:
+                # threshold is not explicitly set for validators, so it should
+                # not appear in the attributes of n:
                 assert 'threshold' not in attrs
                 # a validator either has one successor (its qset vertex) or no
                 # successors (in case we do not know its agreement
@@ -104,7 +110,7 @@ class FBASGraph:
                     raise ValueError(f"Integrity check failed: validator {n} has an out-degree greater than 1 ({self.graph.out_degree(n)})")
                 # a validator's successor must be a qset vertex:
                 if self.graph.out_degree(n) == 1:
-                    assert self.qset_vertex_of(n) not in self.validators
+                    assert next(self.graph.successors(n)) not in self.validators
             else:
                 assert n in self.qsets.keys()
                 assert self.qsets[n] == self.compute_qset(n)
@@ -183,15 +189,11 @@ class FBASGraph:
         """
         Returns the threshold of the given vertex.
         """
+        if n in self.validators:
+            return 1 if self.graph.out_degree(n) == 1 else 0
         if 'threshold' in self.vertice_attrs(n):
             return self.vertice_attrs(n)['threshold']
-        elif self.graph.out_degree(n) == 1:
-            return 1
-        elif self.graph.out_degree(n) == 0:
-            # we don't know the threshold associated with this vertex
-            return -1
-        else:
-            raise ValueError(f"Vertex {n} has no threshold attribute and out-degree > 1")
+        raise ValueError(f"QSet vertex {n} has no threshold attribute")
 
     def qset_vertex_of(self, n: str) -> str:
         """
@@ -285,12 +287,9 @@ class FBASGraph:
         Returns True if and only if n's agreement requirements are satisfied by s.
         """
         assert n in self.validators
-        if self.threshold(n) == 0:
-            return True
-        elif self.threshold(n) < 0:
+        if self.graph.out_degree(n) == 0:
             return over_approximate
-        else:
-            return self.is_qset_sat(self.qset_vertex_of(n), s)
+        return self.is_qset_sat(self.qset_vertex_of(n), s)
 
     def is_quorum(self, vs: Collection, over_approximate=True, no_requirements:Optional[set[str]]=None) -> bool:
         """
@@ -301,7 +300,7 @@ class FBASGraph:
             return False
         assert set(vs) <= self.validators
         to_check = (set(vs) - (no_requirements or set()))
-        if not any([self.threshold(v) >= 0 for v in to_check]): # we have a qset for at least one validator
+        if not any([self.threshold(v) >= 0 for v in to_check]):  # we have a qset for at least one validator
             logging.error("Quorum made of validators which do not have a qset: %s (%s are excluded)", vs, no_requirements or set())
             assert False
         return all(self.is_sat(v, vs, over_approximate) for v in to_check)
@@ -318,10 +317,12 @@ class FBASGraph:
     def blocks(self, s : Collection, n : Any) -> bool:
         """
         Returns True if and only if s blocks v.
+        TODO: should there be an `overapproximate` parameter?
         """
-        if self.threshold(n) <= 0:
+        if self.threshold(n) == 0:
             return False
-        return self.threshold(n) + sum(1 for c in self.graph.successors(n) if c in s) > self.graph.out_degree(n)
+        remaining_successors = len(set(self.graph.successors(n)) - s)
+        return remaining_successors < self.threshold(n)
 
     def closure(self, vs: Collection) -> frozenset:
         """
@@ -363,7 +364,6 @@ class FBASGraph:
         if n in self.validators:
             return True
         return all(c in self.validators for c in self.graph.successors(n)) \
-            and self.threshold(n) > 0 \
             and 2*self.threshold(n) > self.graph.out_degree(n)
 
     def intersection_bound_heuristic(self, n1: str, n2: str) -> int:
@@ -437,11 +437,13 @@ class FBASGraph:
 
     def flatten_diamonds(self) -> None:
         """
-        Identify all the "diamonds" in the graph and "flatten" them.
-        This creates a new logical validator in place of the diamond, and a 'logical' attribute set to True.
-        A diamond is formed by a qset vertex whose children have no other parent, whose threshold is non-zero and strictly greater than half, and that has a unique grandchild.
-        This operation mutates the FBAS in place.
-        It preserves both quorum intersection and non-intersection.
+        Identify all the "diamonds" in the graph and "flatten" them.  This
+        creates a new logical validator in place of the diamond, and a 'logical'
+        attribute set to True.  A diamond is formed by a qset vertex whose
+        children have no other parent, whose threshold is non-zero and strictly
+        greater than half, and that has a unique grandchild.  This operation
+        mutates the FBAS in place.  It preserves both quorum intersection and
+        non-intersection.
 
         NOTE: this is complex and doesn't seem that useful.
         """

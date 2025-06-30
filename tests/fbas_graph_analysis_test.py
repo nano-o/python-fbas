@@ -68,6 +68,7 @@ def test_min_splitting_set():
         config.card_encoding = 'totalizer'
         find_minimal_splitting_set(fbas_graph)
 
+
 def test_min_blocking_set_3():
     qset1 = {'threshold':3, 'validators':['PK1','PK2','PK3','PK4'],  'innerQuorumSets': []}
     fbas1 = FBASGraph()
@@ -77,6 +78,7 @@ def test_min_blocking_set_3():
     config.max_sat_algo = 'RC2'
     b = find_minimal_blocking_set(fbas1)
     assert len(b) == 2 # type: ignore
+
 
 def test_min_blocking_set_4():
     data = get_test_data_list()

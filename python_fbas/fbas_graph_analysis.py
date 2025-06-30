@@ -34,9 +34,6 @@ def quorum_constraints(fbas: FBASGraph, make_atom: Callable[[str], Atom]) -> lis
             constraints.append(Implies(make_atom(v), Card(fbas.threshold(v), *vs)))
         if fbas.threshold(v) == 0:
             continue # no constraints for this vertex
-        if fbas.threshold(v) < 0:
-            # to be conservative (i.e. create as many quorums as possible), no constraints
-            continue
     return constraints
 
 def solve_constraints(constraints:list[Formula]) -> Tuple[bool, Solver]:
@@ -208,9 +205,6 @@ def find_minimal_splitting_set(fbas: FBASGraph) ->  Optional[Tuple[Collection,Co
                     constraints.append(Implies(in_quorum(q, v), Card(fbas.threshold(v), *vs)))
             if fbas.threshold(v) == 0:
                 continue # no constraints for this vertex
-            if fbas.threshold(v) < 0:
-                # to be conservative (i.e. create as many quorums as possible), no constraints
-                continue
     # add the constraint that no non-faulty validator can be in both quorums:
     for v in fbas.validators:
         constraints += [Or(faulty(v), Not(in_quorum('A', v)), Not(in_quorum('B', v)))]
@@ -302,23 +296,21 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
     # first, the threshold constraints:
     for v in fbas.vertices():
-        constraints.append(Or(faulty(v), blocked(v)))
+        if v in fbas.validators:
+            constraints.append(Or(faulty(v), blocked(v)))
         if v not in fbas.validators:
             constraints.append(Not(faulty(v)))
         if fbas.threshold(v) > 0:
-            may_block = [And(blocked(n), lt(n,v)) for n in fbas.graph.successors(v)]
+            may_block = [And(Or(blocked(n), faulty(n)), lt(n,v)) for n in fbas.graph.successors(v)]
             constraints.append(Implies(Card(blocking_threshold(v), *may_block), blocked(v)))
             constraints.append(Implies(And(blocked(v), Not(faulty(v))), Card(blocking_threshold(v), *may_block)))
         if fbas.threshold(v) == 0:
-            # never blocked
             constraints.append(Not(blocked(v)))
-        if fbas.threshold(v) < 0:
-            # to be conservative, could be blocked by anything; so, no constraints
-            continue
 
-    # The lt relation must be a partial order (anti-symmetric and transitive). For performance, lt
-    # only relates vertices that are in the same strongly connected components (as otherwise there
-    # is no possible cycle in the blocking relation).
+    # The lt relation must be a partial order (anti-symmetric and transitive).
+    # For performance, lt only relates vertices that are in the same strongly
+    # connected components (as otherwise there is no possible cycle anyway in
+    # the blocking relation).
     sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
             if any(fbas.threshold(v) >= 0 for v in set(scc))]
     assert sccs
@@ -366,11 +358,10 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             logging.info("Minimal-cardinality blocking set: %s", [fbas.with_name(v) for v in s])
         else:
             logging.info("Minimal-cardinality blocking set: %s", [g for g in s if g in groups])
-        vs = [v for v in s if v not in groups]
-        no_qset = {v for v in fbas.validators if fbas.threshold(v) < 0}
-        all_ = set(vs) | no_qset
-        assert fbas.closure(all_) == fbas.validators
-        for vs2 in combinations(all_, cost-1+len(no_qset)):
+        vs = set(s) - groups
+        assert fbas.closure(vs) == fbas.validators
+        for vs2 in combinations(vs, cost-1):
+            # TODO isn't this going to fail with groups?
             assert fbas.closure(vs2) != fbas.validators
         if not config.group_by:
             return s
