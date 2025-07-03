@@ -13,7 +13,7 @@ from pysat.examples.lsu import LSU  # MaxSAT algorithm
 from pysat.examples.rc2 import RC2  # MaxSAT algorithm
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic \
-    import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses
+    import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses, decode_model
 import python_fbas.config as config
 try:
     from pyqbf.formula import PCNF
@@ -74,9 +74,9 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     if res:
         model: list[int] = solver.get_model() or []
         assert model  # error if []
-        q = [variables_inv[v]
-             for v in set(model) & set(variables_inv.keys())
-             if variables_inv[v] in fbas.validators]
+        q = decode_model(
+            model,
+            predicate=lambda ident: ident in fbas.validators)
         logging.info("Quorum %s is inside %s", q, s)
     else:
         logging.info("No quorum found in %s", s)

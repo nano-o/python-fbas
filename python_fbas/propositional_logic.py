@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any, cast
+from typing import Any, cast, Callable, Sequence
 from pysat.card import CardEnc, EncType
 import python_fbas.config as config
 
@@ -245,3 +245,42 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
                     raise ValueError('Unknown cardinality encoding')
         case _:
             raise TypeError
+
+
+# ---------------------------------------------------------------------------
+# Helper utilities
+# ---------------------------------------------------------------------------
+
+def decode_model(model: Sequence[int],
+                 *,
+                 predicate: Callable[[Any], bool] | None = None) -> list[Any]:
+    """
+    Translate a SAT model (list of integers) back to the original variable
+    identifiers stored in `variables_inv` by producing the list of variables
+    that evaluate to true.
+
+    Parameters
+    ----------
+    model :
+        Sequence of integers (as returned by pysat Solver.get_model()).
+    predicate :
+        Optional predicate to filter identifiers. It receives each identifier
+        and should return True if it must be included in the output.
+
+    Returns
+    -------
+    list
+        Identifiers that satisfy the filtering criteria and that evaluate to
+        true, in the order they appear in the model.
+    """
+    ids: list[Any] = []
+    for lit in model:
+        if lit < 0:
+            continue
+        ident = variables_inv.get(abs(lit))
+        if ident is None:
+            # Anonymous Tseitin variable – skip
+            continue
+        if predicate is None or predicate(ident):
+            ids.append(ident)
+    return ids
