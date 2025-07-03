@@ -3,7 +3,6 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
-import time
 from typing import Any, Optional, Tuple, Collection, Callable, Union
 from itertools import combinations
 import networkx as nx
@@ -16,6 +15,7 @@ from python_fbas.propositional_logic \
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, \
     variables_inv, to_cnf, atoms_of_clauses, decode_model
 import python_fbas.config as config
+from python_fbas.utils import timed
 try:
     from pyqbf.formula import PCNF
     from pyqbf.solvers import Solver as QSolver
@@ -28,8 +28,7 @@ solvers: list[str] = [list(SolverNames.__dict__[s])[::-1][0]
 
 
 def quorum_constraints(fbas: FBASGraph,
-                       make_atom: Callable[[str],
-                                           Atom]) -> list[Formula]:
+                       make_atom: Callable[[str], Atom]) -> list[Formula]:
     """Returns constraints expressing that the set of true atoms is a quorum"""
     constraints: list[Formula] = []
     for v in fbas.vertices():
@@ -48,11 +47,9 @@ def quorum_constraints(fbas: FBASGraph,
 
 def solve_constraints(constraints: list[Formula]) -> Tuple[bool, Solver]:
     clauses = to_cnf(constraints)
-    solver = Solver(bootstrap_with=clauses, name=config.sat_solver)
-    start_time = time.time()
-    res: bool = bool(solver.solve())
-    end_time = time.time()
-    logging.info("Solving time: %s", end_time - start_time)
+    with timed("SAT solving"):
+        solver = Solver(bootstrap_with=clauses, name=config.sat_solver)
+        res = bool(solver.solve())
     return res, solver
 
 
@@ -114,23 +111,20 @@ def find_disjoint_quorums(
                 if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
                 and variables_inv[v][2] in fbas.validators]
 
-    start_time = time.time()
     constraints: list[Formula] = []
-    for q in ['A', 'B']:  # our two quorums
-        # the quorum must contain at least one validator for which we have a
-        # qset:
-        constraints += [Or(*[in_quorum(q, n)
-                           for n in fbas.validators if fbas.threshold(n) >= 0])]
-        constraints += quorum_constraints(fbas, lambda n: in_quorum(q, n))
-    # no validator can be in both quorums:
-    for v in fbas.validators:
-        constraints += [Or(Not(in_quorum('A', v)), Not(in_quorum('B', v)))]
-    end_time = time.time()
-    logging.info("Constraint-building time: %s", end_time - start_time)
-    start_time = time.time()
-    clauses = to_cnf(constraints)
-    end_time = time.time()
-    logging.info("Time to convert to CNF: %s", end_time - start_time)
+    with timed("Disjoint-quorum constraint building"):
+        for q in ['A', 'B']:  # our two quorums
+            # the quorum must contain at least one validator for which we have a
+            # qset:
+            constraints += [Or(*[in_quorum(q, n)
+                               for n in fbas.validators if fbas.threshold(n) >= 0])]
+            constraints += quorum_constraints(fbas, lambda n: in_quorum(q, n))
+        # no validator can be in both quorums:
+        for v in fbas.validators:
+            constraints += [Or(Not(in_quorum('A', v)), Not(in_quorum('B', v)))]
+
+    with timed("CNF conversion"):
+        clauses = to_cnf(constraints)
 
     res, s = solve_constraints(constraints)
 
@@ -169,13 +163,11 @@ def maximize(wcnf: WCNF) -> Optional[Tuple[int, Any]]:
     else:
         s = RC2(wcnf)
 
-    start_time = time.time()
-    if isinstance(s, LSU):
-        res = s.solve()
-    else:  # RC2
-        res = s.compute()
-    end_time = time.time()
-    logging.info("Solving time: %s", end_time - start_time)
+    with timed("MaxSAT solving"):
+        if isinstance(s, LSU):
+            res = s.solve()
+        else:  # RC2
+            res = s.compute()
     if res:
         return s.cost, s.model
     return None
@@ -217,66 +209,62 @@ def find_minimal_splitting_set(
                 for v in set(atoms) & set(variables_inv.keys())
                 if variables_inv[v][0] == faulty_tag]
 
-    start_time = time.time()
     constraints: list[Formula] = []
-
-    # now we create the constraints:
-    for q in ['A', 'B']:  # for each of our two quorums
-        # the quorum contains at least one non-faulty validator for which we
-        # have a qset:
-        constraints += [Or(*[And(in_quorum(q, n), Not(faulty(n)))
-                           for n in fbas.validators if fbas.threshold(n) >= 0])]
-        # then, we add the threshold constraints:
-        for v in fbas.vertices():
-            if fbas.threshold(v) > 0:
-                vs = [in_quorum(q, n) for n in fbas.graph.successors(v)]
-                if v in fbas.validators:
-                    # the threshold must be met only if the validator is not
-                    # faulty:
-                    constraints.append(
-                        Implies(And(in_quorum(q, v), Not(faulty(v))), Card(fbas.threshold(v), *vs)))
-                else:
-                    # the threshold must be met:
-                    constraints.append(
-                        Implies(
-                            in_quorum(
-                                q, v), Card(
-                                fbas.threshold(v), *vs)))
-            if fbas.threshold(v) == 0:
-                continue  # no constraints for this vertex
-    # add the constraint that no non-faulty validator can be in both quorums:
-    for v in fbas.validators:
-        constraints += [Or(faulty(v), Not(in_quorum('A', v)),
-                           Not(in_quorum('B', v)))]
-
-    if config.group_by:
-        # we add constraints assert that the group is faulty if and only if all
-        # its members are faulty
-        groups = set(
-            fbas.vertice_attrs(v)[config.group_by]
-            for v in fbas.validators)
-        members = {g: [v for v in fbas.validators
-                       if fbas.vertice_attrs(v)[config.group_by] == g]
-                   for g in groups}
-        for g in groups:
-            constraints.append(
-                Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
-            constraints.append(
-                Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
-
-    # finally, convert to weighted CNF and add soft constraints that minimize
-    # the number of faulty validators (or groups):
-    wcnf = WCNF()
-    wcnf.extend(to_cnf(constraints))
-    if not config.group_by:
+    with timed("Splitting-set constraint building"):
+        # now we create the constraints:
+        for q in ['A', 'B']:  # for each of our two quorums
+            # the quorum contains at least one non-faulty validator for which we
+            # have a qset:
+            constraints += [Or(*[And(in_quorum(q, n), Not(faulty(n)))
+                               for n in fbas.validators if fbas.threshold(n) >= 0])]
+            # then, we add the threshold constraints:
+            for v in fbas.vertices():
+                if fbas.threshold(v) > 0:
+                    vs = [in_quorum(q, n) for n in fbas.graph.successors(v)]
+                    if v in fbas.validators:
+                        # the threshold must be met only if the validator is not
+                        # faulty:
+                        constraints.append(
+                            Implies(And(in_quorum(q, v), Not(faulty(v))), Card(fbas.threshold(v), *vs)))
+                    else:
+                        # the threshold must be met:
+                        constraints.append(
+                            Implies(
+                                in_quorum(
+                                    q, v), Card(
+                                    fbas.threshold(v), *vs)))
+                if fbas.threshold(v) == 0:
+                    continue  # no constraints for this vertex
+        # add the constraint that no non-faulty validator can be in both quorums:
         for v in fbas.validators:
-            wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
-    else:
-        for g in groups:  # type: ignore
-            wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
+            constraints += [Or(faulty(v), Not(in_quorum('A', v)),
+                               Not(in_quorum('B', v)))]
 
-    end_time = time.time()
-    logging.info("Constraint-building time: %s", end_time - start_time)
+        if config.group_by:
+            # we add constraints assert that the group is faulty if and only if all
+            # its members are faulty
+            groups = set(
+                fbas.vertice_attrs(v)[config.group_by]
+                for v in fbas.validators)
+            members = {g: [v for v in fbas.validators
+                           if fbas.vertice_attrs(v)[config.group_by] == g]
+                       for g in groups}
+            for g in groups:
+                constraints.append(
+                    Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
+                constraints.append(
+                    Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
+
+        # finally, convert to weighted CNF and add soft constraints that minimize
+        # the number of faulty validators (or groups):
+        wcnf = WCNF()
+        wcnf.extend(to_cnf(constraints))
+        if not config.group_by:
+            for v in fbas.validators:
+                wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
+        else:
+            for g in groups:  # type: ignore
+                wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
 
     result = maximize(wcnf)
 
@@ -332,96 +320,91 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         config.max_sat_algo,
         config.card_encoding)
 
-    start_time = time.time()
-
     if not fbas.validators:
         logging.info("No validators in the FBAS graph!")
         return None
 
     constraints: list[Formula] = []
+    with timed("Blocking-set constraint building"):
+        faulty_tag: int = 0
+        blocked_tag: int = 1
 
-    faulty_tag: int = 0
-    blocked_tag: int = 1
+        def faulty(v: str) -> Atom:
+            return Atom((faulty_tag, v))
 
-    def faulty(v: str) -> Atom:
-        return Atom((faulty_tag, v))
+        def blocked(v: str) -> Atom:
+            return Atom((blocked_tag, v))
 
-    def blocked(v: str) -> Atom:
-        return Atom((blocked_tag, v))
+        def lt(v1: str, v2: str) -> Formula:
+            """
+            v1 is strictly lower than v2
+            """
+            return Atom((v1, v2))
 
-    def lt(v1: str, v2: str) -> Formula:
-        """
-        v1 is strictly lower than v2
-        """
-        return Atom((v1, v2))
+        def blocking_threshold(v) -> int:
+            return len(list(fbas.graph.successors(v))) - fbas.threshold(v) + 1
 
-    def blocking_threshold(v) -> int:
-        return len(list(fbas.graph.successors(v))) - fbas.threshold(v) + 1
+        # first, the threshold constraints:
+        for v in fbas.vertices():
+            if v in fbas.validators:
+                constraints.append(Or(faulty(v), blocked(v)))
+            if v not in fbas.validators:
+                constraints.append(Not(faulty(v)))
+            if fbas.threshold(v) > 0:
+                may_block = [And(Or(blocked(n), faulty(n)), lt(n, v))
+                             for n in fbas.graph.successors(v)]
+                constraints.append(
+                    Implies(
+                        Card(
+                            blocking_threshold(v),
+                            *may_block),
+                        blocked(v)))
+                constraints.append(
+                    Implies(And(blocked(v), Not(faulty(v))),
+                            Card(blocking_threshold(v), *may_block)))
+            if fbas.threshold(v) == 0:
+                constraints.append(Not(blocked(v)))
 
-    # first, the threshold constraints:
-    for v in fbas.vertices():
-        if v in fbas.validators:
-            constraints.append(Or(faulty(v), blocked(v)))
-        if v not in fbas.validators:
-            constraints.append(Not(faulty(v)))
-        if fbas.threshold(v) > 0:
-            may_block = [And(Or(blocked(n), faulty(n)), lt(n, v))
-                         for n in fbas.graph.successors(v)]
-            constraints.append(
-                Implies(
-                    Card(
-                        blocking_threshold(v),
-                        *may_block),
-                    blocked(v)))
-            constraints.append(
-                Implies(And(blocked(v), Not(faulty(v))),
-                        Card(blocking_threshold(v), *may_block)))
-        if fbas.threshold(v) == 0:
-            constraints.append(Not(blocked(v)))
+        # The lt relation must be a partial order (anti-symmetric and transitive).
+        # For performance, lt only relates vertices that are in the same strongly
+        # connected components (as otherwise there is no possible cycle anyway in
+        # the blocking relation).
+        sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
+                if any(fbas.threshold(v) >= 0 for v in set(scc))]
+        assert sccs
+        for scc in sccs:
+            for v1 in scc:
+                constraints.append(Not(lt(v1, v1)))
+                for v2 in scc:
+                    for v3 in scc:
+                        constraints.append(
+                            Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
 
-    # The lt relation must be a partial order (anti-symmetric and transitive).
-    # For performance, lt only relates vertices that are in the same strongly
-    # connected components (as otherwise there is no possible cycle anyway in
-    # the blocking relation).
-    sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
-            if any(fbas.threshold(v) >= 0 for v in set(scc))]
-    assert sccs
-    for scc in sccs:
-        for v1 in scc:
-            constraints.append(Not(lt(v1, v1)))
-            for v2 in scc:
-                for v3 in scc:
-                    constraints.append(
-                        Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
+        groups = set()
+        if config.group_by:
+            # we add constraints assert that the group is faulty if and only if all
+            # its members are faulty
+            groups = set(fbas.vertice_attrs(v)[config.group_by]
+                         for v in fbas.validators)
+            members = {g: [v for v in fbas.validators
+                           if fbas.vertice_attrs(v)[config.group_by] == g]
+                       for g in groups}
+            for g in groups:
+                constraints.append(
+                    Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
+                constraints.append(
+                    Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
 
-    groups = set()
-    if config.group_by:
-        # we add constraints assert that the group is faulty if and only if all
-        # its members are faulty
-        groups = set(fbas.vertice_attrs(v)[config.group_by]
-                     for v in fbas.validators)
-        members = {g: [v for v in fbas.validators
-                       if fbas.vertice_attrs(v)[config.group_by] == g]
-                   for g in groups}
-        for g in groups:
-            constraints.append(
-                Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
-            constraints.append(
-                Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
-
-    # convert to weighted CNF and add soft constraints that minimize the
-    # number of faulty validators:
-    wcnf = WCNF()
-    wcnf.extend(to_cnf(constraints))
-    if not config.group_by:
-        for v in fbas.validators:
-            wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
-    else:
-        for g in groups:
-            wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
-
-    end_time = time.time()
-    logging.info("Constraint-building time: %s", end_time - start_time)
+        # convert to weighted CNF and add soft constraints that minimize the
+        # number of faulty validators:
+        wcnf = WCNF()
+        wcnf.extend(to_cnf(constraints))
+        if not config.group_by:
+            for v in fbas.validators:
+                wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
+        else:
+            for g in groups:
+                wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
 
     result = maximize(wcnf)
 
