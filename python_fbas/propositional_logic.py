@@ -21,7 +21,7 @@ class Formula(ABC):
     """
 
 
-@dataclass
+@dataclass(slots=True)
 class Atom(Formula):
     """
     A propositional logic atom.
@@ -29,7 +29,7 @@ class Atom(Formula):
     identifier: Any
 
 
-@dataclass
+@dataclass(slots=True)
 class Not(Formula):
     """
     Negation.
@@ -37,7 +37,7 @@ class Not(Formula):
     operand: Formula
 
 
-@dataclass(init=False)
+@dataclass(init=False, slots=True)
 class And(Formula):
     """
     Conjunction.
@@ -48,7 +48,7 @@ class And(Formula):
         self.operands = list(operands)
 
 
-@dataclass(init=False)
+@dataclass(init=False, slots=True)
 class Or(Formula):
     """
     Disjunction.
@@ -59,7 +59,7 @@ class Or(Formula):
         self.operands = list(operands)
 
 
-@dataclass(init=False)
+@dataclass(init=False, slots=True)
 class Implies(Formula):
     """
     Implication. The last operand is the conclusion.
@@ -71,7 +71,7 @@ class Implies(Formula):
         self.operands = list(operands)
 
 
-@dataclass(init=False)
+@dataclass(init=False, slots=True)
 class Card(Formula):
     """
     A cardinality constraint expressing that at least `threshold` number of

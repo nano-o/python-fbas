@@ -13,7 +13,12 @@ from pysat.examples.lsu import LSU  # MaxSAT algorithm
 from pysat.examples.rc2 import RC2  # MaxSAT algorithm
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic \
+<<<<<<< Updated upstream
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses, decode_model
+=======
+    import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, \
+    variables_inv, to_cnf, atoms_of_clauses, decode_model, TagPool, decode_tag
+>>>>>>> Stashed changes
 import python_fbas.config as config
 try:
     from pyqbf.formula import PCNF
