@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
-def powerset(s : Sequence):
+
+def powerset(s: Sequence):
     """A generator for the powerset of s. Assume elements in s are unique."""
     x = len(s)
     # each x-bit number represents a subset of s:

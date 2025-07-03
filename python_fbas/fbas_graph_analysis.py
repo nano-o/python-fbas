@@ -13,12 +13,8 @@ from pysat.examples.lsu import LSU  # MaxSAT algorithm
 from pysat.examples.rc2 import RC2  # MaxSAT algorithm
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic \
-<<<<<<< Updated upstream
-    import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, variables_inv, to_cnf, atoms_of_clauses, decode_model
-=======
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, \
-    variables_inv, to_cnf, atoms_of_clauses, decode_model, TagPool, decode_tag
->>>>>>> Stashed changes
+    variables_inv, to_cnf, atoms_of_clauses, decode_model
 import python_fbas.config as config
 try:
     from pyqbf.formula import PCNF
@@ -46,7 +42,7 @@ def quorum_constraints(fbas: FBASGraph,
                         fbas.threshold(v),
                         *vs)))
         if fbas.threshold(v) == 0:
-            continue # no constraints for this vertex
+            continue  # no constraints for this vertex
     return constraints
 
 
@@ -91,15 +87,19 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
 def find_disjoint_quorums(
         fbas: FBASGraph) -> Optional[Tuple[Collection, Collection]]:
     """
-    Find two disjoint quorums in the FBAS graph, or prove there are none.
-    To do this, we build a propositional formula that is satsifiable if and only if there are two disjoint quorums.
-    Then we call a SAT solver to check for satisfiability.
+    Find two disjoint quorums in the FBAS graph, or prove there are none.  To do
+    this, we build a propositional formula that is satsifiable if and only if
+    there are two disjoint quorums.  Then we call a SAT solver to check for
+    satisfiability.
 
-    The idea is to consider two quorums A and B and create two propositional variables vA and vB for each validator v, where vA is true when v is in quorum A, and vB is true when v is in quorum B.
-    Then we create constraints asserting that 'A' is a non-empty quorum and 'B' is a non-empty quorum.
-    Finally we assert that no validator is in both quorums, and we check for satisfiability.
-    If the constraints are satisfiable, then we have two disjoint quorums and the truth assignment gives us the quorums.
-    Otherwise, we know that no two disjoint quorums exist.
+    The idea is to consider two quorums A and B and create two propositional
+    variables vA and vB for each validator v, where vA is true when v is in
+    quorum A, and vB is true when v is in quorum B.  Then we create constraints
+    asserting that 'A' is a non-empty quorum and 'B' is a non-empty quorum.
+    Finally we assert that no validator is in both quorums, and we check for
+    satisfiability.  If the constraints are satisfiable, then we have two
+    disjoint quorums and the truth assignment gives us the quorums.  Otherwise,
+    we know that no two disjoint quorums exist.
     """
 
     quorum_tag: int = 1
@@ -243,7 +243,7 @@ def find_minimal_splitting_set(
                                 q, v), Card(
                                 fbas.threshold(v), *vs)))
             if fbas.threshold(v) == 0:
-                continue # no constraints for this vertex
+                continue  # no constraints for this vertex
     # add the constraint that no non-faulty validator can be in both quorums:
     for v in fbas.validators:
         constraints += [Or(faulty(v), Not(in_quorum('A', v)),
@@ -318,12 +318,13 @@ def find_minimal_splitting_set(
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
     """
-    Find a minimal-cardinality blocking set in the FBAS graph, or prove there is none.
+    Find a minimal-cardinality blocking set in the FBAS graph, or prove there is
+    none.
 
-    This is a bit more tricky than for splitting sets because we need to ensure that the
-    "blocked-by" relation is well-founded (i.e. not circular). We achieve this by introducing a
-    partial order on vertices and asserting that a vertex can only be blocked by vertices that are
-    strictly lower in the order.
+    This is a bit more tricky than for splitting sets because we need to ensure
+    that the "blocked-by" relation is well-founded (i.e. not circular). We
+    achieve this by introducing a partial order on vertices and asserting that a
+    vertex can only be blocked by vertices that are strictly lower in the order.
     """
 
     logging.info(
@@ -456,7 +457,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 def min_history_loss_critical_set(
         fbas: FBASGraph) -> Tuple[Collection[str], Collection[str]]:
     """
-    Return a set of minimal cardinality such that, should the validators in the set stop publishing valid history, the history may be lost.
+    Return a set of minimal cardinality such that, should the validators in the
+    set stop publishing valid history, the history may be lost.
     """
 
     logging.info(
@@ -536,8 +538,9 @@ def find_min_quorum(
         not_equal_to=None,
         restrict_to_scc=True) -> Collection[str]:
     """
-    Find a minimal quorum in the FBAS graph using pyqbf.
-    If not_subset_of is a set of validators, then the quorum should contain at least one validator outside this set.
+    Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
+    set of validators, then the quorum should contain at least one validator
+    outside this set.
     """
 
     if not HAS_QBF:
@@ -710,7 +713,8 @@ def top_tier(fbas: FBASGraph) -> Collection[str]:
 
 def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
     """
-    Check if the overlay is FBA-resilient. That is, for every quorum Q, removing the complement of Q should not disconnect the overlay graph.
+    Check if the overlay is FBA-resilient. That is, for every quorum Q, removing
+    the complement of Q should not disconnect the overlay graph.
     """
     quorum_tag: int = 0
 
@@ -761,11 +765,12 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
 
 def num_not_blocked(fbas: FBASGraph, overlay: nx.Graph) -> int:
     """
-    Returns the number of validators v such that v is not blocked by its set of neighbors in the overlay.
+    Returns the number of validators v such that v is not blocked by its set of
+    neighbors in the overlay.
 
-    If this returns 0 then we know that, for every quorum Q, if we remove Q from the overlay graph,
-    then each remaining validator still has at least one neighbor. Note that this does not imply
-    that the graph remains connected.
+    If this returns 0 then we know that, for every quorum Q, if we remove Q from
+    the overlay graph, then each remaining validator still has at least one
+    neighbor. Note that this does not imply that the graph remains connected.
     """
     n = 0
     for v in fbas.validators:
@@ -777,7 +782,9 @@ def num_not_blocked(fbas: FBASGraph, overlay: nx.Graph) -> int:
 
 def is_fba_resilient_approx(fbas: FBASGraph, overlay: nx.Graph) -> bool:
     """
-    Check if every node is blocked by its set of neighbors in the overlay. Note this does not guarantee connectivity under maximal failures (i.e. removing the complement of a quorum).
+    Check if every node is blocked by its set of neighbors in the overlay. Note
+    this does not guarantee connectivity under maximal failures (i.e. removing
+    the complement of a quorum).
     """
     for v in fbas.validators:
         peers = list(overlay.neighbors(v)) if v in overlay else []
