@@ -12,8 +12,8 @@ from python_fbas.fbas_graph_analysis import (
     top_tier,
     is_overlay_resilient,
     num_not_blocked,
-    HAS_QBF,
 )
+from python_fbas.solver import HAS_QBF
 
 
 def test_qi_():

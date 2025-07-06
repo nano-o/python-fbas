@@ -3,13 +3,11 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
-from typing import Any, Optional, Tuple, Collection, Callable, Union
+from typing import Any, Optional, Tuple, Collection, Callable
 from itertools import combinations
 import networkx as nx
-from pysat.solvers import Solver, SolverNames
 from pysat.formula import CNF, WCNF
-from pysat.examples.lsu import LSU  # MaxSAT algorithm
-from pysat.examples.rc2 import RC2  # MaxSAT algorithm
+from python_fbas import solver as slv
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic \
     import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, \
@@ -18,13 +16,9 @@ import python_fbas.config as config
 from python_fbas.utils import timed
 try:
     from pyqbf.formula import PCNF
-    from pyqbf.solvers import Solver as QSolver
     HAS_QBF = True
 except ImportError:
     HAS_QBF = False
-
-solvers: list[str] = [list(SolverNames.__dict__[s])[::-1][0]
-                      for s in SolverNames.__dict__ if not s.startswith('__')]
 
 
 def quorum_constraints(fbas: FBASGraph,
@@ -52,12 +46,9 @@ def quorum_constraints(fbas: FBASGraph,
     return constraints
 
 
-def solve_constraints(constraints: list[Formula]) -> Tuple[bool, Solver]:
+def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
     clauses = to_cnf(constraints)
-    with timed("SAT solving"):
-        solver = Solver(bootstrap_with=clauses, name=config.sat_solver)
-        res = bool(solver.solve())
-    return res, solver
+    return slv.solve_sat(clauses)
 
 
 def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
@@ -75,9 +66,10 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     constraints += [And(*[Not(Atom(v))
                         for v in fbas.validators - s])]
 
-    res, solver = solve_constraints(constraints)
+    sat_res = solve_constraints(constraints)
+    res = sat_res.sat
     if res:
-        model: list[int] = solver.get_model() or []
+        model: list[int] = sat_res.model
         assert model  # error if []
         q = decode_model(
             model,
@@ -133,7 +125,8 @@ def find_disjoint_quorums(
     with timed("CNF conversion"):
         clauses = to_cnf(constraints)
 
-    res, s = solve_constraints(constraints)
+    sat_res = solve_constraints(constraints)
+    res = sat_res.sat
 
     if config.output:
         if config.output:
@@ -146,7 +139,7 @@ def find_disjoint_quorums(
                 f.writelines(dimacs)
 
     if res:
-        model = s.get_model() or []
+        model = sat_res.model
         assert model  # error if []
         q1 = get_quorum_(model, 'A', fbas)
         q2 = get_quorum_(model, 'B', fbas)
@@ -164,19 +157,9 @@ def maximize(wcnf: WCNF) -> Optional[Tuple[int, Any]]:
     """
     Solve a MaxSAT CNF problem.
     """
-    s: Union[LSU, RC2]
-    if config.max_sat_algo == 'LSU':
-        s = LSU(wcnf)
-    else:
-        s = RC2(wcnf)
-
-    with timed("MaxSAT solving"):
-        if isinstance(s, LSU):
-            res = s.solve()
-        else:  # RC2
-            res = s.compute()
-    if res:
-        return s.cost, s.model
+    result = slv.solve_maxsat(wcnf)
+    if result.sat:
+        return result.optimum, result.model
     return None
 
 
@@ -611,11 +594,10 @@ def find_min_quorum(
         *list(qa_atoms)).forall(
             *list(qb_vertex_atoms)).exists(*list(qb_tseitin_atoms))
 
-    # solvers: 'depqbf', 'qute', 'rareqs', 'qfun', 'caqe'
-    s = QSolver(name='depqbf', bootstrap_with=pcnf)  # type: ignore
-    res = s.solve()
+    qbf_res = slv.solve_qbf(pcnf)  # type: ignore
+    res = qbf_res.sat
     if res:
-        model = s.get_model()
+        model = qbf_res.model
         qa = get_quorum_(model, 'A', fbas)
         assert fbas.is_quorum(qa, over_approximate=True)
         if not_subset_of:
@@ -658,9 +640,6 @@ def top_tier(fbas: FBASGraph) -> Collection[str]:
     """
     Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
     """
-    if not HAS_QBF:
-        raise ImportError(
-            "QBF support not available. Install with: pip install python-fbas[qbf]")
 
     # First, find all sccs that contain at least one quorum:
     sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
@@ -733,9 +712,10 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
     constraints.append(
         Or(*[And(Not(reachable(v)), in_quorum(v)) for v in fbas.validators]))
 
-    res, solver = solve_constraints(constraints)
+    sat_res = solve_constraints(constraints)
+    res = sat_res.sat
     if res:
-        model = solver.get_model() or []
+        model = sat_res.model
         assert model  # error if []
         q = [variables_inv[v][1] for v in set(model) & set(variables_inv.keys(
         )) if variables_inv[v][0] == quorum_tag and variables_inv[v][1] in fbas.validators]
