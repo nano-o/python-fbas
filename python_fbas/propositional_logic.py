@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Any, cast, Callable, Sequence
 from pysat.card import CardEnc, EncType
-import python_fbas.config as config
+from python_fbas.config import get
 
 """
 This module provides a simple implementation of propositional logic formulas,

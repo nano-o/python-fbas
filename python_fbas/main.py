@@ -15,7 +15,7 @@ from python_fbas.fbas_graph_analysis import (
     )
 from python_fbas.pubnet_data import get_validators
 from python_fbas.solver import solvers
-import python_fbas.config as config
+from python_fbas.config import update, get
 
 
 def _load_json_from_file(validators_file):
@@ -100,26 +100,25 @@ def main():
 
     args = parser.parse_args()
 
-    # set config:
+    update(output=args.output_problem,
+           card_encoding=args.cardinality_encoding,
+           group_by=args.group_by,
+           sat_solver=args.sat_solver,
+           max_sat_algo=args.max_sat_algo)
+    cfg = get()
 
-    config.output = args.output_problem
-    if args.cardinality_encoding not in ['naive', 'totalizer']:
+    if cfg.card_encoding not in ['naive', 'totalizer']:
         logging.error(
             "Cardinality encoding must be either 'naive' or 'totalizer'")
         sys.exit(1)
-    config.card_encoding = args.cardinality_encoding
 
-    config.group_by = args.group_by
-
-    if args.sat_solver not in solvers:
+    if cfg.sat_solver not in solvers:
         logging.error("Solver must be one of %s", solvers)
         sys.exit(1)
-    config.sat_solver = args.sat_solver
 
-    if args.max_sat_algo not in ['LSU', 'RC2']:
+    if cfg.max_sat_algo not in ['LSU', 'RC2']:
         logging.error("MaxSAT algorithm must be either 'LSU' or 'RC2'")
         sys.exit(1)
-    config.max_sat_algo = args.max_sat_algo
 
     debug_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
     if args.log_level not in debug_levels:
@@ -134,10 +133,10 @@ def main():
         sys.exit(0)
 
     fbas = _load_fbas_graph(args)
-    if config.group_by is not None and not all(
-            config.group_by in fbas.vertice_attrs(v) for v in fbas.validators):
+    if cfg.group_by is not None and not all(
+            cfg.group_by in fbas.vertice_attrs(v) for v in fbas.validators):
         raise ValueError(
-            f"Some validators do not have the \"{config.group_by}\" attribute")
+            f"Some validators do not have the \"{cfg.group_by}\" attribute")
     if args.reachable_from:
         fbas = fbas.restrict_to_reachable(args.reachable_from)
 
@@ -145,7 +144,7 @@ def main():
         return [fbas.with_name(v) for v in vs]
 
     if args.command == 'check-intersection':
-        if args.group_by:
+        if cfg.group_by:
             logging.error(
                 "--group-by does not make sense with check-intersection")
             exit(1)
@@ -168,7 +167,7 @@ def main():
             sys.exit(0)
         print(f"Minimal splitting-set cardinality is: {len(result[0])}")
         print(
-            f"Example:\n{with_names(result[0]) if not config.group_by else result[0]}\nsplits quorums\n{with_names(result[1])}\nand\n{with_names(result[2])}")
+            f"Example:\n{with_names(result[0]) if not cfg.group_by else result[0]}\nsplits quorums\n{with_names(result[1])}\nand\n{with_names(result[2])}")
         sys.exit(0)
     elif args.command == 'min-blocking-set':
         result = find_minimal_blocking_set(fbas)
@@ -177,10 +176,10 @@ def main():
             sys.exit(0)
         print(f"Minimal blocking-set cardinality is: {len(result)}")
         print(
-            f"Example:\n{with_names(result) if not config.group_by else result}")
+            f"Example:\n{with_names(result) if not cfg.group_by else result}")
         sys.exit(0)
     elif args.command == 'history-loss':
-        if args.group_by:
+        if cfg.group_by:
             logging.error("--group-by does not make sense with history-loss")
             exit(1)
         result = min_history_loss_critical_set(fbas)

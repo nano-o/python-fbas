@@ -14,7 +14,7 @@ from pysat.examples.lsu import LSU
 from pysat.examples.rc2 import RC2
 
 from python_fbas.utils import timed
-import python_fbas.config as cfg
+from python_fbas.config import get
 
 try:
     from pyqbf.formula import PCNF
@@ -56,7 +56,7 @@ class QbfResult:
 # ---------------------------------------------------------------------------#
 def solve_sat(clauses: Sequence[Sequence[int]],
               *,
-              name: str = cfg.sat_solver,
+              name: str | None = None,
               dimacs_out: Optional[str] = None,
               label: str = "SAT solving") -> SatResult:
     """
@@ -66,6 +66,8 @@ def solve_sat(clauses: Sequence[Sequence[int]],
     if dimacs_out:
         CNF(from_clauses=clauses).to_file(dimacs_out)
 
+    if name is None:
+        name = get().sat_solver
     with timed(label):
         s = Solver(name=name, bootstrap_with=clauses)
         sat = bool(s.solve())
@@ -76,12 +78,14 @@ def solve_sat(clauses: Sequence[Sequence[int]],
 
 def solve_maxsat(wcnf: WCNF,
                  *,
-                 algo: str = cfg.max_sat_algo,
+                 algo: str | None = None,
                  label: str = "MaxSAT solving") -> MaxSatResult:
     """
     Solve a weighted CNF instance using LSU or RC2 according to `algo`.
     """
-    assert algo == 'LSU' or algo == 'RC2'
+    if algo is None:
+        algo = get().max_sat_algo
+    assert algo in ('LSU', 'RC2')
     engine: Union[LSU, RC2] = LSU(wcnf) if algo == 'LSU' else RC2(wcnf)
 
     with timed(label):

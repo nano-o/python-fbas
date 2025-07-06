@@ -14,8 +14,9 @@ def _fetch_from_url() -> list[dict]:
     """
     Get data from url defined in the config file.
     """
-    logging.info("Fetching data from {stellar_data_url}")
-    response = get(stellar_data_url, timeout=5)
+    url = get().stellar_data_url
+    logging.info("Fetching data from %s", url)
+    response = http_get(url, timeout=5)
     if response.status_code == 200:
         return response.json()
     response.raise_for_status()

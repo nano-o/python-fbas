@@ -1,5 +1,5 @@
 import pytest
-import python_fbas.config as config
+from python_fbas.config import update, get
 from python_fbas.propositional_logic import (
     Formula, Atom, Not, And, Or, Implies, Card, equiv,
     to_cnf, var, anonymous_var, decode_model, atoms_of_clauses
@@ -275,12 +275,12 @@ class TestCardinalityConstraints:
         pl.variables_inv.clear()
         pl.next_int = 1
         # Use naive encoding for predictable test results
-        self.original_encoding = config.card_encoding
-        config.card_encoding = 'naive'
+        self.original_encoding = get().card_encoding
+        update(card_encoding='naive')
 
     def teardown_method(self):
         """Restore original encoding."""
-        config.card_encoding = self.original_encoding
+        update(card_encoding=self.original_encoding)
 
     def test_card_naive_encoding(self):
         """Test cardinality constraint with naive encoding."""
@@ -299,19 +299,19 @@ class TestCardinalityConstraints:
 
     def test_card_totalizer_encoding(self):
         """Test cardinality constraint with totalizer encoding."""
-        config.card_encoding = 'totalizer'
+        update(card_encoding='totalizer')
 
         # TODO
 
     def test_card_special_cases(self):
         """Test cardinality constraint special cases."""
-        config.card_encoding = 'totalizer'
+        update(card_encoding='totalizer')
 
         # TODO
 
     def test_card_invalid_encoding(self):
         """Test cardinality constraint with invalid encoding."""
-        config.card_encoding = 'invalid'
+        update(card_encoding='invalid')
 
         atom1 = Atom('x')
         atom2 = Atom('y')
