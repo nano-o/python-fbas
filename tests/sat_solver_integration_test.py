@@ -27,6 +27,14 @@ class TestSatIntegration:
     def setup_method(self):
         _reset()
 
+    def test_empty_or(self):
+        sat, model = _solve(Or())
+        assert not sat
+
+    def test_empty_and(self):
+        sat, model = _solve(And())
+        assert sat
+
     def test_basic_sat(self):
         x, y = Atom('x'), Atom('y')
         sat, model = _solve(And(x, Or(y, Not(y))))
@@ -55,5 +63,5 @@ class TestSatIntegration:
         monkeypatch.setattr(cfg, 'card_encoding', 'totalizer')
         a, b, c = Atom('a'), Atom('b'), Atom('c')
         # require two true but force all three false → UNSAT
-        sat, _ = _solve(And(Card(2, a, b, c), Not(a), Not(b), Not(c)))
+        sat, _ = _solve(And(Card(2, a, b, c), Not(a), Not(b)))
         assert not sat
