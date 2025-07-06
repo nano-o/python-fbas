@@ -6,9 +6,9 @@ Module to fetch data from a source conforming to the stellarbeat.io API.
 import json
 import os
 import logging
-from requests import get
+from requests import get as http_get
 from platformdirs import user_cache_dir
-from python_fbas.config import stellar_data_url
+from python_fbas.config import get
 
 def _fetch_from_url() -> list[dict]:
     """
