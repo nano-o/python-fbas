@@ -12,10 +12,10 @@ from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
     find_minimal_splitting_set, find_minimal_blocking_set,
     min_history_loss_critical_set, find_min_quorum, top_tier
-    )
-from python_fbas.pubnet_data import get_validators
+)
+from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
-from python_fbas.config import update, get
+from python_fbas.config import update as update_config, get as get_config
 
 
 def _load_json_from_file(validators_file):
@@ -25,8 +25,80 @@ def _load_json_from_file(validators_file):
 
 def _load_fbas_graph(args) -> FBASGraph:
     if args.fbas == 'pubnet':
-        return FBASGraph.from_json(get_validators())
+        return FBASGraph.from_json(get_pubnet_config())
     return FBASGraph.from_json(_load_json_from_file(args.fbas))
+
+
+def _with_names(fbas: FBASGraph, vs: Collection[str]) -> list[str]:
+    return [fbas.with_name(v) for v in vs]
+
+
+def _command_update_cache(_args):
+    get_pubnet_config(update=True)
+    print("Cache updated.")
+
+
+def _command_check_intersection(args, fbas: FBASGraph):
+    cfg = get_config()
+    if cfg.group_by:
+        logging.error(
+            "--group-by does not make sense with check-intersection")
+        sys.exit(1)
+    if args.fast:
+        result = fbas.fast_intersection_check()
+        print(f"Intersection-check result: {result}")
+    else:
+        result = find_disjoint_quorums(fbas)
+        if result:
+            print(
+                f"Disjoint quorums: {_with_names(fbas, result[0])}\n and {_with_names(fbas, result[1])}")
+        else:
+            print("No disjoint quorums found")
+
+
+def _command_min_splitting_set(_args, fbas: FBASGraph):
+    cfg = get_config()
+    result = find_minimal_splitting_set(fbas)
+    if not result:
+        print("No splitting set found")
+        return
+    print(f"Minimal splitting-set cardinality is: {len(result[0])}")
+    print(
+        f"Example:\n{_with_names(fbas, result[0]) if not cfg.group_by else result[0]}\nsplits quorums\n{_with_names(fbas, result[1])}\nand\n{_with_names(fbas, result[2])}")
+
+
+def _command_min_blocking_set(_args, fbas: FBASGraph):
+    cfg = get_config()
+    result = find_minimal_blocking_set(fbas)
+    if not result:
+        print("No blocking set found")
+        return
+    print(f"Minimal blocking-set cardinality is: {len(result)}")
+    print(
+        f"Example:\n{_with_names(fbas, result) if not cfg.group_by else result}")
+
+
+def _command_history_loss(_args, fbas: FBASGraph):
+    cfg = get_config()
+    if cfg.group_by:
+        logging.error("--group-by does not make sense with history-loss")
+        sys.exit(1)
+    result = min_history_loss_critical_set(fbas)
+    print(
+        f"Minimal history-loss critical set cardinality is: {len(result[0])}")
+    print(f"Example min critical set:\n{_with_names(fbas, result[0])}")
+    print(
+        f"Corresponding history-less quorum:\n {_with_names(fbas, result[1])}")
+
+
+def _command_min_quorum(_args, fbas: FBASGraph):
+    result = find_min_quorum(fbas)
+    print(f"Example min quorum:\n{_with_names(fbas, result)}")
+
+
+def _command_top_tier(_args, fbas: FBASGraph):
+    result = top_tier(fbas)
+    print(f"Top tier: {_with_names(fbas, result)}")
 
 
 def main():
@@ -69,12 +141,16 @@ def main():
         help="Write the constraint-satisfaction problem to the provided path")
 
     # subcommands:
-    subparsers = parser.add_subparsers(dest="command", help="sub-command help")
+    subparsers = parser.add_subparsers(
+        dest="command",
+        help="sub-command help",
+        required=True)
 
     # Command for updating cached data
-    subparsers.add_parser(
+    parser_update_cache = subparsers.add_parser(
         'update-cache',
-        help=f"Update data from {get().stellar_data_url}")
+        help=f"Update data from {get_config().stellar_data_url}")
+    parser_update_cache.set_defaults(func=_command_update_cache)
 
     # Command for checking intersection
     parser_is_intertwined = subparsers.add_parser(
@@ -84,28 +160,38 @@ def main():
         '--fast',
         action='store_true',
         help="Use the fast heuristic (which does not use a SAT solver and only returns true, meaning all quorums intersect, or unknown)")
+    parser_is_intertwined.set_defaults(func=_command_check_intersection)
 
     # Command for minimum splitting set
-    subparsers.add_parser('min-splitting-set',
-                          help="Find minimal-cardinality splitting set")
-    subparsers.add_parser('min-blocking-set',
-                          help="Find minimal-cardinality blocking set")
-    subparsers.add_parser(
+    parser_min_splitting_set = subparsers.add_parser(
+        'min-splitting-set', help="Find minimal-cardinality splitting set")
+    parser_min_splitting_set.set_defaults(func=_command_min_splitting_set)
+
+    parser_min_blocking_set = subparsers.add_parser(
+        'min-blocking-set', help="Find minimal-cardinality blocking set")
+    parser_min_blocking_set.set_defaults(func=_command_min_blocking_set)
+
+    parser_history_loss = subparsers.add_parser(
         'history-loss',
         help="Find a minimal-cardinality set of validators such that, should they stop publishing valid history, would allow a full quorum to get ahead without publishing valid history (in which case history may be lost)")
+    parser_history_loss.set_defaults(func=_command_history_loss)
 
-    subparsers.add_parser('min-quorum', help="Find minimal-cardinality quorum")
+    parser_min_quorum = subparsers.add_parser(
+        'min-quorum', help="Find minimal-cardinality quorum")
+    parser_min_quorum.set_defaults(func=_command_min_quorum)
 
-    subparsers.add_parser('top-tier', help="Find the top tier of the FBAS")
+    parser_top_tier = subparsers.add_parser(
+        'top-tier', help="Find the top tier of the FBAS")
+    parser_top_tier.set_defaults(func=_command_top_tier)
 
     args = parser.parse_args()
 
-    update(output=args.output_problem,
-           card_encoding=args.cardinality_encoding,
-           group_by=args.group_by,
-           sat_solver=args.sat_solver,
-           max_sat_algo=args.max_sat_algo)
-    cfg = get()
+    update_config(output=args.output_problem,
+                  card_encoding=args.cardinality_encoding,
+                  group_by=args.group_by,
+                  sat_solver=args.sat_solver,
+                  max_sat_algo=args.max_sat_algo)
+    cfg = get_config()
 
     if cfg.card_encoding not in ['naive', 'totalizer']:
         logging.error(
@@ -127,9 +213,8 @@ def main():
     logging.getLogger().setLevel(args.log_level)
 
     # Run commands:
-
     if args.command == 'update-cache':
-        get_validators(update=True)
+        args.func(args)
         sys.exit(0)
 
     fbas = _load_fbas_graph(args)
@@ -140,64 +225,8 @@ def main():
     if args.reachable_from:
         fbas = fbas.restrict_to_reachable(args.reachable_from)
 
-    def with_names(vs: Collection[str]) -> list[str]:
-        return [fbas.with_name(v) for v in vs]
-
-    if args.command == 'check-intersection':
-        if cfg.group_by:
-            logging.error(
-                "--group-by does not make sense with check-intersection")
-            exit(1)
-        if args.fast:
-            result = fbas.fast_intersection_check()
-            print(f"Intersection-check result: {result}")
-            sys.exit(0)
-        else:
-            result = find_disjoint_quorums(fbas)
-            if result:
-                print(
-                    f"Disjoint quorums: {with_names(result[0])}\n and {with_names(result[1])}")
-            else:
-                print("No disjoint quorums found")
-            sys.exit(0)
-    elif args.command == 'min-splitting-set':
-        result = find_minimal_splitting_set(fbas)
-        if not result:
-            print("No splitting set found")
-            sys.exit(0)
-        print(f"Minimal splitting-set cardinality is: {len(result[0])}")
-        print(
-            f"Example:\n{with_names(result[0]) if not cfg.group_by else result[0]}\nsplits quorums\n{with_names(result[1])}\nand\n{with_names(result[2])}")
-        sys.exit(0)
-    elif args.command == 'min-blocking-set':
-        result = find_minimal_blocking_set(fbas)
-        if not result:
-            print("No blocking set found")
-            sys.exit(0)
-        print(f"Minimal blocking-set cardinality is: {len(result)}")
-        print(
-            f"Example:\n{with_names(result) if not cfg.group_by else result}")
-        sys.exit(0)
-    elif args.command == 'history-loss':
-        if cfg.group_by:
-            logging.error("--group-by does not make sense with history-loss")
-            exit(1)
-        result = min_history_loss_critical_set(fbas)
-        print(
-            f"Minimal history-loss critical set cardinality is: {len(result[0])}")
-        print(f"Example min critical set:\n{with_names(result[0])}")
-        print(f"Corresponding history-less quorum:\n {with_names(result[1])}")
-        sys.exit(0)
-    elif args.command == 'min-quorum':
-        result = find_min_quorum(fbas)
-        print(f"Example min quorum:\n{with_names(result)}")
-        sys.exit(0)
-    elif args.command == 'top-tier':
-        result = top_tier(fbas)
-        print(f"Top tier: {with_names(result)}")
-    else:
-        parser.print_help()
-        sys.exit(1)
+    args.func(args, fbas)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

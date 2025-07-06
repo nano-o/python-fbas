@@ -22,7 +22,7 @@ def _fetch_from_url() -> list[dict]:
     response.raise_for_status()
     raise IOError("Failed to fetch Stellar network data")
 
-def get_validators(update=False) -> list[dict]:
+def get_pubnet_config(update=False) -> list[dict]:
     """
     When update is true, fetch new data from the url and update the file in the cache directory.
     """
