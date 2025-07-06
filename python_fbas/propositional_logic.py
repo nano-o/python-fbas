@@ -225,7 +225,8 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
         case Implies(ops):
             return to_cnf(Or(Not(And(*ops[:-1])), ops[-1]))
         case Card(threshold, ops):
-            match config.card_encoding:
+            encoding = get().card_encoding
+            match encoding:
                 case 'naive':
                     # NOTE possibly lots of sub-formula sharing here: will be innefficient
                     fmla = Or(*[And(*c) for c in combinations(ops, threshold)])
