@@ -41,7 +41,14 @@ def quorum_constraints(fbas: FBASGraph,
                         fbas.threshold(v),
                         *vs)))
         if fbas.threshold(v) == 0:
-            continue  # no constraints for this vertex
+            # TODO seems like this needs to be configurable; maybe a global
+            # parameter to indicate how cautious we want to be.
+            continue
+        # if fbas.threshold(v) == 0:
+        #     if v in fbas.validators:
+        #         constraints.append(Not(make_atom(v)))
+        #     else:
+        #         continue  # no constraints
     return constraints
 
 
@@ -63,7 +70,7 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     constraints += quorum_constraints(fbas, Atom)
     # the quorum must contain at least one validator from s (and for which we
     # have a qset):
-    constraints += [Or(*[Atom(v) for v in s])]
+    constraints += [Or(*[Atom(v) for v in s if fbas.threshold(v) > 0])]
     # no validators outside s are in the quorum:
     constraints += [And(*[Not(Atom(v))
                         for v in fbas.validators - s])]

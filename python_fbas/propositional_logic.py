@@ -160,7 +160,8 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
         """
         Only called at the top level (not recursively). Thus we do not need to
         ensure that the last clause is a unit clause corresponding to the
-        formula (which is normally used by the caller).
+        formula (which is normally used by the caller), and use this to optimize
+        some cases.
         """
         match fmla:
             case Or(ops):
@@ -170,7 +171,8 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
                     return to_cnf(fmla)
             case Implies([And(ops), c]):
                 if all(isinstance(op, Atom) for op in ops) and isinstance(c, Atom):
-                    return [[-var(cast(Atom, a).identifier) for a in ops] + [var(c.identifier)]]
+                    return [[-var(cast(Atom, a).identifier) for a in ops]
+                            + [var(c.identifier)]]
                 else:
                     return to_cnf(fmla)
             case _:
