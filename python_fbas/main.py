@@ -74,7 +74,7 @@ def main():
     # Command for updating cached data
     subparsers.add_parser(
         'update-cache',
-        help=f"Update data form {config.stellar_data_url}")
+        help=f"Update data from {get().stellar_data_url}")
 
     # Command for checking intersection
     parser_is_intertwined = subparsers.add_parser(
