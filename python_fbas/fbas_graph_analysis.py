@@ -59,14 +59,14 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     """
     assert s <= fbas.validators
     constraints: list[Formula] = []
+    # the quorum constraints are satisfied:
+    constraints += quorum_constraints(fbas, Atom)
     # the quorum must contain at least one validator from s (and for which we
     # have a qset):
-    constraints += [Or(*[Atom(v) for v in s if fbas.threshold(v) >= 0])]
+    constraints += [Or(*[Atom(v) for v in s])]
     # no validators outside s are in the quorum:
     constraints += [And(*[Not(Atom(v))
-                        for v in fbas.validators if v not in s])]
-    # and the quorum constraints are satisfied:
-    constraints += quorum_constraints(fbas, Atom)
+                        for v in fbas.validators - s])]
 
     res, solver = solve_constraints(constraints)
     if res:
@@ -518,7 +518,6 @@ def min_history_loss_critical_set(
 def find_min_quorum(
         fbas: FBASGraph,
         not_subset_of=None,
-        not_equal_to=None,
         restrict_to_scc=True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
@@ -584,13 +583,6 @@ def find_min_quorum(
     if not_subset_of:
         qa_constraints += [Or(*[in_quorum('A', n)
                               for n in fbas.validators if n not in not_subset_of])]
-    # it is not equal to any of the quorums in not_equal_to:
-    if not_equal_to:
-        for s in not_equal_to:
-            assert set(s) <= fbas.validators
-            qa_constraints += [Or(
-                Or(*[Not(in_quorum('A', n)) for n in s]),
-                Or(*[in_quorum('A', n) for n in fbas.validators - set(s)]))]
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
     qb_quorum = And(*quorum_constraints_('B'))
