@@ -89,6 +89,18 @@ class Card(Formula):
 def equiv(f1, f2) -> Formula:
     return And(Implies(f1, f2), Implies(f2, f1))
 
+def atoms_of_formula(fmla: Formula) -> set[Any]:
+    """Returns the set of atoms appearing in a formula."""
+    match fmla:
+        case Atom(identifier):
+            return {identifier}
+        case Not(operand):
+            return atoms_of_formula(operand)
+        case And(operands) | Or(operands) | Implies(operands) | Card(_, operands):
+            return {atom for op in operands for atom in atoms_of_formula(op)}
+        case _:
+            raise TypeError
+
 
 # Now on to CNF conversion.  Given a formula, the goal is to produce an
 # equisatisfiable CNF formula over a new set of atoms and a bijection from the
