@@ -42,6 +42,19 @@ def test_min_splitting_set():
     assert "Minimal splitting-set cardinality is" in output
 
 
+def test_min_splitting_set_groups():
+    """Test the min-splitting-set command with group-by flag."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "--group-by=homeDomain",
+        "min-splitting-set"]
+    output = run_command(command)
+    assert "Minimal splitting-set cardinality is" in output
+
+
 def test_min_blocking_set():
     """Test the min-blocking-set command."""
     command = [
@@ -49,6 +62,19 @@ def test_min_blocking_set():
         "-m",
         "python_fbas.main",
         f"--fbas={FBAS_JSON}",
+        "min-blocking-set"]
+    output = run_command(command)
+    assert "Minimal blocking-set cardinality is" in output
+
+
+def test_min_blocking_set_groups():
+    """Test the min-blocking-set command with group-by flag."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "--group-by=homeDomain",
         "min-blocking-set"]
     output = run_command(command)
     assert "Minimal blocking-set cardinality is" in output

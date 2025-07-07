@@ -73,10 +73,8 @@ def group_constraints(
         fbas: FBASGraph,
         group_by: str) -> list[Formula]:
     """
-    Returns constraints that express that a group is tagged iff any of its
-    members is tagged, and if a group is tagged, all its members are tagged.
-    This makes all members of a group a single tagged unit.
-    Also returns the set of groups.
+    Returns constraints that express that a tagged group atom is true iff the
+    tagged validator atom of each of its members is true.
     """
     constraints: list[Formula] = []
     groups = fbas.groups_dict(group_by)
@@ -90,7 +88,7 @@ def group_constraints(
             constraints.append(
                 Implies(Or(*[tagger.atom(v) for v in members]),
                         tagger.atom(group_name)))
-    return constraints, set(groups.keys())
+    return constraints
 
 
 def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
