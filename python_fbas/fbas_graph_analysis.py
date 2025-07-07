@@ -34,15 +34,11 @@ def quorum_constraints(fbas: FBASGraph,
                     Card(
                         fbas.threshold(v),
                         *vs)))
-        if fbas.threshold(v) == 0:
+        if fbas.graph.out_degree(v) == 0 or fbas.threshold(v) == 0:
             # TODO seems like this needs to be configurable; maybe a global
             # parameter to indicate how cautious we want to be.
+            # Or maybe warn after analysis when a result depends on this behavior
             continue
-        # if fbas.threshold(v) == 0:
-        #     if v in fbas.validators:
-        #         constraints.append(Not(make_atom(v)))
-        #     else:
-        #         continue  # no constraints
     return constraints
 
 
