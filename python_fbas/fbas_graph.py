@@ -348,6 +348,20 @@ class FBASGraph:
         fbas.qsets = {k: v for k, v in self.qsets.items() if k in reachable}
         return fbas
 
+    def groups_dict(self, group_by: str = 'homeDomain') -> dict[str, set[str]]:
+        """
+        Computes a dict mapping group names to sets of member validators.
+        Groups are determined by the `group_by` attribute of validator nodes.
+        Validators without a value for the `group_by` attribute are skipped.
+        """
+        groups: dict[str, set[str]] = {}
+        for v in self.validators:
+            attrs = self.vertice_attrs(v)
+            if group_by in attrs and attrs[group_by]:
+                group_name = attrs[group_by]
+                groups.setdefault(group_name, set()).add(v)
+        return groups
+
     def restrict_to_reachable(self, v: str) -> 'FBASGraph':
         """
         Returns a new fbas that only contains what's reachable from v.
@@ -510,4 +524,3 @@ class FBASGraph:
                     break
             else:
                 return
-

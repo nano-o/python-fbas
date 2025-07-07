@@ -68,27 +68,29 @@ def extract_true_tagged_variables(model: list[int],
     return {tagger.strip_tag(identifier) for identifier in tagged_identifiers}
 
 
-def group_implication_constraints(
+def group_constraints(
         tagger: Tagger,
         fbas: FBASGraph,
-        group_by: str) -> tuple[list[Formula], set[str]]:
+        group_by: str) -> list[Formula]:
     """
-    Returns constraints that express that a group is tagged if and only if all
-    its members are. Also returns the set of groups.
+    Returns constraints that express that a group is tagged iff any of its
+    members is tagged, and if a group is tagged, all its members are tagged.
+    This makes all members of a group a single tagged unit.
+    Also returns the set of groups.
     """
     constraints: list[Formula] = []
-    groups = set(
-        fbas.vertice_attrs(v)[group_by]
-        for v in fbas.validators)
-    members = {g: [v for v in fbas.validators
-                   if fbas.vertice_attrs(v)[group_by] == g]
-               for g in groups}
-    for g in groups:
-        # A tagged atom corresponding to a group is true iff all tagged atoms
-        # corresponding to its members are true.
-        constraints.append(equiv(tagger.atom(g),
-                                 And(*[tagger.atom(v) for v in members[g]])))
-    return constraints, groups
+    groups = fbas.groups_dict(group_by)
+    for group_name, members in groups.items():
+        if members:
+            # If group is tagged, all members are tagged
+            constraints.append(
+                Implies(tagger.atom(group_name),
+                        And(*[tagger.atom(v) for v in members])))
+            # If any member is tagged, group is tagged
+            constraints.append(
+                Implies(Or(*[tagger.atom(v) for v in members]),
+                        tagger.atom(group_name)))
+    return constraints, set(groups.keys())
 
 
 def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
@@ -270,21 +272,8 @@ def find_minimal_splitting_set(
                                Not(quorum_b_tagger.atom(v)))]
 
         if config.group_by:
-            # we add constraints assert that the group is faulty if and only if
-            # all its members are faulty
-            groups = set(
-                fbas.vertice_attrs(v)[config.group_by]
-                for v in fbas.validators)
-            members = {g: [v for v in fbas.validators
-                           if fbas.vertice_attrs(v)[config.group_by] == g]
-                       for g in groups}
-            for g in groups:
-                constraints.append(
-                    Implies(faulty_tagger.atom(g),
-                            And(*[faulty_tagger.atom(v) for v in members[g]])))
-                constraints.append(
-                    Implies(Or(*[faulty_tagger.atom(v) for v in members[g]]),
-                            faulty_tagger.atom(g)))
+            constraints += group_constraints(
+                faulty_tagger, fbas, config.group_by)
 
         # finally, convert to weighted CNF and add soft constraints that
         # minimize the number of faulty validators (or groups):
@@ -294,7 +283,7 @@ def find_minimal_splitting_set(
             for v in fbas.validators:
                 wcnf.append(to_cnf(Not(faulty_tagger.atom(v)))[0], weight=1)
         else:
-            for g in groups:  # type: ignore
+            for g in fbas.groups_dict(config.group_by).keys():  # type: ignore
                 wcnf.append(to_cnf(Not(faulty_tagger.atom(g)))[0], weight=1)
 
     result = slv.solve_maxsat(wcnf)
@@ -420,20 +409,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
         groups = set()
         if config.group_by:
-            # we add constraints assert that the group is faulty if and only if
-            # all its members are faulty
-            groups = set(fbas.vertice_attrs(v)[config.group_by]
-                         for v in fbas.validators)
-            members = {g: [v for v in fbas.validators
-                           if fbas.vertice_attrs(v)[config.group_by] == g]
-                       for g in groups}
-            for g in groups:
-                constraints.append(
-                    Implies(faulty_tagger.atom(g),
-                            And(*[faulty_tagger.atom(v) for v in members[g]])))
-                constraints.append(
-                    Implies(Or(*[faulty_tagger.atom(v) for v in members[g]]),
-                            faulty_tagger.atom(g)))
+            constraints += group_constraints(
+                faulty_tagger, fbas, config.group_by)
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
@@ -443,7 +420,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             for v in fbas.validators:
                 wcnf.append(to_cnf(Not(faulty_tagger.atom(v)))[0], weight=1)
         else:
-            for g in groups:
+            for g in fbas.groups_dict(config.group_by).keys():
                 wcnf.append(to_cnf(Not(faulty_tagger.atom(g)))[0], weight=1)
 
     result = slv.solve_maxsat(wcnf)
