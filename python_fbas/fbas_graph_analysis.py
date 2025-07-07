@@ -271,9 +271,12 @@ def find_minimal_splitting_set(
                                Not(quorum_a_tagger.atom(v)),
                                Not(quorum_b_tagger.atom(v)))]
 
+        groups: Set[Any] = set()
+
         if config.group_by:
             constraints += group_constraints(
                 faulty_tagger, fbas, config.group_by)
+            groups = fbas.groups_dict(config.group_by).keys()
 
         # finally, convert to weighted CNF and add soft constraints that
         # minimize the number of faulty validators (or groups):
@@ -411,6 +414,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         if config.group_by:
             constraints += group_constraints(
                 faulty_tagger, fbas, config.group_by)
+            groups = fbas.groups_dict(config.group_by).keys()
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
