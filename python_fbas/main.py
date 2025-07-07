@@ -51,7 +51,7 @@ def _command_check_intersection(args, fbas: FBASGraph):
         result = find_disjoint_quorums(fbas)
         if result:
             print(
-                f"Disjoint quorums: {_with_names(fbas, result[0])}\n and {_with_names(fbas, result[1])}")
+                f"Disjoint quorums: {_with_names(fbas, result.quorum_a)}\n and {_with_names(fbas, result.quorum_b)}")
         else:
             print("No disjoint quorums found")
 
@@ -62,9 +62,9 @@ def _command_min_splitting_set(_args, fbas: FBASGraph):
     if not result:
         print("No splitting set found")
         return
-    print(f"Minimal splitting-set cardinality is: {len(result[0])}")
+    print(f"Minimal splitting-set cardinality is: {len(result.splitting_set)}")
     print(
-        f"Example:\n{_with_names(fbas, result[0]) if not cfg.group_by else result[0]}\nsplits quorums\n{_with_names(fbas, result[1])}\nand\n{_with_names(fbas, result[2])}")
+        f"Example:\n{_with_names(fbas, result.splitting_set) if not cfg.group_by else result.splitting_set}\nsplits quorums\n{_with_names(fbas, result.quorum_a)}\nand\n{_with_names(fbas, result.quorum_b)}")
 
 
 def _command_min_blocking_set(_args, fbas: FBASGraph):
@@ -85,10 +85,10 @@ def _command_history_loss(_args, fbas: FBASGraph):
         sys.exit(1)
     result = min_history_loss_critical_set(fbas)
     print(
-        f"Minimal history-loss critical set cardinality is: {len(result[0])}")
-    print(f"Example min critical set:\n{_with_names(fbas, result[0])}")
+        f"Minimal history-loss critical set cardinality is: {len(result.min_critical_set)}")
+    print(f"Example min critical set:\n{_with_names(fbas, result.min_critical_set)}")
     print(
-        f"Corresponding history-less quorum:\n {_with_names(fbas, result[1])}")
+        f"Corresponding history-less quorum:\n {_with_names(fbas, result.quorum)}")
 
 
 def _command_min_quorum(_args, fbas: FBASGraph):

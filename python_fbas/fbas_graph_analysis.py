@@ -3,6 +3,7 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Collection, Callable, Set
 from itertools import combinations
 from functools import partial
@@ -21,6 +22,28 @@ try:
     HAS_QBF = True
 except ImportError:
     HAS_QBF = False
+
+
+@dataclass
+class DisjointQuorumsResult:
+    """Represents the result of finding disjoint quorums."""
+    quorum_a: Collection[Any]
+    quorum_b: Collection[Any]
+
+
+@dataclass
+class SplittingSetResult:
+    """Represents the result of finding a minimal splitting set."""
+    splitting_set: Collection[Any]
+    quorum_a: Collection[Any]
+    quorum_b: Collection[Any]
+
+
+@dataclass
+class HistoryLossResult:
+    """Represents the result of finding a minimal history loss critical set."""
+    min_critical_set: Collection[str]
+    quorum: Collection[str]
 
 
 class Tagger:
@@ -145,7 +168,7 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
 
 
 def find_disjoint_quorums(
-        fbas: FBASGraph) -> Optional[Tuple[Collection, Collection]]:
+        fbas: FBASGraph) -> Optional[DisjointQuorumsResult]:
     """
     Find two disjoint quorums in the FBAS graph, or prove there are none.  To do
     this, we build a propositional formula that is satsifiable if and only if
@@ -208,12 +231,12 @@ def find_disjoint_quorums(
         assert fbas.is_quorum(q1, over_approximate=True)
         assert fbas.is_quorum(q2, over_approximate=True)
         assert not set(q1) & set(q2)
-        return (q1, q2)
+        return DisjointQuorumsResult(quorum_a=q1, quorum_b=q2)
     return None
 
 
 def find_minimal_splitting_set(
-        fbas: FBASGraph) -> Optional[Tuple[Collection, Collection, Collection]]:
+        fbas: FBASGraph) -> Optional[SplittingSetResult]:
     """
     Find a minimal-cardinality splitting set in the FBAS graph, or prove there
     is none.  Uses one of pysat's MaxSAT procedures (LSU or RC2).  If found,
@@ -334,9 +357,12 @@ def find_minimal_splitting_set(
         logging.info("Quorum A: %s", [fbas.with_name(v) for v in q1])
         logging.info("Quorum B: %s", [fbas.with_name(v) for v in q2])
         if not config.group_by:
-            return (ss, q1, q2)
+            return SplittingSetResult(splitting_set=ss, quorum_a=q1, quorum_b=q2)
         else:
-            return ([s for s in ss if s in groups], q1, q2)
+            return SplittingSetResult(
+                splitting_set=[s for s in ss if s in groups],
+                quorum_a=q1,
+                quorum_b=q2)
 
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
@@ -466,7 +492,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
 
 def min_history_loss_critical_set(
-        fbas: FBASGraph) -> Tuple[Collection[str], Collection[str]]:
+        fbas: FBASGraph) -> HistoryLossResult:
     """
     Return a set of minimal cardinality such that, should the validators in the
     set stop publishing valid history, the history may be lost.
@@ -541,7 +567,7 @@ def min_history_loss_critical_set(
         logging.info("Minimal-cardinality history-critical set: %s",
                      [fbas.with_name(v) for v in min_critical])
         logging.info("Quorum: %s", [fbas.with_name(v) for v in quorum])
-        return (min_critical, quorum)
+        return HistoryLossResult(min_critical_set=min_critical, quorum=quorum)
 
 
 def find_min_quorum(

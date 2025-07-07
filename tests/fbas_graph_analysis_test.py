@@ -20,10 +20,12 @@ def test_qi_():
     config.card_encoding = 'totalizer'
     fbas = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_1.json'))
-    assert not find_disjoint_quorums(fbas)
+    result = find_disjoint_quorums(fbas)
+    assert not result
     fbas = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert not find_disjoint_quorums(fbas)
+    result = find_disjoint_quorums(fbas)
+    assert not result
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('conflicted.json'))
     assert find_disjoint_quorums(fbas2)
@@ -33,7 +35,8 @@ def test_qi_():
     assert not find_disjoint_quorums(fbas)
     fbas = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert not find_disjoint_quorums(fbas)
+    result = find_disjoint_quorums(fbas)
+    assert not result
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('conflicted.json'))
     assert find_disjoint_quorums(fbas2)
@@ -70,13 +73,13 @@ def test_min_splitting_set_1():
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
         fbas1.update_validator(v, qset1)
-    assert len(find_minimal_splitting_set(fbas1)[0]) == 2  # type: ignore
+    assert len(find_minimal_splitting_set(fbas1).splitting_set) == 2  # type: ignore
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_1.json'))
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2)[0] == ['PK2']  # type: ignore
+    assert find_minimal_splitting_set(fbas2).splitting_set == ['PK2']  # type: ignore
 
 
 def test_min_splitting_set_2():
@@ -91,13 +94,13 @@ def test_min_splitting_set_2():
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
         fbas1.update_validator(v, qset1)
-    assert len(find_minimal_splitting_set(fbas1)[0]) == 2  # type: ignore
+    assert len(find_minimal_splitting_set(fbas1).splitting_set) == 2  # type: ignore
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_1.json'))
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2)[0] == ['PK2']  # type: ignore
+    assert find_minimal_splitting_set(fbas2).splitting_set == ['PK2']  # type: ignore
 
 
 def test_min_splitting_set():
