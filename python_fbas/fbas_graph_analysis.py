@@ -3,15 +3,17 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
-from typing import Any, Optional, Tuple, Collection, Callable
+from typing import Any, Optional, Tuple, Collection, Callable, Set
 from itertools import combinations
+from functools import partial
 import networkx as nx
 from pysat.formula import CNF, WCNF
 from python_fbas import solver as slv
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.propositional_logic \
-    import And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, \
-    variables_inv, to_cnf, atoms_of_clauses, decode_model
+from python_fbas.propositional_logic import (
+    And, Or, Implies, Atom, Formula, Card, Not, equiv, variables, to_cnf,
+    atoms_of_clauses, decode_model
+)
 import python_fbas.config as config
 from python_fbas.utils import timed
 try:
@@ -19,6 +21,79 @@ try:
     HAS_QBF = True
 except ImportError:
     HAS_QBF = False
+
+
+class Tagger:
+    """
+    Encapsulates a tag for creating and identifying tagged atoms.
+    Uses a tuple `(tag, base_variable)` as the atom's identifier.
+    """
+
+    def __init__(self, tag: str):
+        """Initializes the Tagger with a specific tag string."""
+        self._tag = tag
+
+    def atom(self, base_variable: Any) -> Atom:
+        """Creates a new Atom with a tagged identifier."""
+        # The identifier is a tuple for robustness, e.g., ('in_quorum', 'NodeA')
+        return Atom((self._tag, base_variable))
+
+    def is_tagged(self, identifier: Any) -> bool:
+        """Checks if the given identifier is a tuple tagged by this Tagger."""
+        return (
+            isinstance(identifier, tuple) and
+            len(identifier) == 2 and
+            identifier[0] == self._tag
+        )
+
+    def strip_tag(self, identifier: Any) -> Any:
+        """
+        Extracts the base variable from a tagged identifier.
+        Raises ValueError if the identifier is not correctly tagged.
+        """
+        if not self.is_tagged(identifier):
+            raise ValueError(
+                f"Identifier '{identifier}' is not tagged by '{self._tag}'")
+        return identifier[1]
+
+
+def extract_true_tagged_variables(model: list[int],
+                                  tagger: Tagger) -> Set[Any]:
+    """
+    Given a pysat model (a list of ints), it decodes the model, filters for
+    true variables with a specific tag, and returns a set of their base
+    variable names.
+    """
+    tagged_identifiers = decode_model(model, predicate=tagger.is_tagged)
+    return {tagger.strip_tag(identifier) for identifier in tagged_identifiers}
+
+
+def group_implication_constraints(
+        tagger: Tagger,
+        fbas: FBASGraph,
+        group_by: str) -> tuple[list[Formula], set[str]]:
+    """
+    Returns constraints that express that a group is tagged if and only if all
+    its members are. Also returns the set of groups.
+    """
+    constraints: list[Formula] = []
+    groups = set(
+        fbas.vertice_attrs(v)[group_by]
+        for v in fbas.validators)
+    members = {g: [v for v in fbas.validators
+                   if fbas.vertice_attrs(v)[group_by] == g]
+               for g in groups}
+    for g in groups:
+        # A tagged atom corresponding to a group is true iff all tagged atoms
+        # corresponding to its members are true.
+        constraints.append(equiv(tagger.atom(g),
+                                 And(*[tagger.atom(v) for v in members[g]])))
+    return constraints, groups
+
+
+def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
+    clauses = to_cnf(constraints)
+    return slv.solve_sat(clauses)
 
 
 def quorum_constraints(fbas: FBASGraph,
@@ -36,15 +111,15 @@ def quorum_constraints(fbas: FBASGraph,
                         *vs)))
         if fbas.graph.out_degree(v) == 0 or fbas.threshold(v) == 0:
             # TODO seems like this needs to be configurable; maybe a global
-            # parameter to indicate how cautious we want to be.
-            # Or maybe warn after analysis when a result depends on this behavior
+            # parameter to indicate how cautious we want to be.  Or maybe warn
+            # after analysis when a result depends on this behavior
             continue
+    # also require that the quorum contain at least one validator for which we
+    # have a qset:
+    constraints += [Or(*[make_atom(v)
+                         for v in fbas.validators
+                         if fbas.graph.out_degree(v) > 0])]
     return constraints
-
-
-def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
-    clauses = to_cnf(constraints)
-    return slv.solve_sat(clauses)
 
 
 def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
@@ -55,25 +130,18 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     constraints: list[Formula] = []
     # the quorum constraints are satisfied:
     constraints += quorum_constraints(fbas, Atom)
-    # the quorum must contain at least one validator from s (and for which we
-    # have a qset):
-    constraints += [Or(*[Atom(v) for v in s if fbas.threshold(v) > 0])]
     # no validators outside s are in the quorum:
-    constraints += [And(*[Not(Atom(v))
-                        for v in fbas.validators - s])]
+    constraints += [And(*[Not(Atom(v)) for v in fbas.validators - s])]
 
     sat_res = solve_constraints(constraints)
-    res = sat_res.sat
-    if res:
-        model: list[int] = sat_res.model
-        assert model  # error if []
+    if sat_res.sat:
         q = decode_model(
-            model,
+            sat_res.model,
             predicate=lambda ident: ident in fbas.validators)
         logging.info("Quorum %s is inside %s", q, s)
     else:
         logging.info("No quorum found in %s", s)
-    return res
+    return sat_res.sat
 
 
 def find_disjoint_quorums(
@@ -93,30 +161,19 @@ def find_disjoint_quorums(
     disjoint quorums and the truth assignment gives us the quorums.  Otherwise,
     we know that no two disjoint quorums exist.
     """
+    taggers = {'A': Tagger("quorum_A"), 'B': Tagger("quorum_B")}
 
-    quorum_tag: int = 1
-
-    def in_quorum(q: str, n: str) -> Atom:
-        """Returns an atom denoting whether node n is in quorum q."""
-        return Atom((quorum_tag, q, n))
-
-    def get_quorum_(atoms: list[int], q: str, fbas: FBASGraph) -> list[str]:
-        """Given a list of atoms, returns the validators in quorum q."""
-        return [variables_inv[v][2] for v in set(atoms) & set(variables_inv.keys())
-                if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
-                and variables_inv[v][2] in fbas.validators]
+    def in_quorum(q, v) -> Atom:
+        return taggers[q].atom(v)
 
     constraints: list[Formula] = []
     with timed("Disjoint-quorum constraint building"):
         for q in ['A', 'B']:  # our two quorums
-            # the quorum must contain at least one validator for which we have a
-            # qset:
-            constraints += [Or(*[in_quorum(q, n)
-                               for n in fbas.validators if fbas.threshold(n) >= 0])]
-            constraints += quorum_constraints(fbas, lambda n: in_quorum(q, n))
+            constraints += quorum_constraints(fbas, partial(in_quorum, q))
         # no validator can be in both quorums:
         for v in fbas.validators:
-            constraints += [Or(Not(in_quorum('A', v)), Not(in_quorum('B', v)))]
+            constraints += [Or(Not(in_quorum('A', v)),
+                               Not(in_quorum('B', v)))]
 
     with timed("CNF conversion"):
         clauses = to_cnf(constraints)
@@ -137,8 +194,14 @@ def find_disjoint_quorums(
     if res:
         model = sat_res.model
         assert model  # error if []
-        q1 = get_quorum_(model, 'A', fbas)
-        q2 = get_quorum_(model, 'B', fbas)
+        q1 = [
+            v for v in extract_true_tagged_variables(
+                model,
+                taggers['A']) if v in fbas.validators]
+        q2 = [
+            v for v in extract_true_tagged_variables(
+                model,
+                taggers['B']) if v in fbas.validators]
         logging.info("Disjoint quorums found")
         logging.info("Quorum A: %s", q1)
         logging.info("Quorum B: %s", q2)
@@ -149,14 +212,12 @@ def find_disjoint_quorums(
     return None
 
 
-
-
 def find_minimal_splitting_set(
         fbas: FBASGraph) -> Optional[Tuple[Collection, Collection, Collection]]:
     """
-    Find a minimal-cardinality splitting set in the FBAS graph, or prove there is none.
-    Uses one of pysat's MaxSAT procedures (LSU or RC2).
-    If found, returns the splitting set and the two quorums that it splits.
+    Find a minimal-cardinality splitting set in the FBAS graph, or prove there
+    is none.  Uses one of pysat's MaxSAT procedures (LSU or RC2).  If found,
+    returns the splitting set and the two quorums that it splits.
     """
 
     logging.info(
@@ -164,63 +225,53 @@ def find_minimal_splitting_set(
         config.max_sat_algo,
         config.card_encoding)
 
-    faulty_tag: int = 0
-    quorum_tag: int = 1
-
-    def in_quorum(q: str, n: str) -> Atom:
-        """Returns an atom denoting whether node n is in quorum q."""
-        return Atom((quorum_tag, q, n))
-
-    def get_quorum_(atoms: list[int], q: str, fbas: FBASGraph) -> list[str]:
-        """Given a list of atoms, returns the validators in quorum q."""
-        return [variables_inv[v][2] for v in set(atoms) & set(variables_inv.keys())
-                if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
-                and variables_inv[v][2] in fbas.validators]
-
-    def faulty(n: str) -> Atom:
-        """Returns an atom denoting whether node n is faulty."""
-        return Atom((faulty_tag, n))
-
-    def get_faulty(atoms: list[int]) -> list[str]:
-        """Given a list of atoms, returns the faulty validators."""
-        return [variables_inv[v][1]
-                for v in set(atoms) & set(variables_inv.keys())
-                if variables_inv[v][0] == faulty_tag]
+    faulty_tagger = Tagger("faulty")
+    quorum_a_tagger = Tagger("quorum_A")
+    quorum_b_tagger = Tagger("quorum_B")
+    quorum_taggers = {'A': quorum_a_tagger, 'B': quorum_b_tagger}
 
     constraints: list[Formula] = []
     with timed("Splitting-set constraint building"):
         # now we create the constraints:
         for q in ['A', 'B']:  # for each of our two quorums
+            tagger = quorum_taggers[q]
             # the quorum contains at least one non-faulty validator for which we
             # have a qset:
-            constraints += [Or(*[And(in_quorum(q, n), Not(faulty(n)))
+            constraints += [Or(*[And(tagger.atom(n),
+                                     Not(faulty_tagger.atom(n)))
                                for n in fbas.validators if fbas.threshold(n) >= 0])]
             # then, we add the threshold constraints:
             for v in fbas.vertices():
                 if fbas.threshold(v) > 0:
-                    vs = [in_quorum(q, n) for n in fbas.graph.successors(v)]
+                    vs = [tagger.atom(n) for n in fbas.graph.successors(v)]
                     if v in fbas.validators:
                         # the threshold must be met only if the validator is not
                         # faulty:
                         constraints.append(
-                            Implies(And(in_quorum(q, v), Not(faulty(v))), Card(fbas.threshold(v), *vs)))
+                            Implies(And(tagger.atom(v),
+                                        Not(faulty_tagger.atom(v))),
+                                    Card(fbas.threshold(v),
+                                         *vs)))
                     else:
                         # the threshold must be met:
                         constraints.append(
                             Implies(
-                                in_quorum(
-                                    q, v), Card(
-                                    fbas.threshold(v), *vs)))
+                                tagger.atom(v),
+                                Card(
+                                    fbas.threshold(v),
+                                    *vs)))
                 if fbas.threshold(v) == 0:
                     continue  # no constraints for this vertex
-        # add the constraint that no non-faulty validator can be in both quorums:
+        # add the constraint that no non-faulty validator can be in both
+        # quorums:
         for v in fbas.validators:
-            constraints += [Or(faulty(v), Not(in_quorum('A', v)),
-                               Not(in_quorum('B', v)))]
+            constraints += [Or(faulty_tagger.atom(v),
+                               Not(quorum_a_tagger.atom(v)),
+                               Not(quorum_b_tagger.atom(v)))]
 
         if config.group_by:
-            # we add constraints assert that the group is faulty if and only if all
-            # its members are faulty
+            # we add constraints assert that the group is faulty if and only if
+            # all its members are faulty
             groups = set(
                 fbas.vertice_attrs(v)[config.group_by]
                 for v in fbas.validators)
@@ -229,20 +280,22 @@ def find_minimal_splitting_set(
                        for g in groups}
             for g in groups:
                 constraints.append(
-                    Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
+                    Implies(faulty_tagger.atom(g),
+                            And(*[faulty_tagger.atom(v) for v in members[g]])))
                 constraints.append(
-                    Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
+                    Implies(Or(*[faulty_tagger.atom(v) for v in members[g]]),
+                            faulty_tagger.atom(g)))
 
-        # finally, convert to weighted CNF and add soft constraints that minimize
-        # the number of faulty validators (or groups):
+        # finally, convert to weighted CNF and add soft constraints that
+        # minimize the number of faulty validators (or groups):
         wcnf = WCNF()
         wcnf.extend(to_cnf(constraints))
         if not config.group_by:
             for v in fbas.validators:
-                wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
+                wcnf.append(to_cnf(Not(faulty_tagger.atom(v)))[0], weight=1)
         else:
             for g in groups:  # type: ignore
-                wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
+                wcnf.append(to_cnf(Not(faulty_tagger.atom(g)))[0], weight=1)
 
     result = slv.solve_maxsat(wcnf)
 
@@ -256,17 +309,24 @@ def find_minimal_splitting_set(
             "Found minimal-cardinality splitting set of size is %s:",
             cost)
         model = list(model)
-        ss = get_faulty(model)
+        ss = list(extract_true_tagged_variables(model, faulty_tagger))
         if not config.group_by:
             logging.info("Minimal-cardinality splitting set: %s",
                          [fbas.with_name(s) for s in ss])
         else:
             logging.info("Minimal-cardinality splitting set (groups): %s",
                          [s for s in ss if s in groups])  # type: ignore
-            logging.info("Minimal-cardinality splitting set (corresponding validators): %s",
-                         [fbas.with_name(s) for s in ss if s not in groups])  # type: ignore
-        q1 = get_quorum_(model, 'A', fbas)
-        q2 = get_quorum_(model, 'B', fbas)
+            logging.info(
+                "Minimal-cardinality splitting set (corresponding validators): %s",
+                [fbas.with_name(s) for s in ss if s not in groups])  # type: ignore
+        q1 = [
+            v for v in extract_true_tagged_variables(
+                model,
+                quorum_a_tagger) if v in fbas.validators]
+        q2 = [
+            v for v in extract_true_tagged_variables(
+                model,
+                quorum_b_tagger) if v in fbas.validators]
         assert fbas.is_quorum(
             q1,
             over_approximate=True,
@@ -305,14 +365,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
     constraints: list[Formula] = []
     with timed("Blocking-set constraint building"):
-        faulty_tag: int = 0
-        blocked_tag: int = 1
-
-        def faulty(v: str) -> Atom:
-            return Atom((faulty_tag, v))
-
-        def blocked(v: str) -> Atom:
-            return Atom((blocked_tag, v))
+        faulty_tagger = Tagger("faulty")
+        blocked_tagger = Tagger("blocked")
 
         def lt(v1: str, v2: str) -> Formula:
             """
@@ -326,28 +380,33 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         # first, the threshold constraints:
         for v in fbas.vertices():
             if v in fbas.validators:
-                constraints.append(Or(faulty(v), blocked(v)))
+                constraints.append(Or(faulty_tagger.atom(v),
+                                      blocked_tagger.atom(v)))
             if v not in fbas.validators:
-                constraints.append(Not(faulty(v)))
+                constraints.append(Not(faulty_tagger.atom(v)))
             if fbas.threshold(v) > 0:
-                may_block = [And(Or(blocked(n), faulty(n)), lt(n, v))
-                             for n in fbas.graph.successors(v)]
+                may_block = [And(Or(blocked_tagger.atom(n),
+                                    faulty_tagger.atom(n)),
+                                 lt(n,
+                                    v)) for n in fbas.graph.successors(v)]
                 constraints.append(
                     Implies(
                         Card(
                             blocking_threshold(v),
                             *may_block),
-                        blocked(v)))
+                        blocked_tagger.atom(v)))
                 constraints.append(
-                    Implies(And(blocked(v), Not(faulty(v))),
-                            Card(blocking_threshold(v), *may_block)))
+                    Implies(And(blocked_tagger.atom(v),
+                                Not(faulty_tagger.atom(v))),
+                            Card(blocking_threshold(v),
+                                 *may_block)))
             if fbas.threshold(v) == 0:
-                constraints.append(Not(blocked(v)))
+                constraints.append(Not(blocked_tagger.atom(v)))
 
-        # The lt relation must be a partial order (anti-symmetric and transitive).
-        # For performance, lt only relates vertices that are in the same strongly
-        # connected components (as otherwise there is no possible cycle anyway in
-        # the blocking relation).
+        # The lt relation must be a partial order (anti-symmetric and
+        # transitive).  For performance, lt only relates vertices that are in
+        # the same strongly connected components (as otherwise there is no
+        # possible cycle anyway in the blocking relation).
         sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
                 if any(fbas.threshold(v) >= 0 for v in set(scc))]
         assert sccs
@@ -361,8 +420,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
         groups = set()
         if config.group_by:
-            # we add constraints assert that the group is faulty if and only if all
-            # its members are faulty
+            # we add constraints assert that the group is faulty if and only if
+            # all its members are faulty
             groups = set(fbas.vertice_attrs(v)[config.group_by]
                          for v in fbas.validators)
             members = {g: [v for v in fbas.validators
@@ -370,9 +429,11 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
                        for g in groups}
             for g in groups:
                 constraints.append(
-                    Implies(faulty(g), And(*[faulty(v) for v in members[g]])))
+                    Implies(faulty_tagger.atom(g),
+                            And(*[faulty_tagger.atom(v) for v in members[g]])))
                 constraints.append(
-                    Implies(Or(*[faulty(v) for v in members[g]]), faulty(g)))
+                    Implies(Or(*[faulty_tagger.atom(v) for v in members[g]]),
+                            faulty_tagger.atom(g)))
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
@@ -380,10 +441,10 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         wcnf.extend(to_cnf(constraints))
         if not config.group_by:
             for v in fbas.validators:
-                wcnf.append(to_cnf(Not(faulty(v)))[0], weight=1)
+                wcnf.append(to_cnf(Not(faulty_tagger.atom(v)))[0], weight=1)
         else:
             for g in groups:
-                wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
+                wcnf.append(to_cnf(Not(faulty_tagger.atom(g)))[0], weight=1)
 
     result = slv.solve_maxsat(wcnf)
 
@@ -397,9 +458,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         logging.info(
             "Found minimal-cardinality blocking set, size is %s",
             cost)
-        s: list[str] = [variables_inv[v][1]
-                        for v in set(model) & set(variables_inv.keys())
-                        if variables_inv[v][0] == faulty_tag]
+        s = list(extract_true_tagged_variables(model, faulty_tagger))
         if not config.group_by:
             logging.info("Minimal-cardinality blocking set: %s",
                          [fbas.with_name(v) for v in s])
@@ -408,7 +467,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
                          [g for g in s if g in groups])
         vs = set(s) - groups
         assert fbas.closure(vs) == fbas.validators
-        for vs2 in combinations(vs, cost-1):
+        for vs2 in combinations(vs, cost - 1):
             # TODO isn't this going to fail with groups?
             assert fbas.closure(vs2) != fbas.validators
         if not config.group_by:
@@ -431,47 +490,39 @@ def min_history_loss_critical_set(
 
     constraints: list[Formula] = []
 
-    in_critical_quorum_tag: int = 0
-    hist_error_tag: int = 1
-    in_crit_no_error_tag: int = 2
-
-    def has_hist_error(v) -> Atom:
-        return Atom((hist_error_tag, v))
-
-    def in_critical_quorum(v) -> Atom:
-        return Atom((in_critical_quorum_tag, v))
-
-    def in_crit_no_error(v) -> Atom:
-        return Atom((in_crit_no_error_tag, v))
+    in_critical_quorum_tagger = Tagger("in_critical_quorum")
+    hist_error_tagger = Tagger("hist_error")
+    in_crit_no_error_tagger = Tagger("in_crit_no_error")
 
     for v in fbas.validators:
         if fbas.vertice_attrs(v).get('historyArchiveHasError', True):
-            constraints.append(has_hist_error(v))
+            constraints.append(hist_error_tagger.atom(v))
         else:
-            constraints.append(Not(has_hist_error(v)))
+            constraints.append(Not(hist_error_tagger.atom(v)))
 
     for v in fbas.validators:
         constraints.append(
             Implies(
-                in_critical_quorum(v), Not(
-                    has_hist_error(v)), in_crit_no_error(v)))
+                in_critical_quorum_tagger.atom(v),
+                Not(hist_error_tagger.atom(v)),
+                in_crit_no_error_tagger.atom(v)))
         constraints.append(
             Implies(
-                in_crit_no_error(v), And(
-                    in_critical_quorum(v), Not(
-                        has_hist_error(v)))))
+                in_crit_no_error_tagger.atom(v),
+                And(in_critical_quorum_tagger.atom(v),
+                    Not(hist_error_tagger.atom(v)))))
 
     # the critical contains at least one validator for which we have a qset:
-    constraints += [Or(*[in_critical_quorum(v)
+    constraints += [Or(*[in_critical_quorum_tagger.atom(v)
                        for v in fbas.validators if fbas.threshold(v) >= 0])]
-    constraints += quorum_constraints(fbas, in_critical_quorum)
+    constraints += quorum_constraints(fbas, in_critical_quorum_tagger.atom)
 
     wcnf = WCNF()
     wcnf.extend(to_cnf(constraints))
     # minimize the number of validators that are in the critical quorum but do
     # not have history errors:
     for v in fbas.validators:
-        wcnf.append(to_cnf(Not(in_crit_no_error(v)))[0], weight=1)
+        wcnf.append(to_cnf(Not(in_crit_no_error_tagger.atom(v)))[0], weight=1)
 
     result = slv.solve_maxsat(wcnf)
 
@@ -484,12 +535,11 @@ def min_history_loss_critical_set(
             "Found minimal-cardinality history-critical set, size is %s",
             cost)
         model = list(model)
-        min_critical = [variables_inv[v][1] for v in set(model) & set(
-            variables_inv.keys()) if variables_inv[v][0] == in_crit_no_error_tag]
-        quorum = [variables_inv[v][1]
-                  for v in set(model) & set(variables_inv.keys())
-                  if variables_inv[v][0] == in_critical_quorum_tag
-                  and variables_inv[v][1] in fbas.validators]
+        min_critical = list(
+            extract_true_tagged_variables(
+                model, in_crit_no_error_tagger))
+        quorum = [v for v in extract_true_tagged_variables(
+            model, in_critical_quorum_tagger) if v in fbas.validators]
         logging.info("Minimal-cardinality history-critical set: %s",
                      [fbas.with_name(v) for v in min_critical])
         logging.info("Quorum: %s", [fbas.with_name(v) for v in quorum])
@@ -538,23 +588,15 @@ def find_min_quorum(
         logging.info("The projected FBAS is empty!")
         return []
 
-    quorum_tag: int = 1
-
-    def in_quorum(q: str, n: str) -> Atom:
-        """Returns an atom denoting whether node n is in quorum q."""
-        return Atom((quorum_tag, q, n))
-
-    def get_quorum_(atoms: list[int], q: str, fbas: FBASGraph) -> list[str]:
-        """Given a list of atoms, returns the validators in quorum q."""
-        return [variables_inv[v][2] for v in set(atoms) & set(variables_inv.keys())
-                if variables_inv[v][0] == quorum_tag and variables_inv[v][1] == q
-                and variables_inv[v][2] in fbas.validators]
+    quorum_a_tagger = Tagger("quorum_A")
+    quorum_b_tagger = Tagger("quorum_B")
 
     def quorum_constraints_(q: str) -> list[Formula]:
+        tagger = quorum_a_tagger if q == 'A' else quorum_b_tagger
         constraints: list[Formula] = []
-        constraints += [Or(*[in_quorum(q, n)
+        constraints += [Or(*[tagger.atom(n)
                            for n in fbas.validators if fbas.threshold(n) > 0])]
-        constraints += quorum_constraints(fbas, lambda n: in_quorum(q, n))
+        constraints += quorum_constraints(fbas, tagger.atom)
         return constraints
 
     # The set 'A' is a quorum in the scc:
@@ -562,13 +604,14 @@ def find_min_quorum(
 
     # it contains at least one validator outside not_subset_of:
     if not_subset_of:
-        qa_constraints += [Or(*[in_quorum('A', n)
+        qa_constraints += [Or(*[quorum_a_tagger.atom(n)
                               for n in fbas.validators if n not in not_subset_of])]
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
     qb_quorum = And(*quorum_constraints_('B'))
     qb_subset_qa = And(
-        *[Implies(in_quorum('B', n), in_quorum('A', n)) for n in fbas.validators])
+        *[Implies(quorum_b_tagger.atom(n),
+                  quorum_a_tagger.atom(n)) for n in fbas.validators])
     qb_constraints = Implies(qb_subset_qa, Not(qb_quorum))
 
     qa_clauses = to_cnf(qa_constraints)
@@ -577,7 +620,7 @@ def find_min_quorum(
 
     qa_atoms: set[int] = atoms_of_clauses(qa_clauses)
     qb_vertex_atoms: set[int] = set(
-        abs(variables[in_quorum('B', n).identifier]) for n in fbas.vertices())
+        abs(variables[quorum_b_tagger.atom(n).identifier]) for n in fbas.vertices())
     qb_tseitin_atoms: set[int] = \
         atoms_of_clauses(qb_clauses) - (qb_vertex_atoms | qa_atoms)
 
@@ -589,7 +632,10 @@ def find_min_quorum(
     res = qbf_res.sat
     if res:
         model = qbf_res.model
-        qa = get_quorum_(model, 'A', fbas)
+        qa = [
+            v for v in extract_true_tagged_variables(
+                model,
+                quorum_a_tagger) if v in fbas.validators]
         assert fbas.is_quorum(qa, over_approximate=True)
         if not_subset_of:
             assert not set(qa) <= set(not_subset_of)
@@ -668,48 +714,47 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
     Check if the overlay is FBA-resilient. That is, for every quorum Q, removing
     the complement of Q should not disconnect the overlay graph.
     """
-    quorum_tag: int = 0
-
-    def in_quorum(v: str) -> Atom:
-        return Atom((quorum_tag, v))
+    quorum_tagger = Tagger("in_quorum")
     constraints: list[Formula] = []
     # the quorum is non-empty (contains a validator with a valid qset):
-    constraints += [Or(*[in_quorum(v)
+    constraints += [Or(*[quorum_tagger.atom(v)
                        for v in fbas.validators if fbas.threshold(v) >= 0])]
     # the quorum constraints are satisfied:
-    constraints += quorum_constraints(fbas, in_quorum)
+    constraints += quorum_constraints(fbas, quorum_tagger.atom)
 
     # now we assert the graph is disconnected
-    reachable_tag: int = 1
-
-    def reachable(v) -> Atom:
-        return Atom((reachable_tag, v))
+    reachable_tagger = Tagger("reachable")
     # some node is reachable:
-    constraints.append(Or(*[And(reachable(v), in_quorum(v))
+    constraints.append(Or(*[And(reachable_tagger.atom(v),
+                                quorum_tagger.atom(v))
                        for v in fbas.validators]))
     # nodes outside the quorum are not reachable:
-    constraints += [Implies(reachable(v), in_quorum(v))
-                    for v in fbas.validators]
+    constraints += [Implies(reachable_tagger.atom(v),
+                            quorum_tagger.atom(v)) for v in fbas.validators]
     # for every two nodes in the quorum and with an edge between each other,
     # one is reachable iff the other is:
     constraints += [
         Implies(
-            And(in_quorum(v1),
-                in_quorum(v2)),
-            equiv(reachable(v1),
-                  reachable(v2)))
-        for v1, v2 in overlay.edges() if v1 != v2]
+            And(quorum_tagger.atom(v1),
+                quorum_tagger.atom(v2)),
+            equiv(reachable_tagger.atom(v1),
+                  reachable_tagger.atom(v2)))
+        for v1,
+        v2 in overlay.edges() if v1 != v2]
     # some node in the quorum is unreachable:
     constraints.append(
-        Or(*[And(Not(reachable(v)), in_quorum(v)) for v in fbas.validators]))
+        Or(*[And(Not(reachable_tagger.atom(v)),
+                 quorum_tagger.atom(v)) for v in fbas.validators]))
 
     sat_res = solve_constraints(constraints)
     res = sat_res.sat
     if res:
         model = sat_res.model
         assert model  # error if []
-        q = [variables_inv[v][1] for v in set(model) & set(variables_inv.keys(
-        )) if variables_inv[v][0] == quorum_tag and variables_inv[v][1] in fbas.validators]
+        q = [
+            v for v in extract_true_tagged_variables(
+                model,
+                quorum_tagger) if v in fbas.validators]
         logging.info("Quorum %s is disconnected", q)
     else:
         logging.info("The overlay is FBA-resilient!")
