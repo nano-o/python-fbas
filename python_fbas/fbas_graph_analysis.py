@@ -153,14 +153,6 @@ def find_disjoint_quorums(
     return None
 
 
-def maximize(wcnf: WCNF) -> Optional[Tuple[int, Any]]:
-    """
-    Solve a MaxSAT CNF problem.
-    """
-    result = slv.solve_maxsat(wcnf)
-    if result.sat:
-        return result.optimum, result.model
-    return None
 
 
 def find_minimal_splitting_set(
@@ -256,13 +248,14 @@ def find_minimal_splitting_set(
             for g in groups:  # type: ignore
                 wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
 
-    result = maximize(wcnf)
+    result = slv.solve_maxsat(wcnf)
 
-    if not result:
+    if not result.sat:
         logging.info("No splitting set found!")
         return None
     else:
-        cost, model = result
+        cost = result.optimum
+        model = result.model
         logging.info(
             "Found minimal-cardinality splitting set of size is %s:",
             cost)
@@ -396,13 +389,14 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             for g in groups:
                 wcnf.append(to_cnf(Not(faulty(g)))[0], weight=1)
 
-    result = maximize(wcnf)
+    result = slv.solve_maxsat(wcnf)
 
-    if not result:
+    if not result.sat:
         logging.info("No blocking set found!")
         return None
     else:
-        cost, model = result
+        cost = result.optimum
+        model = result.model
         model = list(model)
         logging.info(
             "Found minimal-cardinality blocking set, size is %s",
@@ -483,12 +477,13 @@ def min_history_loss_critical_set(
     for v in fbas.validators:
         wcnf.append(to_cnf(Not(in_crit_no_error(v)))[0], weight=1)
 
-    result = maximize(wcnf)
+    result = slv.solve_maxsat(wcnf)
 
-    if not result:
+    if not result.sat:
         raise ValueError("No critical set found! This should not happen.")
     else:
-        cost, model = result
+        cost = result.optimum
+        model = result.model
         logging.info(
             "Found minimal-cardinality history-critical set, size is %s",
             cost)
