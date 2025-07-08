@@ -99,7 +99,8 @@ class FBASGraph:
             else:
                 if attrs['threshold'] < 0 \
                    or attrs['threshold'] > self.graph.out_degree(n):
-                    raise ValueError(f"Integrity check failed: threshold of {n} not in [0, out_degree={self.graph.out_degree(n)}]")
+                    raise ValueError(
+                        f"Integrity check failed: threshold of {n} not in [0, out_degree={self.graph.out_degree(n)}]")
             if n in self.validators:
                 # threshold is not explicitly set for validators, so it should
                 # not appear in the attributes of n:
@@ -108,10 +109,12 @@ class FBASGraph:
                 # successors (in case we do not know its agreement
                 # requirements):
                 if self.graph.out_degree(n) > 1:
-                    raise ValueError(f"Integrity check failed: validator {n} has an out-degree greater than 1 ({self.graph.out_degree(n)})")
+                    raise ValueError(
+                        f"Integrity check failed: validator {n} has an out-degree greater than 1 ({self.graph.out_degree(n)})")
                 # a validator's successor must be a qset vertex:
                 if self.graph.out_degree(n) == 1:
-                    assert next(self.graph.successors(n)) not in self.validators
+                    assert next(
+                        self.graph.successors(n)) not in self.validators
             else:
                 assert n in self.qsets.keys()
                 assert self.qsets[n] == self.compute_qset(n)
@@ -153,9 +156,11 @@ class FBASGraph:
         Expects a qset, if given, in JSON-serializable stellarbeat.io format.
         """
         if attrs:
-            # check that 'threshold' is not in attrs, as it's a reserved attribute
+            # check that 'threshold' is not in attrs, as it's a reserved
+            # attribute
             if 'threshold' in attrs:
-                raise ValueError("'threshold' is reserved and cannot be passed as an attribute")
+                raise ValueError(
+                    "'threshold' is reserved and cannot be passed as an attribute")
             self.graph.add_node(v, **attrs)
         else:
             self.graph.add_node(v)
@@ -164,7 +169,8 @@ class FBASGraph:
             try:
                 fqs = self.add_qset(qset)
             except ValueError:
-                logging.warning("Failed to add qset %s for validator %s", qset, v)
+                logging.warning(
+                    "Failed to add qset %s for validator %s", qset, v)
                 return
             out_edges = list(self.graph.out_edges(v))
             self.graph.remove_edges_from(out_edges)
@@ -179,7 +185,7 @@ class FBASGraph:
             case {'threshold': t, 'validators': vs, 'innerQuorumSets': iqs}:
                 fqs = QSet.make(qset)
                 if fqs in self.qsets.values():
-                    return next(k for k,v in self.qsets.items() if v == fqs)
+                    return next(k for k, v in self.qsets.items() if v == fqs)
                 iqs_vertices = [self.add_qset(iq) for iq in iqs]
                 for v in vs:
                     self.add_validator(v)
@@ -194,8 +200,8 @@ class FBASGraph:
                 raise ValueError(f"Invalid qset: {qset}")
 
     def __str__(self):
-        res = {n : f"({self.threshold(n)}, {set(self.graph.successors(n))})"
-                for n in self.vertices()}
+        res = {n: f"({self.threshold(n)}, {set(self.graph.successors(n))})"
+               for n in self.vertices()}
         return pformat(res)
 
     def threshold(self, n: Any) -> int:
@@ -224,9 +230,12 @@ class FBASGraph:
         assert qset_vertex not in self.validators
         threshold = self.threshold(qset_vertex)
         # validators are the children of the qset vertex that are validators:
-        validators = frozenset(v for v in self.graph.successors(qset_vertex) if v in self.validators)
-        # inner_qsets are the children of the qset vertex that are qset vertices:
-        inner_qsets = frozenset(self.compute_qset(q) for q in self.graph.successors(qset_vertex) if q not in self.validators)
+        validators = frozenset(v for v in self.graph.successors(
+            qset_vertex) if v in self.validators)
+        # inner_qsets are the children of the qset vertex that are qset
+        # vertices:
+        inner_qsets = frozenset(self.compute_qset(q) for q in self.graph.successors(
+            qset_vertex) if q not in self.validators)
         return QSet(threshold, validators, inner_qsets)
 
     def qset_of(self, n: str) -> Optional[QSet]:
@@ -261,10 +270,14 @@ class FBASGraph:
                     ('isValidator' not in v or not v['isValidator'])
                     or ('isValidating' not in v or not v['isValidating']))):
                 logging.debug(
-                    "Ignoring non-validating validator: %s (name: %s)", v['publicKey'], v.get('name'))
+                    "Ignoring non-validating validator: %s (name: %s)",
+                    v['publicKey'],
+                    v.get('name'))
                 continue
             if 'quorumSet' not in v or v['quorumSet'] is None:
-                logging.debug("Skipping validator missing quorumSet: %s", v['publicKey'])
+                logging.debug(
+                    "Skipping validator missing quorumSet: %s",
+                    v['publicKey'])
                 continue
             if v['publicKey'] in keys:
                 logging.debug(
@@ -287,8 +300,9 @@ class FBASGraph:
         assert set(s) <= self.validators
         if all(c in self.validators for c in self.graph.successors(q)):
             assert q not in self.validators
-            assert 'threshold' in self.vertice_attrs(q) # canary
-            return self.threshold(q) <= sum(1 for c in self.graph.successors(q) if c in s)
+            assert 'threshold' in self.vertice_attrs(q)  # canary
+            return self.threshold(q) <= sum(
+                1 for c in self.graph.successors(q) if c in s)
         else:
             return self.threshold(q) <= \
                 sum(1 for c in self.graph.successors(q) if
@@ -304,7 +318,10 @@ class FBASGraph:
             return over_approximate
         return self.is_qset_sat(self.qset_vertex_of(n), s)
 
-    def is_quorum(self, vs: Collection, over_approximate=True, no_requirements:Optional[set[str]]=None) -> bool:
+    def is_quorum(self,
+                  vs: Collection[str],
+                  over_approximate=True,
+                  no_requirements: Optional[set[str]] = None) -> bool:
         """
         Returns True if and only if s is a non-empty quorum.
         Not efficient.
@@ -313,8 +330,12 @@ class FBASGraph:
             return False
         assert set(vs) <= self.validators
         to_check = (set(vs) - (no_requirements or set()))
-        if not any([self.threshold(v) >= 0 for v in to_check]):  # we have a qset for at least one validator
-            logging.error("Quorum made of validators which do not have a qset: %s (%s are excluded)", vs, no_requirements or set())
+        if not any([self.threshold(v) >= 0 for v in to_check]
+                   ):  # we have a qset for at least one validator
+            logging.error(
+                "Quorum made of validators which do not have a qset: %s (%s are excluded)",
+                vs,
+                no_requirements or set())
             assert False
         return all(self.is_sat(v, vs, over_approximate) for v in to_check)
 
@@ -324,10 +345,16 @@ class FBASGraph:
         Warning: use only for very small fbas graphs.
         """
         assert len(self.validators) < 10
-        quorums = [q for q in powerset(list(self.validators)) if self.is_quorum(q, over_approximate=True)]
-        return next(((q1, q2) for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
+        quorums = [
+            q for q in powerset(
+                list(
+                    self.validators)) if self.is_quorum(
+                q,
+                over_approximate=True)]
+        return next(((q1, q2)
+                    for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
 
-    def blocks(self, s : Collection, n : Any) -> bool:
+    def blocks(self, s: Collection, n: Any) -> bool:
         """
         Returns True if and only if s blocks v.
         TODO: should there be an `overapproximate` parameter?
@@ -344,7 +371,11 @@ class FBASGraph:
         assert set(vs) <= self.validators
         closure = set(vs)
         while True:
-            new = {n for n in self.vertices() - closure if self.blocks(closure, n)}
+            new = {
+                n for n in self.vertices() -
+                closure if self.blocks(
+                    closure,
+                    n)}
             if not new:
                 return frozenset([v for v in closure if v in self.validators])
             closure |= new
@@ -354,7 +385,8 @@ class FBASGraph:
         Returns a new fbas that only contains the validators reachable from the set vs.
         """
         assert set(vs) <= self.validators
-        reachable = set.union(*[set(nx.descendants(self.graph, v)) | {v} for v in vs])
+        reachable = set.union(
+            *[set(nx.descendants(self.graph, v)) | {v} for v in vs])
         fbas = copy(self)
         fbas.graph = nx.subgraph(self.graph, reachable)
         fbas.validators = reachable & self.validators
@@ -391,7 +423,7 @@ class FBASGraph:
         if n in self.validators:
             return True
         return all(c in self.validators for c in self.graph.successors(n)) \
-            and 2*self.threshold(n) > self.graph.out_degree(n)
+            and 2 * self.threshold(n) > self.graph.out_degree(n)
 
     def intersection_bound_heuristic(self, n1: str, n2: str) -> int:
         """
@@ -400,11 +432,15 @@ class FBASGraph:
         """
         assert n1 in self.graph and n2 in self.graph
         assert n1 not in self.validators and n2 not in self.validators
-        if all(self.self_intersecting(c)
-               for c in chain(self.graph.successors(n1), self.graph.successors(n2))):
+        if all(
+            self.self_intersecting(c) for c in chain(
+                self.graph.successors(n1),
+                self.graph.successors(n2))):
             o1, o2 = self.graph.out_degree(n1), self.graph.out_degree(n2)
             t1, t2 = self.threshold(n1), self.threshold(n2)
-            common_children = set(self.graph.successors(n1)) & set(self.graph.successors(n2))
+            common_children = set(
+                self.graph.successors(n1)) & set(
+                self.graph.successors(n2))
             c = len(common_children)
             # worst-case number of common children among t1 children of n1
             m1 = (t1 + c) - o1
@@ -428,9 +464,12 @@ class FBASGraph:
         """
         # first obtain a max scc:
         mscc = max(nx.strongly_connected_components(self.graph), key=len)
-        validators_with_qset = {v for v in self.validators if self.graph.out_degree(v) == 1}
+        validators_with_qset = {
+            v for v in self.validators if self.graph.out_degree(v) == 1}
         mscc_validators = mscc & validators_with_qset
-        # then create a graph over the validators in mscc where there is an edge between v1 and v2 iff their qsets have a non-zero intersection bound
+        # then create a graph over the validators in mscc where there is an
+        # edge between v1 and v2 iff their qsets have a non-zero intersection
+        # bound
         g = nx.Graph()
         for v1, v2 in combinations(mscc_validators, 2):
             if v1 != v2:
@@ -439,28 +478,39 @@ class FBASGraph:
                 if self.intersection_bound_heuristic(q1, q2) > 0:
                     g.add_edge(v1, v2)
                 else:
-                    logging.debug("Non-intertwined max-scc validators: %s and %s", v1, v2)
-        # next, we try to find a clique such that the closure of the clique contains all validators:
+                    logging.debug(
+                        "Non-intertwined max-scc validators: %s and %s", v1, v2)
+        # next, we try to find a clique such that the closure of the clique
+        # contains all validators:
         max_tries = 100
-        cliques = nx.find_cliques(g) # I think this is a generator
-        for _ in range(1,max_tries+1):
+        cliques = nx.find_cliques(g)  # I think this is a generator
+        for _ in range(1, max_tries + 1):
             try:
                 clique = next(cliques)
             except StopIteration:
-                logging.debug("No clique whose closure covers the validators found")
+                logging.debug(
+                    "No clique whose closure covers the validators found")
                 return 'unknown'
-            if  validators_with_qset <= self.closure(clique):
+            if validators_with_qset <= self.closure(clique):
                 return 'true'
             else:
-                logging.debug("Validators not covered by clique: %s", validators_with_qset - self.closure(clique))
+                logging.debug(
+                    "Validators not covered by clique: %s",
+                    validators_with_qset -
+                    self.closure(clique))
         return 'unknown'
 
     def splitting_set_bound(self) -> int:
         """
         Computes a lower bound on the mimimum splitting-set size. We just take the minimum of the intersection bound over all pairs of validators.
         """
-        return min(self.intersection_bound_heuristic(self.qset_vertex_of(v1), self.qset_vertex_of(v2))
-                   for v1, v2 in combinations(self.validators, 2) if v1 != v2)
+        return min(
+            self.intersection_bound_heuristic(
+                self.qset_vertex_of(v1),
+                self.qset_vertex_of(v2)) for v1,
+            v2 in combinations(
+                self.validators,
+                2) if v1 != v2)
 
     def flatten_diamonds(self) -> None:
         """
@@ -485,20 +535,23 @@ class FBASGraph:
             if not all(n in self.validators for n in self.graph.successors(n)):
                 return False
             # condition on threshold:
-            if self.threshold(n) <= 1 or 2*self.threshold(n) < self.graph.out_degree(n)+1:
+            if self.threshold(n) <= 1 or 2 * \
+                    self.threshold(n) < self.graph.out_degree(n) + 1:
                 return False
             # n must be its children's only parent:
             children = set(self.graph.successors(n))
-            if not all(set(self.graph.predecessors(c)) == {n} for c in children):
+            if not all(set(self.graph.predecessors(c))
+                       == {n} for c in children):
                 return False
             # n must have a unique grandchild:
-            grandchildren = set.union(*[set(self.graph.successors(c)) for c in children])
+            grandchildren = set.union(
+                *[set(self.graph.successors(c)) for c in children])
             if len(grandchildren) != 1:
                 return False
             # now collpase the diamond:
             grandchild = next(iter(grandchildren))
             logging.debug("Collapsing diamond at: %s", n)
-            assert n not in self.validators # canary
+            assert n not in self.validators  # canary
             # first remove the vertex:
             parents = list(self.graph.predecessors(n))
             in_edges = [(p, n) for p in parents]
@@ -510,12 +563,15 @@ class FBASGraph:
             if n != grandchild:
                 self.graph.add_edge(new_vertex, grandchild)
             else:
-                empty = self.add_qset({'threshold': 0, 'validators': [], 'innerQuorumSets': []})
+                empty = self.add_qset(
+                    {'threshold': 0, 'validators': [], 'innerQuorumSets': []})
                 self.graph.add_edge(new_vertex, empty)
             # TODO: can't we remove the children of n?
-            # if some parents are validators, then we need to add a qset vertex:
+            # if some parents are validators, then we need to add a qset
+            # vertex:
             if any(p in self.validators for p in parents):
-                new_qset = self.add_qset({'threshold': 1, 'validators': [new_vertex], 'innerQuorumSets': []})
+                new_qset = self.add_qset({'threshold': 1, 'validators': [
+                                         new_vertex], 'innerQuorumSets': []})
                 for e in in_edges:
                     self.graph.add_edge(e[0], new_qset)
             else:
@@ -533,7 +589,7 @@ class FBASGraph:
         while True:
             for n in self.vertices():
                 if collapse_diamond(n):
-                    self.check_integrity() # canary
+                    self.check_integrity()  # canary
                     break
             else:
                 return

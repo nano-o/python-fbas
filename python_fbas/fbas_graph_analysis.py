@@ -91,29 +91,6 @@ def extract_true_tagged_variables(model: list[int],
     return {tagger.strip_tag(identifier) for identifier in tagged_identifiers}
 
 
-def group_constraints(
-        tagger: Tagger,
-        fbas: FBASGraph,
-        group_by: str) -> list[Formula]:
-    """
-    Returns constraints that express that a tagged group atom is true iff the
-    tagged validator atom of each of its members is true.
-    """
-    constraints: list[Formula] = []
-    groups = fbas.groups_dict(group_by)
-    for group_name, members in groups.items():
-        if members:
-            # If group is tagged, all members are tagged
-            constraints.append(
-                Implies(tagger.atom(group_name),
-                        And(*[tagger.atom(v) for v in members])))
-            # If any member is tagged, group is tagged
-            constraints.append(
-                Implies(Or(*[tagger.atom(v) for v in members]),
-                        tagger.atom(group_name)))
-    return constraints
-
-
 def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
     clauses = to_cnf(constraints)
     return slv.solve_sat(clauses)
@@ -142,6 +119,28 @@ def quorum_constraints(fbas: FBASGraph,
     constraints += [Or(*[make_atom(v)
                          for v in fbas.validators
                          if fbas.graph.out_degree(v) > 0])]
+    return constraints
+
+def group_constraints(
+        tagger: Tagger,
+        fbas: FBASGraph,
+        group_by: str) -> list[Formula]:
+    """
+    Returns constraints that express that a tagged group atom is true iff the
+    tagged validator atom of each of its members is true.
+    """
+    constraints: list[Formula] = []
+    groups = fbas.groups_dict(group_by)
+    for group_name, members in groups.items():
+        if members:
+            # If group is tagged, all members are tagged
+            constraints.append(
+                Implies(tagger.atom(group_name),
+                        And(*[tagger.atom(v) for v in members])))
+            # If any member is tagged, group is tagged
+            constraints.append(
+                Implies(Or(*[tagger.atom(v) for v in members]),
+                        tagger.atom(group_name)))
     return constraints
 
 
