@@ -29,8 +29,8 @@ def _load_fbas_graph(args) -> FBASGraph:
     return FBASGraph.from_json(_load_json_from_file(args.fbas))
 
 
-def _with_names(fbas: FBASGraph, vs: Collection[str]) -> list[str]:
-    return [fbas.with_name(v) for v in vs]
+def _format_validators(fbas: FBASGraph, vs: Collection[str]) -> list[str]:
+    return [fbas.format_validator(v) for v in vs]
 
 
 def _command_update_cache(_args):
@@ -51,7 +51,7 @@ def _command_check_intersection(args, fbas: FBASGraph):
         result = find_disjoint_quorums(fbas)
         if result:
             print(
-                f"Disjoint quorums: {_with_names(fbas, result.quorum_a)}\n and {_with_names(fbas, result.quorum_b)}")
+                f"Disjoint quorums: {_format_validators(fbas, result.quorum_a)}\n and {_format_validators(fbas, result.quorum_b)}")
         else:
             print("No disjoint quorums found")
 
@@ -64,7 +64,7 @@ def _command_min_splitting_set(_args, fbas: FBASGraph):
         return
     print(f"Minimal splitting-set cardinality is: {len(result.splitting_set)}")
     print(
-        f"Example:\n{_with_names(fbas, result.splitting_set) if not cfg.group_by else result.splitting_set}\nsplits quorums\n{_with_names(fbas, result.quorum_a)}\nand\n{_with_names(fbas, result.quorum_b)}")
+        f"Example:\n{_format_validators(fbas, result.splitting_set) if not cfg.group_by else result.splitting_set}\nsplits quorums\n{_format_validators(fbas, result.quorum_a)}\nand\n{_format_validators(fbas, result.quorum_b)}")
 
 
 def _command_min_blocking_set(_args, fbas: FBASGraph):
@@ -75,30 +75,30 @@ def _command_min_blocking_set(_args, fbas: FBASGraph):
         return
     print(f"Minimal blocking-set cardinality is: {len(result)}")
     print(
-        f"Example:\n{_with_names(fbas, result) if not cfg.group_by else result}")
+        f"Example:\n{_format_validators(fbas, result) if not cfg.group_by else result}")
 
 
 def _command_history_loss(_args, fbas: FBASGraph):
     cfg = get_config()
     if cfg.group_by:
-        logging.error("--group-by does not make sense for the history-loss command")
+        logging.error("--group-by does not make sense with history-loss")
         sys.exit(1)
     result = min_history_loss_critical_set(fbas)
     print(
         f"Minimal history-loss critical set cardinality is: {len(result.min_critical_set)}")
-    print(f"Example min critical set:\n{_with_names(fbas, result.min_critical_set)}")
+    print(f"Example min critical set:\n{_format_validators(fbas, result.min_critical_set)}")
     print(
-        f"Corresponding history-less quorum:\n {_with_names(fbas, result.quorum)}")
+        f"Corresponding history-less quorum:\n {_format_validators(fbas, result.quorum)}")
 
 
 def _command_min_quorum(_args, fbas: FBASGraph):
     result = find_min_quorum(fbas)
-    print(f"Example min quorum:\n{_with_names(fbas, result)}")
+    print(f"Example min quorum:\n{_format_validators(fbas, result)}")
 
 
 def _command_top_tier(_args, fbas: FBASGraph):
     result = top_tier(fbas)
-    print(f"Top tier: {_with_names(fbas, result)}")
+    print(f"Top tier: {_format_validators(fbas, result)}")
 
 
 def _command_max_scc(_args, fbas: FBASGraph):
@@ -107,7 +107,7 @@ def _command_max_scc(_args, fbas: FBASGraph):
         logging.error("--group-by does not make sense for the max-scc command")
         sys.exit(1)
     result = max_scc(fbas)
-    print(f"Maximal SCC with a quorum: {_with_names(fbas, result)}")
+    print(f"Maximal SCC with a quorum: {_format_validators(fbas, result)}")
 
 
 def main():
@@ -131,6 +131,11 @@ def main():
         '--group-by',
         default=None,
         help="Group by the provided field (e.g. min-splitting-set with --group-by=homeDomain will compute the minimum number of home domains to corrupt to create disjoint quorums)")
+
+    parser.add_argument(
+        '--validator-display',
+        default='both',
+        help="How to display validators in output. Can be 'id', 'name', or 'both'")
 
     parser.add_argument(
         '--cardinality-encoding',
@@ -203,7 +208,8 @@ def main():
                   card_encoding=args.cardinality_encoding,
                   group_by=args.group_by,
                   sat_solver=args.sat_solver,
-                  max_sat_algo=args.max_sat_algo)
+                  max_sat_algo=args.max_sat_algo,
+                  validator_display=args.validator_display)
     cfg = get_config()
 
     if cfg.card_encoding not in ['naive', 'totalizer']:

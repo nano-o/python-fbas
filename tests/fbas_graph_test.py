@@ -3,6 +3,7 @@ import pytest
 import random
 from test_utils import get_test_data_list, get_validators_from_test_fbas
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.config import temporary_config
 
 
 def test_load_fbas():
@@ -327,3 +328,21 @@ def test_qset_of():
                 qset = fg.qset_of(v)
                 qset_vertex = fg.qset_vertex_of(v)
                 assert qset == fg.qsets[qset_vertex], f"QSet of {v} does not match the expected QSet: {fg.qsets[qset_vertex]} != {qset}"
+
+
+def test_format_validator():
+    fbas = FBASGraph()
+    fbas.update_validator("GABCD", attrs={'name': 'Test Validator'})
+    fbas.add_validator("GXYZ") # Validator without a name
+
+    with temporary_config(validator_display='id'):
+        assert fbas.format_validator("GABCD") == "GABCD"
+        assert fbas.format_validator("GXYZ") == "GXYZ"
+
+    with temporary_config(validator_display='name'):
+        assert fbas.format_validator("GABCD") == "Test Validator"
+        assert fbas.format_validator("GXYZ") == "GXYZ"
+
+    with temporary_config(validator_display='both'):
+        assert fbas.format_validator("GABCD") == "GABCD (Test Validator)"
+        assert fbas.format_validator("GXYZ") == "GXYZ"

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, fields
 from typing import Literal, Optional
 from contextlib import contextmanager
 
@@ -13,6 +13,7 @@ class Config:
     max_sat_algo: Literal["LSU", "RC2"] = "LSU"
     output: Optional[str] = None
     group_by: Optional[str] = None
+    validator_display: Literal["id", "name", "both"] = "both"
 
 
 _cfg: Config = Config()           # single authoritative instance
@@ -37,13 +38,4 @@ def temporary_config(**kwargs):
     try:
         yield
     finally:
-        update(**old.__dict__)
-
-
-# ---------------------------------------------------------------------------#
-# Back-compat: allow read-only attribute access (config.card_encoding, …)
-# ---------------------------------------------------------------------------#
-def __getattr__(name):                       # type: ignore
-    if name in Config.__annotations__:
-        return getattr(_cfg, name)
-    raise AttributeError(name)
+        update(**{f.name: getattr(old, f.name) for f in fields(old)})

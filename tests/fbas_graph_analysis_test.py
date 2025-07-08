@@ -17,29 +17,30 @@ from python_fbas.solver import HAS_QBF
 
 
 def test_qi_():
-    config.card_encoding = 'totalizer'
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
-    result = find_disjoint_quorums(fbas)
-    assert not result
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
-    result = find_disjoint_quorums(fbas)
-    assert not result
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
-    assert find_disjoint_quorums(fbas2)
-    config.card_encoding = 'naive'
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
-    assert not find_disjoint_quorums(fbas)
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
-    result = find_disjoint_quorums(fbas)
-    assert not result
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
-    assert find_disjoint_quorums(fbas2)
+    with config.temporary_config(card_encoding='totalizer'):
+        fbas = FBASGraph.from_json(
+            get_validators_from_test_fbas('circular_1.json'))
+        result = find_disjoint_quorums(fbas)
+        assert not result
+        fbas = FBASGraph.from_json(
+            get_validators_from_test_fbas('circular_2.json'))
+        result = find_disjoint_quorums(fbas)
+        assert not result
+        fbas2 = FBASGraph.from_json(
+            get_validators_from_test_fbas('conflicted.json'))
+        assert find_disjoint_quorums(fbas2)
+    
+    with config.temporary_config(card_encoding='naive'):
+        fbas = FBASGraph.from_json(
+            get_validators_from_test_fbas('circular_1.json'))
+        assert not find_disjoint_quorums(fbas)
+        fbas = FBASGraph.from_json(
+            get_validators_from_test_fbas('circular_2.json'))
+        result = find_disjoint_quorums(fbas)
+        assert not result
+        fbas2 = FBASGraph.from_json(
+            get_validators_from_test_fbas('conflicted.json'))
+        assert find_disjoint_quorums(fbas2)
 
 
 def test_qi_missing():
@@ -55,10 +56,10 @@ def test_qi_all():
         logging.info("loading graph of %s", f)
         fbas_graph = FBASGraph.from_json(d)
         if fbas_graph.validators:
-            config.card_encoding = 'totalizer'
-            find_disjoint_quorums(fbas_graph)
-            config.card_encoding = 'naive'
-            find_disjoint_quorums(fbas_graph)
+            with config.temporary_config(card_encoding='totalizer'):
+                find_disjoint_quorums(fbas_graph)
+            with config.temporary_config(card_encoding='naive'):
+                find_disjoint_quorums(fbas_graph)
 
 
 def test_min_splitting_set_1():
@@ -108,8 +109,8 @@ def test_min_splitting_set():
     for f, d in data.items():
         logging.info("loading graph of %s", f)
         fbas_graph = FBASGraph.from_json(d)
-        config.card_encoding = 'totalizer'
-        find_minimal_splitting_set(fbas_graph)
+        with config.temporary_config(card_encoding='totalizer'):
+            find_minimal_splitting_set(fbas_graph)
 
 
 def test_min_blocking_set_3():
@@ -124,10 +125,9 @@ def test_min_blocking_set_3():
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
         fbas1.update_validator(v, qset1)
-    config.card_encoding = 'totalizer'
-    config.max_sat_algo = 'RC2'
-    b = find_minimal_blocking_set(fbas1)
-    assert len(b) == 2  # type: ignore
+    with config.temporary_config(card_encoding='totalizer', max_sat_algo='RC2'):
+        b = find_minimal_blocking_set(fbas1)
+        assert len(b) == 2  # type: ignore
 
 
 def test_min_blocking_set_4():
@@ -135,8 +135,8 @@ def test_min_blocking_set_4():
     for f, d in data.items():
         logging.info("loading graph of %s", f)
         fbas_graph = FBASGraph.from_json(d)
-        config.card_encoding = 'totalizer'
-        find_minimal_blocking_set(fbas_graph)
+        with config.temporary_config(card_encoding='totalizer'):
+            find_minimal_blocking_set(fbas_graph)
 
 
 def test_min_quorum():

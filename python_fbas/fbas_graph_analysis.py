@@ -204,9 +204,9 @@ def find_disjoint_quorums(
     sat_res = solve_constraints(constraints)
     res = sat_res.sat
 
-    if config.output:
-        if config.output:
-            with open(config.output, 'w', encoding='utf-8') as f:
+    if config.get().output:
+        if config.get().output:
+            with open(config.get().output, 'w', encoding='utf-8') as f:
                 cnf = CNF(from_clauses=clauses)
                 dimacs = cnf.to_dimacs()
                 comment = "c " + ("SATISFIABLE" if res else "UNSATISFIABLE") \
@@ -245,8 +245,8 @@ def find_minimal_splitting_set(
 
     logging.info(
         "Finding minimal-cardinality splitting set using MaxSAT algorithm %s with %s cardinality encoding",
-        config.max_sat_algo,
-        config.card_encoding)
+        config.get().max_sat_algo,
+        config.get().card_encoding)
 
     faulty_tagger = Tagger("faulty")
     quorum_a_tagger = Tagger("quorum_A")
@@ -300,16 +300,16 @@ def find_minimal_splitting_set(
 
         groups: Set[Any] = set()
 
-        if config.group_by:
+        if config.get().group_by:
             constraints += group_constraints(
-                faulty_tagger, fbas, config.group_by)
-            groups = fbas.groups_dict(config.group_by).keys()
+                faulty_tagger, fbas, config.get().group_by)
+            groups = fbas.groups_dict(config.get().group_by).keys()
 
         # finally, convert to weighted CNF and add soft constraints that
         # minimize the number of faulty validators (or groups):
         wcnf = WCNF()
         wcnf.extend(to_cnf(constraints))
-        if not config.group_by:
+        if not config.get().group_by:
             for v in fbas.validators:
                 wcnf.append(to_cnf(Not(is_faulty(v)))[0], weight=1)
         else:
@@ -329,15 +329,15 @@ def find_minimal_splitting_set(
             cost)
         model = list(model)
         ss = list(extract_true_tagged_variables(model, faulty_tagger))
-        if not config.group_by:
+        if not config.get().group_by:
             logging.info("Minimal-cardinality splitting set: %s",
-                         [fbas.with_name(s) for s in ss])
+                         [fbas.format_validator(s) for s in ss])
         else:
             logging.info("Minimal-cardinality splitting set (groups): %s",
                          [s for s in ss if s in groups])
             logging.info(
                 "Minimal-cardinality splitting set (corresponding validators): %s",
-                [fbas.with_name(s) for s in ss if s not in groups])
+                [fbas.format_validator(s) for s in ss if s not in groups])
         q1 = [
             v for v in extract_true_tagged_variables(
                 model,
@@ -354,9 +354,9 @@ def find_minimal_splitting_set(
             q2,
             over_approximate=True,
             no_requirements=set(ss))
-        logging.info("Quorum A: %s", [fbas.with_name(v) for v in q1])
-        logging.info("Quorum B: %s", [fbas.with_name(v) for v in q2])
-        if not config.group_by:
+        logging.info("Quorum A: %s", [fbas.format_validator(v) for v in q1])
+        logging.info("Quorum B: %s", [fbas.format_validator(v) for v in q2])
+        if not config.get().group_by:
             return SplittingSetResult(splitting_set=ss, quorum_a=q1, quorum_b=q2)
         else:
             return SplittingSetResult(
@@ -378,8 +378,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
     logging.info(
         "Finding minimal-cardinality blocking set using MaxSAT algorithm %s with %s cardinality encoding",
-        config.max_sat_algo,
-        config.card_encoding)
+        config.get().max_sat_algo,
+        config.get().card_encoding)
 
     if not fbas.validators:
         logging.info("No validators in the FBAS graph!")
@@ -445,16 +445,16 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
                             Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
 
         groups = set()
-        if config.group_by:
+        if config.get().group_by:
             constraints += group_constraints(
-                faulty_tagger, fbas, config.group_by)
-            groups = fbas.groups_dict(config.group_by).keys()
+                faulty_tagger, fbas, config.get().group_by)
+            groups = fbas.groups_dict(config.get().group_by).keys()
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
         wcnf = WCNF()
         wcnf.extend(to_cnf(constraints))
-        if not config.group_by:
+        if not config.get().group_by:
             for v in fbas.validators:
                 wcnf.append(to_cnf(Not(is_faulty(v)))[0], weight=1)
         else:
@@ -474,9 +474,9 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             "Found minimal-cardinality blocking set, size is %s",
             cost)
         s = list(extract_true_tagged_variables(model, faulty_tagger))
-        if not config.group_by:
+        if not config.get().group_by:
             logging.info("Minimal-cardinality blocking set: %s",
-                         [fbas.with_name(v) for v in s])
+                         [fbas.format_validator(v) for v in s])
         else:
             logging.info("Minimal-cardinality blocking set: %s",
                          [g for g in s if g in groups])
@@ -485,7 +485,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         for vs2 in combinations(vs, cost - 1):
             # TODO isn't this going to fail with groups?
             assert fbas.closure(vs2) != fbas.validators
-        if not config.group_by:
+        if not config.get().group_by:
             return s
         else:
             return [g for g in s if g in groups]
@@ -500,8 +500,8 @@ def min_history_loss_critical_set(
 
     logging.info(
         "Finding minimal-cardinality history-loss critical set using MaxSAT algorithm %s with %s cardinality encoding",
-        config.max_sat_algo,
-        config.card_encoding)
+        config.get().max_sat_algo,
+        config.get().card_encoding)
 
     constraints: list[Formula] = []
 
@@ -565,8 +565,8 @@ def min_history_loss_critical_set(
         quorum = [v for v in extract_true_tagged_variables(
             model, in_critical_quorum_tagger) if v in fbas.validators]
         logging.info("Minimal-cardinality history-critical set: %s",
-                     [fbas.with_name(v) for v in min_critical])
-        logging.info("Quorum: %s", [fbas.with_name(v) for v in quorum])
+                     [fbas.format_validator(v) for v in min_critical])
+        logging.info("Quorum: %s", [fbas.format_validator(v) for v in quorum])
         return HistoryLossResult(min_critical_set=min_critical, quorum=quorum)
 
 

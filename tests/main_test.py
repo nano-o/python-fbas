@@ -128,5 +128,48 @@ def test_max_scc():
     assert "Maximal SCC with a quorum:" in output
 
 
+def test_validator_display_id():
+    """Test the --validator-display=id command-line option."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "--validator-display=id",
+        "top-tier"
+    ]
+    output = run_command(command)
+    assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" in output
+    assert "SDF 1" not in output
+
+def test_validator_display_name():
+    """Test the --validator-display=name command-line option."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "--validator-display=name",
+        "top-tier"
+    ]
+    output = run_command(command)
+    assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" not in output
+    assert "SDF 1" in output
+
+def test_validator_display_both():
+    """Test the --validator-display=both command-line option."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "--validator-display=both",
+        "top-tier"
+    ]
+    output = run_command(command)
+    assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" in output
+    assert "SDF 1" in output
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

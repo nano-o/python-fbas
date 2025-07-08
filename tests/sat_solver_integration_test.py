@@ -46,22 +46,22 @@ class TestSatIntegration:
         sat, _ = _solve(And(x, Not(x)))
         assert not sat
 
-    def test_cardinality_naive_sat(self, monkeypatch):
-        monkeypatch.setattr(cfg, 'card_encoding', 'naive')
-        a, b, c = Atom('a'), Atom('b'), Atom('c')
-        sat, model = _solve(Card(2, a, b, c))
-        assert sat
-        assert len({'a', 'b', 'c'} & set(model)) >= 2   # at least 2 true
+    def test_cardinality_naive_sat(self):
+        with cfg.temporary_config(card_encoding='naive'):
+            a, b, c = Atom('a'), Atom('b'), Atom('c')
+            sat, model = _solve(Card(2, a, b, c))
+            assert sat
+            assert len({'a', 'b', 'c'} & set(model)) >= 2   # at least 2 true
 
-    def test_cardinality_totalizer_sat(self, monkeypatch):
-        monkeypatch.setattr(cfg, 'card_encoding', 'totalizer')
-        a, b, c = Atom('a'), Atom('b'), Atom('c')
-        sat, _ = _solve(Card(2, a, b, c))
-        assert sat
+    def test_cardinality_totalizer_sat(self):
+        with cfg.temporary_config(card_encoding='totalizer'):
+            a, b, c = Atom('a'), Atom('b'), Atom('c')
+            sat, _ = _solve(Card(2, a, b, c))
+            assert sat
 
-    def test_cardinality_conflict(self, monkeypatch):
-        monkeypatch.setattr(cfg, 'card_encoding', 'totalizer')
-        a, b, c = Atom('a'), Atom('b'), Atom('c')
-        # require two true but force all three false → UNSAT
-        sat, _ = _solve(And(Card(2, a, b, c), Not(a), Not(b)))
-        assert not sat
+    def test_cardinality_conflict(self):
+        with cfg.temporary_config(card_encoding='totalizer'):
+            a, b, c = Atom('a'), Atom('b'), Atom('c')
+            # require two true but force all three false → UNSAT
+            sat, _ = _solve(And(Card(2, a, b, c), Not(a), Not(b)))
+            assert not sat

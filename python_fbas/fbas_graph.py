@@ -14,6 +14,7 @@ from pprint import pformat
 import networkx as nx
 from networkx.classes.reportviews import NodeView
 from python_fbas.utils import powerset
+from python_fbas.config import get as get_config
 
 
 @dataclass(frozen=True)
@@ -118,11 +119,23 @@ class FBASGraph:
                 raise ValueError(
                     f"Integrity check failed: vertex {n} has a self-loop")
 
-    def with_name(self, validator: str) -> str:
-        if 'name' in self.vertice_attrs(validator) and self.vertice_attrs(validator)['name']:
-            return validator + " (" + self.vertice_attrs(validator)['name'] + ")"
-        else:
-            return validator
+    def format_validator(self, validator_id: str) -> str:
+        """
+        Formats a validator's string representation based on the
+        `validator_display` configuration setting.
+        """
+        cfg = get_config()
+        attrs = self.vertice_attrs(validator_id)
+        name = attrs.get('name')
+
+        if cfg.validator_display == 'id':
+            return validator_id
+        if cfg.validator_display == 'name':
+            return name if name else validator_id
+        # 'both' is the default
+        if name:
+            return f"{validator_id} ({name})"
+        return validator_id
 
     def add_validator(self, v: Any) -> None:
         """Add a validator to the graph."""
