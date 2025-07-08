@@ -116,5 +116,17 @@ def test_min_quorum():
     assert "Example min quorum:" in output
 
 
+def test_max_scc():
+    """Test the max-scc command."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "max-scc"]
+    output = run_command(command)
+    assert "Maximal SCC with a quorum:" in output
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

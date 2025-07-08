@@ -11,7 +11,7 @@ from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
     find_minimal_splitting_set, find_minimal_blocking_set,
-    min_history_loss_critical_set, find_min_quorum, top_tier
+    min_history_loss_critical_set, find_min_quorum, top_tier, max_scc
 )
 from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
@@ -81,7 +81,7 @@ def _command_min_blocking_set(_args, fbas: FBASGraph):
 def _command_history_loss(_args, fbas: FBASGraph):
     cfg = get_config()
     if cfg.group_by:
-        logging.error("--group-by does not make sense with history-loss")
+        logging.error("--group-by does not make sense for the history-loss command")
         sys.exit(1)
     result = min_history_loss_critical_set(fbas)
     print(
@@ -99,6 +99,15 @@ def _command_min_quorum(_args, fbas: FBASGraph):
 def _command_top_tier(_args, fbas: FBASGraph):
     result = top_tier(fbas)
     print(f"Top tier: {_with_names(fbas, result)}")
+
+
+def _command_max_scc(_args, fbas: FBASGraph):
+    cfg = get_config()
+    if cfg.group_by:
+        logging.error("--group-by does not make sense for the max-scc command")
+        sys.exit(1)
+    result = max_scc(fbas)
+    print(f"Maximal SCC with a quorum: {_with_names(fbas, result)}")
 
 
 def main():
@@ -183,6 +192,10 @@ def main():
     parser_top_tier = subparsers.add_parser(
         'top-tier', help="Find the top tier of the FBAS")
     parser_top_tier.set_defaults(func=_command_top_tier)
+
+    parser_max_scc = subparsers.add_parser(
+        'max-scc', help="Find a maximal strongly-connected component of the FBAS that contains a quorum")
+    parser_max_scc.set_defaults(func=_command_max_scc)
 
     args = parser.parse_args()
 
