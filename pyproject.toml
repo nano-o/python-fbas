@@ -8,7 +8,6 @@ dependencies = [
     "py-aiger-cnf==5.0.8",
     "pyapproxmc==4.1.24",
     "pycryptosat==5.11.21",
-    "pytest==8.3.3",
     "python-sat==1.8.dev13",
     "requests==2.32.3",
     "z3-solver==4.13.3.0",
@@ -18,7 +17,11 @@ dependencies = [
 
 [project.optional-dependencies]
 qbf = ["pyqbf @ git+https://gitlab.sai.jku.at/qbf/pyqbf"]
+dev = [
+    "pytest",
+    "autopep8",
+    "ruff"
+]
 
 [project.scripts]
 python-fbas = "python_fbas.main:main"
-python-fbas-deprecated = "python_fbas.deprecated.main:main"
