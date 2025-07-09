@@ -20,7 +20,8 @@ qbf = ["pyqbf @ git+https://gitlab.sai.jku.at/qbf/pyqbf"]
 dev = [
     "pytest",
     "autopep8",
-    "ruff"
+    "ruff",
+    "mypy"
 ]
 
 [project.scripts]

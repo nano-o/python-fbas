@@ -6,7 +6,7 @@ TODO: Think about how to better deal with validators that do not have a qset.
 
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Dict
 from collections.abc import Collection, Set
 from itertools import chain, combinations
 import logging
@@ -29,7 +29,7 @@ class QSet:
     inner_quorum_sets: Set['QSet']
 
     @staticmethod
-    def make(qset: dict) -> 'QSet':
+    def make(qset: Dict[str, Any]) -> 'QSet':
         """
         Expects a JSON-serializable quorum-set (in stellarbeat.io format) and
         returns a QSet instance.
@@ -41,16 +41,23 @@ class QSet:
                 inner_qsets = frozenset(QSet.make(iq) for iq in iqs)
                 card = len(validators) + len(inner_qsets)
                 if not (0 <= threshold <= card):
-                    raise ValueError(f"Invalid qset: {qset}")
+                    logging.info(
+                        "QSet validation failed: threshold=%d not in range [0, %d] for qset with %d validators and %d inner quorum sets. Qset: %s",
+                        threshold, card, len(validators), len(inner_qsets), qset)
+                    raise ValueError(f"Invalid qset threshold {threshold} (must be 0 <= threshold <= {card}): {qset}")
                 return QSet(threshold, validators, inner_qsets)
             case _:
-                raise ValueError(f"Invalid qset: {qset}")
+                logging.info(
+                    "QSet.make failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
+                    list(qset.keys()) if isinstance(qset, dict) else "not a dict", qset)
+                raise ValueError(f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
 
 
 class FBASGraph:
     """
     An FBAS graph is a directed graph. Each vertex is either a validator or a
-    qset vertex, and may have a threshold attribute.
+    qset vertex, and may have a threshold attribute. Vertices are identified by
+    strings.
 
     A validator vertex must have at most one sucessor in the graph, which must
     be a qset vertex, and has no threshold. If it does not have a successor,
@@ -67,12 +74,12 @@ class FBASGraph:
     # maps qset vertices (str) to their associated qset:
     qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph?
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.graph = nx.DiGraph()
         self.validators = set()
         self.qsets = dict()
 
-    def __copy__(self):
+    def __copy__(self) -> 'FBASGraph':
         fbas = FBASGraph()
         fbas.graph = nx.DiGraph(self.graph)
         fbas.validators = self.validators.copy()
@@ -80,13 +87,13 @@ class FBASGraph:
         fbas.qsets = self.qsets.copy()
         return fbas
 
-    def vertices(self, data=False) -> NodeView:
+    def vertices(self, data: bool = False) -> NodeView:
         return self.graph.nodes(data=data)
 
-    def vertice_attrs(self, n: str) -> dict:
+    def vertice_attrs(self, n: str) -> Dict[str, Any]:
         return self.graph.nodes[n]
 
-    def check_integrity(self):
+    def check_integrity(self) -> None:
         """Basic integrity checks"""
         # check that all validators are in the graph:
         if not self.validators <= self.vertices():
@@ -145,8 +152,8 @@ class FBASGraph:
         self.graph.add_node(v)
         self.validators.add(v)
 
-    def update_validator(self, v: Any, qset: Optional[dict] = None,
-                         attrs: Optional[dict] = None) -> None:
+    def update_validator(self, v: Any, qset: Optional[Dict[str, Any]] = None,
+                         attrs: Optional[Dict[str, Any]] = None) -> None:
         """
         Add the validator v to the graph if it does not exist, using the
         supplied qset and attributes. Otherwise:
@@ -168,15 +175,15 @@ class FBASGraph:
         if qset:
             try:
                 fqs = self.add_qset(qset)
-            except ValueError:
-                logging.warning(
-                    "Failed to add qset %s for validator %s", qset, v)
+            except ValueError as e:
+                logging.info(
+                    "Failed to add qset for validator %s: %s. Qset data: %s", v, e, qset)
                 return
             out_edges = list(self.graph.out_edges(v))
             self.graph.remove_edges_from(out_edges)
             self.graph.add_edge(v, fqs)
 
-    def add_qset(self, qset: dict) -> str:
+    def add_qset(self, qset: Dict[str, Any]) -> str:
         """
         Takes a qset as a JSON-serializable dict in stellarbeat.io format.
         Returns the qset if it already exists, otherwise adds it to the graph.
@@ -197,11 +204,18 @@ class FBASGraph:
                     self.graph.add_edge(n, member)
                 return n
             case _:
-                raise ValueError(f"Invalid qset: {qset}")
+                logging.info(
+                    "add_qset failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
+                    list(qset.keys()) if isinstance(qset, dict) else "not a dict", qset)
+                raise ValueError(f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
 
-    def __str__(self):
-        res = {n: f"({self.threshold(n)}, {set(self.graph.successors(n))})"
-               for n in self.vertices()}
+    def __str__(self) -> str:
+        def info(v: str) -> str:
+            if self.graph.out_degree(v) > 0:
+                return f"({self.threshold(v)}, {set(self.graph.successors(v))})"
+            else:
+                return "no qset information"
+        res = {v: info(v) for v in self.vertices()}
         return pformat(res)
 
     def threshold(self, n: Any) -> int:
@@ -250,7 +264,7 @@ class FBASGraph:
         return self.compute_qset(self.qset_vertex_of(n))
 
     @staticmethod
-    def from_json(data: list, from_stellarbeat=False) -> 'FBASGraph':
+    def from_json(data: list[Dict[str, Any]], from_stellarbeat: bool = False) -> 'FBASGraph':
         """
         Create a FBASGraph from a list of validators in serialized
         stellarbeat.io format.
@@ -280,7 +294,7 @@ class FBASGraph:
                     v['publicKey'])
                 continue
             if v['publicKey'] in keys:
-                logging.debug(
+                logging.warning(
                     "Ignoring duplicate validator: %s", v['publicKey'])
                 continue
             keys.add(v['publicKey'])
@@ -309,7 +323,7 @@ class FBASGraph:
                     c not in self.validators and self.is_qset_sat(c, s)
                     or c in self.validators and c in s)
 
-    def is_sat(self, n: Any, s: Collection, over_approximate=True) -> bool:
+    def is_sat(self, n: str, s: Collection[str], over_approximate: bool = True) -> bool:
         """
         Returns True if and only if n's agreement requirements are satisfied by s.
         """
@@ -318,28 +332,20 @@ class FBASGraph:
             return over_approximate
         return self.is_qset_sat(self.qset_vertex_of(n), s)
 
-    def is_quorum(self,
-                  vs: Collection[str],
-                  over_approximate=True,
-                  no_requirements: Optional[set[str]] = None) -> bool:
+    def is_quorum(
+            self, vs: Collection[str], *, over_approximate: bool = True) -> bool:
         """
-        Returns True if and only if s is a non-empty quorum.
-        Not efficient.
+        Returns True if and only if s is a non-empty quorum. If
+        `over_approximate` is true, we consider that a validator that has no
+        qset has no requirement; otherwise, if vs contains a validator that has
+        no qset, then it is not a quorum.
         """
         if not vs:
             return False
         assert set(vs) <= self.validators
-        to_check = (set(vs) - (no_requirements or set()))
-        if not any([self.threshold(v) >= 0 for v in to_check]
-                   ):  # we have a qset for at least one validator
-            logging.error(
-                "Quorum made of validators which do not have a qset: %s (%s are excluded)",
-                vs,
-                no_requirements or set())
-            assert False
-        return all(self.is_sat(v, vs, over_approximate) for v in to_check)
+        return all(self.is_sat(v, vs, over_approximate) for v in vs)
 
-    def find_disjoint_quorums(self) -> Optional[tuple[set, set]]:
+    def find_disjoint_quorums(self) -> Optional[tuple[set[str], set[str]]]:
         """
         Naive, brute-force search for disjoint quorums.
         Warning: use only for very small fbas graphs.
@@ -354,17 +360,17 @@ class FBASGraph:
         return next(((q1, q2)
                     for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
 
-    def blocks(self, s: Collection, n: Any) -> bool:
+    def blocks(self, s: Collection[str], n: Any) -> bool:
         """
         Returns True if and only if s blocks v.
         TODO: should there be an `overapproximate` parameter?
         """
         if self.threshold(n) == 0:
             return False
-        remaining_successors = len(set(self.graph.successors(n)) - s)
+        remaining_successors = len(set(self.graph.successors(n)) - set(s))
         return remaining_successors < self.threshold(n)
 
-    def closure(self, vs: Collection) -> frozenset:
+    def closure(self, vs: Collection[str]) -> frozenset[str]:
         """
         Returns the closure of the set of validators vs.
         """
@@ -380,7 +386,7 @@ class FBASGraph:
                 return frozenset([v for v in closure if v in self.validators])
             closure |= new
 
-    def project(self, vs: Collection) -> 'FBASGraph':
+    def project(self, vs: Collection[str]) -> 'FBASGraph':
         """
         Returns a new fbas that only contains the validators reachable from the set vs.
         """

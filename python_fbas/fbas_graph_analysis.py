@@ -1,10 +1,12 @@
 """
 SAT-based analysis of FBAS graphs
+
+TODO: warn about how qset-less validators affect analysis results.
 """
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple, Collection, Callable, Set
+from typing import Any, Optional, Collection, Callable, Set
 from itertools import combinations
 from functools import partial
 import networkx as nx
@@ -27,16 +29,16 @@ except ImportError:
 @dataclass
 class DisjointQuorumsResult:
     """Represents the result of finding disjoint quorums."""
-    quorum_a: Collection[Any]
-    quorum_b: Collection[Any]
+    quorum_a: Collection[str]
+    quorum_b: Collection[str]
 
 
 @dataclass
 class SplittingSetResult:
     """Represents the result of finding a minimal splitting set."""
-    splitting_set: Collection[Any]
-    quorum_a: Collection[Any]
-    quorum_b: Collection[Any]
+    splitting_set: Collection[str]
+    quorum_a: Collection[str]
+    quorum_b: Collection[str]
 
 
 @dataclass
@@ -97,7 +99,9 @@ def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
 
 
 def quorum_constraints(fbas: FBASGraph,
-                       make_atom: Callable[[str], Atom]) -> list[Formula]:
+                       make_atom: Callable[[str], Atom],
+                       *,
+                       over_approximate: bool = True) -> list[Formula]:
     """Returns constraints expressing that the set of true atoms is a quorum"""
     constraints: list[Formula] = []
     for v in fbas.vertices():
@@ -109,10 +113,9 @@ def quorum_constraints(fbas: FBASGraph,
                     Card(
                         fbas.threshold(v),
                         *vs)))
-        if fbas.graph.out_degree(v) == 0 or fbas.threshold(v) == 0:
-            # TODO seems like this needs to be configurable; maybe a global
-            # parameter to indicate how cautious we want to be.  Or maybe warn
-            # after analysis when a result depends on this behavior
+        if fbas.graph.out_degree(v) == 0 and not over_approximate:
+            constraints.append(Not(make_atom(v)))
+        if v not in fbas.validators and fbas.threshold(v) == 0:
             continue
     # also require that the quorum contain at least one validator for which we
     # have a qset:
@@ -120,6 +123,7 @@ def quorum_constraints(fbas: FBASGraph,
                          for v in fbas.validators
                          if fbas.graph.out_degree(v) > 0])]
     return constraints
+
 
 def group_constraints(
         tagger: Tagger,
@@ -161,6 +165,10 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
             sat_res.model,
             predicate=lambda ident: ident in fbas.validators)
         logging.info("Quorum %s is inside %s", q, s)
+        missing_qset = [v for v in q if fbas.graph.out_degree(v) == 0]
+        if missing_qset:
+            logging.warning(f"validators {missing_qset} do not have a qset")
+        assert fbas.is_quorum(q)
     else:
         logging.info("No quorum found in %s", s)
     return sat_res.sat
@@ -185,7 +193,7 @@ def find_disjoint_quorums(
     """
     taggers = {'A': Tagger("quorum_A"), 'B': Tagger("quorum_B")}
 
-    def in_quorum(q, v) -> Atom:
+    def in_quorum(q: str, v: str) -> Atom:
         return taggers[q].atom(v)
 
     constraints: list[Formula] = []
@@ -204,8 +212,9 @@ def find_disjoint_quorums(
     res = sat_res.sat
 
     if config.get().output:
-        if config.get().output:
-            with open(config.get().output, 'w', encoding='utf-8') as f:
+        output_file = config.get().output
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
                 cnf = CNF(from_clauses=clauses)
                 dimacs = cnf.to_dimacs()
                 comment = "c " + ("SATISFIABLE" if res else "UNSATISFIABLE") \
@@ -215,7 +224,6 @@ def find_disjoint_quorums(
 
     if res:
         model = sat_res.model
-        assert model  # error if []
         q1 = [
             v for v in extract_true_tagged_variables(
                 model,
@@ -230,6 +238,9 @@ def find_disjoint_quorums(
         assert fbas.is_quorum(q1, over_approximate=True)
         assert fbas.is_quorum(q2, over_approximate=True)
         assert not set(q1) & set(q2)
+        missing_qset = [v for v in set(q1) | set(q2) if fbas.graph.out_degree(v) == 0]
+        if missing_qset:
+            logging.warning(f"validators {missing_qset} do not have a qset")
         return DisjointQuorumsResult(quorum_a=q1, quorum_b=q2)
     return None
 
@@ -297,12 +308,13 @@ def find_minimal_splitting_set(
                                Not(in_quorum('A', v)),
                                Not(in_quorum('B', v)))]
 
-        groups: Set[Any] = set()
+        groups: set[str] = set()
 
-        if config.get().group_by:
+        group_by = config.get().group_by
+        if group_by:
             constraints += group_constraints(
-                faulty_tagger, fbas, config.get().group_by)
-            groups = fbas.groups_dict(config.get().group_by).keys()
+                faulty_tagger, fbas, group_by)
+            groups = set(fbas.groups_dict(group_by).keys())
 
         # finally, convert to weighted CNF and add soft constraints that
         # minimize the number of faulty validators (or groups):
@@ -327,7 +339,7 @@ def find_minimal_splitting_set(
             "Found minimal-cardinality splitting set of size is %s:",
             cost)
         model = list(model)
-        ss = list(extract_true_tagged_variables(model, faulty_tagger))
+        ss = extract_true_tagged_variables(model, faulty_tagger)
         if not config.get().group_by:
             logging.info("Minimal-cardinality splitting set: %s",
                          [fbas.format_validator(s) for s in ss])
@@ -337,24 +349,21 @@ def find_minimal_splitting_set(
             logging.info(
                 "Minimal-cardinality splitting set (corresponding validators): %s",
                 [fbas.format_validator(s) for s in ss if s not in groups])
-        q1 = [
+        q1 = {
             v for v in extract_true_tagged_variables(
                 model,
-                quorum_a_tagger) if v in fbas.validators]
-        q2 = [
+                quorum_a_tagger) if v in fbas.validators}
+        q2 = {
             v for v in extract_true_tagged_variables(
                 model,
-                quorum_b_tagger) if v in fbas.validators]
-        assert fbas.is_quorum(
-            q1,
-            over_approximate=True,
-            no_requirements=set(ss))
-        assert fbas.is_quorum(
-            q2,
-            over_approximate=True,
-            no_requirements=set(ss))
+                quorum_b_tagger) if v in fbas.validators}
+        assert all(fbas.is_sat(v, q1, over_approximate=True) for v in q1 - ss)
+        assert all(fbas.is_sat(v, q2, over_approximate=True) for v in q2 - ss)
         logging.info("Quorum A: %s", [fbas.format_validator(v) for v in q1])
         logging.info("Quorum B: %s", [fbas.format_validator(v) for v in q2])
+        missing_qset = [v for v in q1 | q2 if fbas.graph.out_degree(v) == 0]
+        if missing_qset:
+            logging.warning(f"validators {missing_qset} do not have a qset")
         if not config.get().group_by:
             return SplittingSetResult(splitting_set=ss, quorum_a=q1, quorum_b=q2)
         else:
@@ -362,6 +371,28 @@ def find_minimal_splitting_set(
                 splitting_set=[s for s in ss if s in groups],
                 quorum_a=q1,
                 quorum_b=q2)
+
+
+def max_scc(fbas: FBASGraph) -> Collection[str]:
+    """
+    Compute a maximal strongly-connected component that contains a quorum
+    """
+
+    # First, find all sccs that contain at least one quorum:
+    sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
+            if any(fbas.threshold(v) > 0 for v in set(scc))]
+    if not sccs:
+        logging.info("Found no strongly connected components in the FBAS graph.")
+        return []
+    # Keep only the sccs that contain at least one quorum:
+    sccs = [scc for scc in sccs
+            if contains_quorum(set(scc) & fbas.validators, fbas)]
+    if len(sccs) > 1:
+        logging.warning("There are disjoint quorums")
+    if len(sccs) == 0:
+        logging.warning("Found no SCC that contains a quorum. This is due to validators for which we do not have a qset.")
+        return []
+    return {v for v in sccs[0] if v in fbas.validators}
 
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
@@ -401,7 +432,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             """
             return Atom((v1, v2))
 
-        def blocking_threshold(v) -> int:
+        def blocking_threshold(v: str) -> int:
             return len(list(fbas.graph.successors(v))) - fbas.threshold(v) + 1
 
         # first, the threshold constraints:
@@ -443,11 +474,12 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
                         constraints.append(
                             Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
 
-        groups = set()
-        if config.get().group_by:
+        groups: set[str] = set()
+        group_by = config.get().group_by
+        if group_by:
             constraints += group_constraints(
-                faulty_tagger, fbas, config.get().group_by)
-            groups = fbas.groups_dict(config.get().group_by).keys()
+                faulty_tagger, fbas, group_by)
+            groups = set(fbas.groups_dict(group_by).keys())
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
@@ -467,6 +499,9 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         return None
     else:
         cost = result.optimum
+        if cost is None:
+            logging.error("No optimal cost found")
+            assert False
         model = result.model
         model = list(model)
         logging.info(
@@ -571,8 +606,9 @@ def min_history_loss_critical_set(
 
 def find_min_quorum(
         fbas: FBASGraph,
-        not_subset_of=None,
-        restrict_to_scc=True) -> Collection[str]:
+        *,
+        not_subset_of: Optional[Collection[str]] = None,
+        restrict_to_scc: bool = True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
     set of validators, then the quorum should contain at least one validator
@@ -584,27 +620,9 @@ def find_min_quorum(
             "QBF support not available. Install with: pip install python-fbas[qbf]")
 
     if restrict_to_scc:
-        # First, find all sccs that contain at least one quorum:
-        sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
-                if any(fbas.threshold(v) > 0 for v in set(scc))]
-        if not sccs:
-            logging.info(
-                "Found strongly connected components in the FBAS graph.")
+        scc = set(max_scc(fbas))
+        if not scc:
             return []
-        # Keep only the sccs that contain at least one quorum:
-        sccs = [
-            scc for scc in sccs if contains_quorum(
-                set(scc) & fbas.validators, fbas)]
-        if len(sccs) > 1:
-            logging.warning("There are disjoint quorums")
-        if len(sccs) == 0:
-            logging.warning(
-                "Found no SCC that contains a quorum. This should not happen!")
-            return []
-
-        # Now we have an scc that contains a quorum. Find a minimal quorum in
-        # it.
-        scc = sccs[0]
         fbas = fbas.project(scc & fbas.validators)
 
     if not fbas.validators:
@@ -668,7 +686,7 @@ def find_min_quorum(
         if not_subset_of:
             assert not set(qa) <= set(not_subset_of)
             if fbas.is_quorum(not_subset_of, over_approximate=False):
-                assert not set(not_subset_of) <= set(qa)
+                assert not set(not_subset_of) <= set(qa)  # TODO why this?
         logging.info("Minimal quorum found: %s", qa)
         return qa
     else:
@@ -676,53 +694,19 @@ def find_min_quorum(
         return []
 
 
-def max_scc(fbas: FBASGraph) -> Collection[str]:
-    """
-    Compute a maximal strongly-connected component that contains a quorum
-    """
-
-    # First, find all sccs that contain at least one quorum:
-    sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
-            if any(fbas.threshold(v) > 0 for v in set(scc))]
-    if not sccs:
-        logging.info("Found strongly connected components in the FBAS graph.")
-        return []
-    # Keep only the sccs that contain at least one quorum:
-    sccs = [
-        scc for scc in sccs if contains_quorum(
-            set(scc) & fbas.validators,
-            fbas)]
-    if len(sccs) > 1:
-        logging.warning("There are disjoint quorums")
-    if len(sccs) == 0:
-        logging.warning(
-            "Found no SCC that contains a quorum. This should not happen!")
-        return []
-    return {v for v in sccs[0] if v in fbas.validators}
-
-
-def top_tier(fbas: FBASGraph) -> Collection[str]:
+def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collection[str]:
     """
     Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
     """
 
-    # First, find all sccs that contain at least one quorum:
-    sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
-            if any(fbas.threshold(v) > 0 for v in set(scc))]
-    if not sccs:
-        logging.info("Found strongly connected components in the FBAS graph.")
+    if from_validator:
+        if from_validator not in fbas.validators:
+            raise ValueError(f"{from_validator} is not a known validator")
+        fbas = fbas.restrict_to_reachable(from_validator)
+
+    scc = set(max_scc(fbas))
+    if not scc:
         return []
-    # Keep only the sccs that contain at least one quorum:
-    sccs = [scc for scc in sccs
-            if contains_quorum(set(scc) & fbas.validators, fbas)]
-    if len(sccs) > 1:
-        logging.warning("There are disjoint quorums")
-    if len(sccs) == 0:
-        logging.warning(
-            "Found no SCC that contains a quorum. This should not happen!")
-        return []
-    # Project onto one of the sccs:
-    scc = sccs[0]
     fbas = fbas.project(scc & fbas.validators)
 
     top_tier_set: set[str] = set()

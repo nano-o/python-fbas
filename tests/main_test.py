@@ -92,6 +92,19 @@ def test_top_tier():
     assert "Top tier:" in output
 
 
+def test_top_tier_from_validator():
+    """Test the top-tier command with --from-validator option."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "top-tier",
+        "--from-validator=GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH"]
+    output = run_command(command)
+    assert "Top tier:" in output
+
+
 def test_history_loss():
     """Test the history-loss command."""
     command = [

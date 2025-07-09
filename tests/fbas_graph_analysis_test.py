@@ -80,7 +80,7 @@ def test_min_splitting_set_1():
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2).splitting_set == ['PK2']  # type: ignore
+    assert set(find_minimal_splitting_set(fbas2).splitting_set) == {'PK2'}  # type: ignore
 
 
 def test_min_splitting_set_2():
@@ -101,7 +101,7 @@ def test_min_splitting_set_2():
     assert not find_minimal_splitting_set(fbas2)
     fbas2 = FBASGraph.from_json(
         get_validators_from_test_fbas('circular_2.json'))
-    assert find_minimal_splitting_set(fbas2).splitting_set == ['PK2']  # type: ignore
+    assert set(find_minimal_splitting_set(fbas2).splitting_set) == {'PK2'}  # type: ignore
 
 
 def test_min_splitting_set():
@@ -220,6 +220,38 @@ def test_top_tier_2():
                 logging.info("loading graph of %s", f)
                 fbas_graph = FBASGraph.from_json(d)
                 top_tier(fbas_graph)
+
+
+def test_top_tier_from_validator():
+    if HAS_QBF:
+        # Create a more complex FBAS with multiple validators to test restriction
+        qset1 = {
+            'threshold': 2,
+            'validators': ['PK1', 'PK2', 'PK3'],
+            'innerQuorumSets': []}
+        qset2 = {
+            'threshold': 2,
+            'validators': ['PK4', 'PK5', 'PK6'],
+            'innerQuorumSets': []}
+
+        fbas = FBASGraph()
+        # Add first group
+        for v in ['PK1', 'PK2', 'PK3']:
+            fbas.update_validator(v, qset1)
+        # Add second group that references first group
+        for v in ['PK4', 'PK5', 'PK6']:
+            fbas.update_validator(v, qset2)
+
+        # Test top tier from specific validator
+        # When we restrict from PK1, we should get validators reachable from PK1
+        result_from_pk1 = top_tier(fbas, from_validator='PK1')
+
+        # Test that the result is a subset of all validators
+        assert result_from_pk1 == set(['PK1', 'PK2', 'PK3'])
+
+        result_from_pk4 = top_tier(fbas, from_validator='PK4')
+        # Test that the result is a subset of all validators
+        assert result_from_pk4 == set(['PK4', 'PK5', 'PK6'])
 
 
 def test_is_overlay_resilient():

@@ -7,6 +7,7 @@ import json
 import argparse
 import logging
 import sys
+from typing import Any, Dict, List
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
@@ -18,12 +19,12 @@ from python_fbas.solver import solvers
 from python_fbas.config import update as update_config, get as get_config
 
 
-def _load_json_from_file(validators_file):
+def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
     with open(validators_file, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
-def _load_fbas_graph(args) -> FBASGraph:
+def _load_fbas_graph(args: Any) -> FBASGraph:
     if args.fbas == 'pubnet':
         return FBASGraph.from_json(get_pubnet_config())
     return FBASGraph.from_json(_load_json_from_file(args.fbas))
@@ -33,20 +34,20 @@ def _format_validators(fbas: FBASGraph, vs: Collection[str]) -> list[str]:
     return [fbas.format_validator(v) for v in vs]
 
 
-def _command_update_cache(_args):
+def _command_update_cache(_args: Any) -> None:
     get_pubnet_config(update=True)
     print("Cache updated.")
 
 
-def _command_check_intersection(args, fbas: FBASGraph):
+def _command_check_intersection(args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     if cfg.group_by:
         logging.error(
             "--group-by does not make sense with check-intersection")
         sys.exit(1)
     if args.fast:
-        result = fbas.fast_intersection_check()
-        print(f"Intersection-check result: {result}")
+        fast_result = fbas.fast_intersection_check()
+        print(f"Intersection-check result: {fast_result}")
     else:
         result = find_disjoint_quorums(fbas)
         if result:
@@ -56,7 +57,7 @@ def _command_check_intersection(args, fbas: FBASGraph):
             print("No disjoint quorums found")
 
 
-def _command_min_splitting_set(_args, fbas: FBASGraph):
+def _command_min_splitting_set(_args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     result = find_minimal_splitting_set(fbas)
     if not result:
@@ -67,7 +68,7 @@ def _command_min_splitting_set(_args, fbas: FBASGraph):
         f"Example:\n{_format_validators(fbas, result.splitting_set) if not cfg.group_by else result.splitting_set}\nsplits quorums\n{_format_validators(fbas, result.quorum_a)}\nand\n{_format_validators(fbas, result.quorum_b)}")
 
 
-def _command_min_blocking_set(_args, fbas: FBASGraph):
+def _command_min_blocking_set(_args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     result = find_minimal_blocking_set(fbas)
     if not result:
@@ -78,7 +79,7 @@ def _command_min_blocking_set(_args, fbas: FBASGraph):
         f"Example:\n{_format_validators(fbas, result) if not cfg.group_by else result}")
 
 
-def _command_history_loss(_args, fbas: FBASGraph):
+def _command_history_loss(_args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     if cfg.group_by:
         logging.error("--group-by does not make sense with history-loss")
@@ -91,17 +92,18 @@ def _command_history_loss(_args, fbas: FBASGraph):
         f"Corresponding history-less quorum:\n {_format_validators(fbas, result.quorum)}")
 
 
-def _command_min_quorum(_args, fbas: FBASGraph):
+def _command_min_quorum(_args: Any, fbas: FBASGraph) -> None:
     result = find_min_quorum(fbas)
     print(f"Example min quorum:\n{_format_validators(fbas, result)}")
 
 
-def _command_top_tier(_args, fbas: FBASGraph):
-    result = top_tier(fbas)
+def _command_top_tier(args: Any, fbas: FBASGraph) -> None:
+    from_validator = getattr(args, 'from_validator', None)
+    result = top_tier(fbas, from_validator=from_validator)
     print(f"Top tier: {_format_validators(fbas, result)}")
 
 
-def _command_max_scc(_args, fbas: FBASGraph):
+def _command_max_scc(_args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     if cfg.group_by:
         logging.error("--group-by does not make sense for the max-scc command")
@@ -110,7 +112,7 @@ def _command_max_scc(_args, fbas: FBASGraph):
     print(f"Maximal SCC with a quorum: {_format_validators(fbas, result)}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="FBAS analysis CLI")
     # specify log level with --log-level, with default WARNING:
     parser.add_argument(
@@ -196,6 +198,10 @@ def main():
 
     parser_top_tier = subparsers.add_parser(
         'top-tier', help="Find the top tier of the FBAS")
+    parser_top_tier.add_argument(
+        '--from-validator',
+        default=None,
+        help="Restrict the FBAS to what's reachable from the provided validator before computing top tier")
     parser_top_tier.set_defaults(func=_command_top_tier)
 
     parser_max_scc = subparsers.add_parser(

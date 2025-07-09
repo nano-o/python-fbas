@@ -2,10 +2,12 @@ from collections.abc import Sequence
 import time
 import logging
 from contextlib import contextmanager
-from typing import Dict, List, ContextManager
+from typing import Dict, List, Iterator, Generator, Set, TypeVar
+
+T = TypeVar('T')
 
 
-def powerset(s: Sequence):
+def powerset(s: Sequence[T]) -> Generator[Set[T], None, None]:
     """A generator for the powerset of s. Assume elements in s are unique."""
     x = len(s)
     # each x-bit number represents a subset of s:
@@ -17,7 +19,7 @@ _TIMINGS: Dict[str, List[float]] = {}
 
 
 @contextmanager
-def timed(label: str) -> ContextManager[None]:
+def timed(label: str) -> Iterator[None]:
     """
     Context manager that measures the execution time of the enclosed block,
     logs the duration, and stores the sample in _TIMINGS.
