@@ -439,25 +439,26 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
         for v in fbas.vertices():
             if v in fbas.validators:
                 constraints.append(Or(is_faulty(v), is_blocked(v)))
+                if fbas.graph.out_degree(v) == 0:
+                    constraints.append(
+                        equiv(
+                            Or(*[is_faulty(v2) for v2 in fbas.validators]),
+                            is_blocked(v)))  # be conservative
             if v not in fbas.validators:
                 constraints.append(Not(is_faulty(v)))
+                if fbas.threshold(v) == 0:
+                    constraints.append(Not(is_blocked(v)))
             if fbas.threshold(v) > 0:
-                may_block = [And(Or(is_blocked(n), is_faulty(n)),
-                                 lt(n,
-                                    v)) for n in fbas.graph.successors(v)]
+                may_block = [And(Or(is_blocked(n), is_faulty(n)), lt(n, v))
+                             for n in fbas.graph.successors(v)]
                 constraints.append(
                     Implies(
-                        Card(
-                            blocking_threshold(v),
-                            *may_block),
+                        Card(blocking_threshold(v), *may_block),
                         is_blocked(v)))
                 constraints.append(
-                    Implies(And(is_blocked(v),
-                                Not(is_faulty(v))),
-                            Card(blocking_threshold(v),
-                                 *may_block)))
-            if fbas.threshold(v) == 0:
-                constraints.append(Not(is_blocked(v)))
+                    Implies(
+                        And(is_blocked(v), Not(is_faulty(v))),
+                        Card(blocking_threshold(v), *may_block)))
 
         # The lt relation must be a partial order (anti-symmetric and
         # transitive).  For performance, lt only relates vertices that are in
@@ -515,10 +516,14 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             logging.info("Minimal-cardinality blocking set: %s",
                          [g for g in s if g in groups])
         vs = set(s) - groups
-        assert fbas.closure(vs) == fbas.validators
-        for vs2 in combinations(vs, cost - 1):
-            # TODO isn't this going to fail with groups?
-            assert fbas.closure(vs2) != fbas.validators
+        no_qset = {v for v in fbas.validators if fbas.graph.out_degree(v) == 0}
+        assert fbas.closure(vs | no_qset) == fbas.validators
+        if not fbas.closure(vs) == fbas.validators:
+            logging.warning(f"The validators {no_qset} have no known qset and this affects the blocking-set analysis results")
+        if cost > 0:
+            for vs2 in combinations(vs, cost - 1):
+                # TODO isn't this going to fail with groups?
+                assert fbas.closure(vs2) != fbas.validators
         if not config.get().group_by:
             return s
         else:
