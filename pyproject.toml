@@ -18,10 +18,15 @@ dependencies = [
 [project.optional-dependencies]
 qbf = ["pyqbf @ git+https://gitlab.sai.jku.at/qbf/pyqbf"]
 dev = [
+    "pip-tools",
     "pytest",
+    "black",
     "autopep8",
+    "flake8",
+    "ipython",
     "ruff",
-    "mypy"
+    "mypy",
+    "python-lsp-server"
 ]
 
 [project.scripts]

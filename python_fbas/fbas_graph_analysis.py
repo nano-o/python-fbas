@@ -1,7 +1,5 @@
 """
 SAT-based analysis of FBAS graphs
-
-TODO: warn about how qset-less validators affect analysis results.
 """
 
 import logging
