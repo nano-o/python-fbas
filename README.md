@@ -111,6 +111,17 @@ Finally, you can also provide a FBAS to check in JSON format:
 python-fbas --fbas=tests/test_data/random/almost_symmetric_network_13_orgs_delete_prob_factor_1.json check-intersection
 ```
 
+By default, validators are displayed using both their ID and name. You can customize this using the `--validator-display` flag:
+
+```
+python-fbas --fbas=pubnet --validator-display=name min-splitting-set
+```
+
+Available options:
+- `both` (default): Shows both validator ID and name
+- `id`: Shows only the validator ID
+- `name`: Shows only the validator name
+
 Note that data about the Stellar network is cached in a local file the first time it is needed.
 To update the cache (using the URL set in `config.py`):
 ```
