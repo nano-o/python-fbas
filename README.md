@@ -17,7 +17,7 @@ python-fbas handles much larger FBASs than [fbas_analyzer](https://github.com/tr
 
 - **SAT encoding**: Finding disjoint quorums → SAT instance
 - **MaxSAT encoding**: Finding minimal-size splitting/blocking sets → MaxSAT instance
-- **QBF encoding**: Finding a minimal quorum → QBF instance (we could do this we MaxSAT too)
+- **QBF encoding**: Finding a minimal quorum → QBF instance
 - **Solvers**: [pysat](https://pysathq.github.io/) for SAT/MaxSAT, [pyqbf](https://qbf.pages.sai.jku.at/pyqbf/) for QBF
 - **Custom CNF transformation**: Faster than pysat's built-in transformation
 - **Totalizer encoding**: Efficient cardinality constraints (see [paper](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=a9481bf4ce2b5c20d2e282dd69dcb92bddcc36c9))
