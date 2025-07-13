@@ -5,9 +5,10 @@ Module to fetch data from a source conforming to the stellarbeat.io API.
 
 import json
 import os
+import sys
 import logging
-import hashlib
 from datetime import datetime
+from urllib.parse import quote
 from requests import get as http_get
 from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 from platformdirs import user_cache_dir
@@ -39,48 +40,39 @@ def _fetch_from_url(url: str = None) -> list[dict]:
         raise IOError(f"Failed to fetch Stellar network data from {url}: {e}") from e
 
 def _get_cache_filename(url: str) -> str:
-    """Generate a unique cache filename for a given URL."""
-    # Create a hash of the URL to use as filename
-    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
-    return f"stellar_network_data_{url_hash}.json"
-
-
-def _migrate_old_cache(cache_dir: str, current_url: str) -> None:
-    """Migrate old single cache file to new per-URL cache system."""
-    old_path = os.path.join(cache_dir, 'stellar_network_data.json')
-    if not os.path.exists(old_path):
-        return
+    """Generate a cache filename for a given URL using RFC 3986 percent-encoding.
     
-    try:
-        with open(old_path, 'r', encoding='utf-8') as f:
-            cache_data = json.load(f)
-        
-        # If it's the old format (just validators array), we can't migrate
-        # since we don't know which URL it came from
-        if isinstance(cache_data, list):
-            print("Cache: Removing old cache format file...")
-            os.remove(old_path)
-            return
-        
-        # If it's new format but in old filename, migrate to new filename
-        cached_url = cache_data.get('source_url')
-        if cached_url:
-            new_filename = _get_cache_filename(cached_url)
-            new_path = os.path.join(cache_dir, new_filename)
-            if not os.path.exists(new_path):
-                print(f"Cache: Migrating cache data for {cached_url} to new format...")
-                with open(new_path, 'w', encoding='utf-8') as f:
-                    json.dump(cache_data, f)
-            os.remove(old_path)
+    This approach is cross-platform and standards-compliant, ensuring that:
+    - All special characters are properly encoded
+    - Filenames work on Windows, macOS, and Linux
+    - The encoding is reversible and unambiguous
+    - Very long URLs are handled gracefully
+    """
+    # Remove protocol for cleaner filenames
+    url_without_protocol = url.replace('https://', '').replace('http://', '')
+    
+    # Use percent-encoding (RFC 3986) for cross-platform safety
+    # The 'safe' parameter allows common URL characters that are also safe in filenames
+    encoded = quote(url_without_protocol, safe='-._~')
+    
+    # Handle very long URLs by truncating if necessary
+    max_length = 200  # Conservative limit for most filesystems
+    if len(encoded) > max_length:
+        # Keep the domain part if possible
+        if '/' in url_without_protocol:
+            domain, path = url_without_protocol.split('/', 1)
+            domain_encoded = quote(domain, safe='-._~')
+            remaining_length = max_length - len(domain_encoded) - 1  # -1 for separator
+            if remaining_length > 10:  # Ensure we have meaningful path info
+                path_encoded = quote(path, safe='-._~')[:remaining_length]
+                encoded = f"{domain_encoded}_{path_encoded}"
+            else:
+                encoded = domain_encoded
         else:
-            # Unknown format, just remove
-            os.remove(old_path)
-    except Exception:
-        # If migration fails, just remove the old file
-        try:
-            os.remove(old_path)
-        except Exception:
-            pass
+            # Just truncate if no path separator
+            encoded = encoded[:max_length]
+    
+    return f"stellar_network_data_{encoded}.json"
 
 
 def get_pubnet_config(update=False, url: str = None) -> list[dict]:
@@ -91,9 +83,6 @@ def get_pubnet_config(update=False, url: str = None) -> list[dict]:
     """
     cache_dir = user_cache_dir('python-fbas', 'SDF', ensure_exists=True)
     current_url = url if url is not None else get().stellar_data_url
-    
-    # Migrate old cache format if present
-    _migrate_old_cache(cache_dir, current_url)
     
     # Get URL-specific cache filename
     cache_filename = _get_cache_filename(current_url)
@@ -110,11 +99,15 @@ def get_pubnet_config(update=False, url: str = None) -> list[dict]:
             json.dump(cache_data, f)
     
     if update:
-        print(f"Updating cache for URL: {current_url}")
-        print(f"Cache file: {path}")
-        _validators = _fetch_from_url(current_url)
-        update_cache_file(_validators)
-        return _validators
+        try:
+            print(f"Updating cache for URL: {current_url}")
+            _validators = _fetch_from_url(current_url)
+            update_cache_file(_validators)
+            print(f"Cache file: {path}")
+            return _validators
+        except Exception as e:
+            print(f"Failed to update cache for URL: {current_url}", file=sys.stderr)
+            raise
     
     # Check if cache exists for this URL
     try:

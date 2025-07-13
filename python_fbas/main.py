@@ -77,8 +77,12 @@ def _command_update_cache(args: Any) -> None:
     if args.fbas and (args.fbas.startswith('http://') or args.fbas.startswith('https://')):
         # Update cache for specific URL
         url = args.fbas
-        get_pubnet_config(update=True, url=url)
-        print(f"Successfully updated cache for: {url}")
+        try:
+            get_pubnet_config(update=True, url=url)
+            print(f"Successfully updated cache for: {url}")
+        except (ValueError, IOError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
     elif args.fbas:
         # Invalid: trying to update cache for a file
         print("Error: Cannot update cache for local files. Cache updates only work with URLs.", file=sys.stderr)
@@ -86,8 +90,12 @@ def _command_update_cache(args: Any) -> None:
     else:
         # Update cache for default URL
         url = cfg.stellar_data_url
-        get_pubnet_config(update=True)
-        print(f"Successfully updated cache for default URL: {url}")
+        try:
+            get_pubnet_config(update=True)
+            print(f"Successfully updated cache for default URL: {url}")
+        except (ValueError, IOError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def _command_show_config(args: Any) -> None:
