@@ -22,6 +22,8 @@ python-fbas can handle much larger FBASs than [fbas_analyzer](https://github.com
 In comparison, python-fbas seems more scalable.
 See [BENCHMARK_README.md](./BENCHMARK_README.md) to run benchmarks, and these [sample benchmark results](benchmark_results/benchmark_results_20250716_051256.md).
 
+Another tool for analyzing FBASs is [Stellar Observatory](https://github.com/andrenarchy/stellar-observatory)
+
 ## Technical approach
 
 - **SAT encoding**: Finding disjoint quorums → SAT instance
