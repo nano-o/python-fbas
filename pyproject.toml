@@ -32,3 +32,8 @@ dev = [
 
 [project.scripts]
 python-fbas = "python_fbas.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["python_fbas*"]
+exclude = ["fbas_analyzer*", "benchmark_results*", "tests*"]
