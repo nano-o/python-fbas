@@ -11,7 +11,14 @@ python-fbas can find:
 - **Find a minimal history-critical sets**: A minimal-cardinality set of nodes that could cause history loss
 - **Compute the top-tier**: The union of all minimal quorums
 
-python-fbas handles much larger FBASs than [fbas_analyzer](https://github.com/trudi-group/fbas_analyzer) or the quorum-intersection checker of [stellar-core](https://github.com/stellar/stellar-core/).
+python-fbas can handle much larger FBASs than [fbas_analyzer](https://github.com/trudi-group/fbas_analyzer) or the quorum-intersection checker of [stellar-core](https://github.com/stellar/stellar-core/).
+
+## Related work
+
+[fbas_analyzer](https://github.com/trudi-group/fbas_analyzer) is another tool to analyze FBASs, and, as of July 2025, network explorers such as https://radar.withobsrvr.com/ and https://stellaratlas.io/ use `fbas_analyzer` in their analysis backend.
+
+In comparison, python-fbas seems more scalable.
+See [BENCHMARK_README.md](./BENCHMARK_README.md) to run benchmarks, and these [sample benchmark results](benchmark_results/benchmark_results_20250716_051256.md).
 
 ## Technical approach
 
