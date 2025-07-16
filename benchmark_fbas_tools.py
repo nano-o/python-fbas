@@ -445,6 +445,7 @@ def main():
     # Check if tools are available
     if not Path("fbas_analyzer/target/release/fbas_analyzer").exists():
         print("❌ Error: Rust fbas_analyzer not found. Please build it first:")
+        print("   git clone https://github.com/trudi-group/fbas_analyzer.git")
         print("   cd fbas_analyzer && cargo build --release")
         sys.exit(1)
 
