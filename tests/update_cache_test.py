@@ -13,7 +13,7 @@ class TestUpdateCache:
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         assert result.returncode == 0
         assert "Updating cache for URL:" in result.stdout
         assert "Successfully updated cache for default URL:" in result.stdout
@@ -28,7 +28,7 @@ class TestUpdateCache:
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         assert result.returncode == 0
         assert "Updating cache for URL: https://api.stellaratlas.io/v1/node" in result.stdout
         assert "Successfully updated cache for: https://api.stellaratlas.io/v1/node" in result.stdout
@@ -43,7 +43,7 @@ class TestUpdateCache:
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         assert result.returncode == 1
         assert "Error: Cannot update cache for local files" in result.stderr
         assert "Cache updates only work with URLs" in result.stderr
@@ -58,7 +58,7 @@ class TestUpdateCache:
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         # Should fail with proper error handling
         assert result.returncode == 1
         assert "Updating cache for URL: https://invalid-domain-12345.com" in result.stdout
@@ -75,7 +75,7 @@ class TestUpdateCache:
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         # Should fail with proper error handling
         assert result.returncode == 1
         assert "Updating cache for URL: https://stellaratlas.io/api/v1/node" in result.stdout

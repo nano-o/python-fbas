@@ -1,7 +1,7 @@
 import pytest
 import tempfile
 import os
-from python_fbas.config import Config, load_from_file, load_config_file, get, update
+from python_fbas.config import load_from_file, load_config_file, get, update
 
 
 class TestConfigFile:
@@ -19,7 +19,7 @@ output: "test.cnf"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             config_data = load_from_file(config_path)
             expected = {
@@ -45,7 +45,7 @@ output: "test.cnf"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write("invalid: yaml: content: [")
             config_path = f.name
-        
+
         try:
             with pytest.raises(ValueError, match="Invalid YAML"):
                 load_from_file(config_path)
@@ -61,11 +61,11 @@ card_encoding: "totalizer"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             # Reset to defaults
             update(sat_solver='cryptominisat5', card_encoding='totalizer')
-            
+
             load_config_file(config_path)
             cfg = get()
             assert cfg.sat_solver == "glucose30"
@@ -82,15 +82,15 @@ max_sat_algo: "RC2"
         # Change to temporary directory
         original_cwd = os.getcwd()
         os.chdir(tmp_path)
-        
+
         try:
             # Create python-fbas.cfg in current directory
             with open("python-fbas.cfg", "w") as f:
                 f.write(config_content)
-            
+
             # Reset to defaults
             update(validator_display='both', max_sat_algo='LSU')
-            
+
             load_config_file()  # No explicit path
             cfg = get()
             assert cfg.validator_display == "id"
@@ -102,12 +102,12 @@ max_sat_algo: "RC2"
         """Test load_config_file when no config file exists."""
         original_cwd = os.getcwd()
         os.chdir(tmp_path)
-        
+
         try:
             # Reset to known state
             update(sat_solver='cryptominisat5')
             original_solver = get().sat_solver
-            
+
             load_config_file()  # Should not change anything
             cfg = get()
             assert cfg.sat_solver == original_solver
@@ -123,7 +123,7 @@ card_encoding: "invalid_encoding"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             with pytest.raises(ValueError, match="Invalid card_encoding"):
                 load_config_file(config_path)
@@ -137,7 +137,7 @@ max_sat_algo: "INVALID"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             with pytest.raises(ValueError, match="Invalid max_sat_algo"):
                 load_config_file(config_path)
@@ -151,7 +151,7 @@ validator_display: "invalid"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             with pytest.raises(ValueError, match="Invalid validator_display"):
                 load_config_file(config_path)
@@ -168,7 +168,7 @@ another_unknown: 123
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             # Should not raise an error, unknown keys should be ignored
             load_config_file(config_path)
@@ -184,7 +184,7 @@ another_unknown: 123
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write("")  # Empty file
             config_path = f.name
-        
+
         try:
             # Should not raise an error
             load_config_file(config_path)

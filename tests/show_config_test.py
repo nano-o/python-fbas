@@ -20,9 +20,9 @@ class TestShowConfig:
             group_by=None,
             output=None
         )
-        
+
         yaml_output = to_yaml()
-        
+
         # Verify it contains expected sections
         assert "# python-fbas configuration file" in yaml_output
         assert "stellar_data_url: https://radar.withobsrvr.com/api/v1/node" in yaml_output
@@ -30,7 +30,7 @@ class TestShowConfig:
         assert "card_encoding: totalizer" in yaml_output
         assert "max_sat_algo: LSU" in yaml_output
         assert "validator_display: both" in yaml_output
-        
+
         # Should not contain None values
         assert "group_by:" not in yaml_output
         assert "output:" not in yaml_output
@@ -41,9 +41,9 @@ class TestShowConfig:
             group_by="homeDomain",
             output="problem.cnf"
         )
-        
+
         yaml_output = to_yaml()
-        
+
         # Should contain optional values
         assert "group_by: homeDomain" in yaml_output
         assert "output: problem.cnf" in yaml_output
@@ -51,12 +51,13 @@ class TestShowConfig:
     def test_to_yaml_is_valid_yaml(self):
         """Test that generated YAML is parseable."""
         yaml_output = to_yaml()
-        
+
         # Extract just the non-comment lines for parsing
         lines = yaml_output.split('\n')
-        config_lines = [line for line in lines if not line.strip().startswith('#') and line.strip()]
+        config_lines = [
+            line for line in lines if not line.strip().startswith('#') and line.strip()]
         config_yaml = '\n'.join(config_lines)
-        
+
         # Should parse without errors
         parsed = yaml.safe_load(config_yaml)
         assert isinstance(parsed, dict)
@@ -66,7 +67,7 @@ class TestShowConfig:
         """Test show-config CLI command."""
         cmd = [sys.executable, "-m", "python_fbas.main", "show-config"]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         assert result.returncode == 0
         assert "# python-fbas configuration file" in result.stdout
         assert "stellar_data_url:" in result.stdout
@@ -81,17 +82,17 @@ validator_display: "id"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             cmd = [
-                sys.executable, 
-                "-m", 
-                "python_fbas.main", 
+                sys.executable,
+                "-m",
+                "python_fbas.main",
                 f"--config-file={config_path}",
                 "show-config"
             ]
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             assert result.returncode == 0
             assert "sat_solver: glucose30" in result.stdout
             assert "validator_display: id" in result.stdout
@@ -106,18 +107,18 @@ sat_solver: "minisat22"
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(config_content)
             config_path = f.name
-        
+
         try:
             cmd = [
-                sys.executable, 
-                "-m", 
-                "python_fbas.main", 
+                sys.executable,
+                "-m",
+                "python_fbas.main",
                 f"--config-file={config_path}",
                 "--sat-solver=glucose41",
                 "show-config"
             ]
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             assert result.returncode == 0
             # CLI should override config file
             assert "sat_solver: glucose41" in result.stdout
@@ -129,7 +130,7 @@ sat_solver: "minisat22"
         """Test that show-config doesn't require --fbas argument."""
         cmd = [sys.executable, "-m", "python_fbas.main", "show-config"]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         # Should succeed without --fbas
         assert result.returncode == 0
         assert "--fbas is required" not in result.stderr
@@ -138,14 +139,15 @@ sat_solver: "minisat22"
         """Test that piped output creates valid YAML config."""
         cmd = [sys.executable, "-m", "python_fbas.main", "show-config"]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         assert result.returncode == 0
-        
+
         # Extract non-comment lines and verify they parse as valid YAML
         lines = result.stdout.split('\n')
-        config_lines = [line for line in lines if not line.strip().startswith('#') and line.strip()]
+        config_lines = [
+            line for line in lines if not line.strip().startswith('#') and line.strip()]
         config_yaml = '\n'.join(config_lines)
-        
+
         parsed = yaml.safe_load(config_yaml)
         assert isinstance(parsed, dict)
         assert "stellar_data_url" in parsed
@@ -157,25 +159,26 @@ sat_solver: "minisat22"
         cmd1 = [sys.executable, "-m", "python_fbas.main", "show-config"]
         result1 = subprocess.run(cmd1, capture_output=True, text=True)
         assert result1.returncode == 0
-        
+
         # Save to temp file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(result1.stdout)
             config_path = f.name
-        
+
         try:
             # Use generated config
             cmd2 = [
-                sys.executable, 
-                "-m", 
-                "python_fbas.main", 
+                sys.executable,
+                "-m",
+                "python_fbas.main",
                 f"--config-file={config_path}",
                 "show-config"
             ]
             result2 = subprocess.run(cmd2, capture_output=True, text=True)
-            
+
             assert result2.returncode == 0
-            # Should produce equivalent output (may have slight formatting differences)
+            # Should produce equivalent output (may have slight formatting
+            # differences)
             assert "stellar_data_url:" in result2.stdout
             assert "sat_solver:" in result2.stdout
         finally:

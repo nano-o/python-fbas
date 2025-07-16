@@ -155,6 +155,7 @@ def test_validator_display_id():
     assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" in output
     assert "SDF 1" not in output
 
+
 def test_validator_display_name():
     """Test the --validator-display=name command-line option."""
     command = [
@@ -168,6 +169,7 @@ def test_validator_display_name():
     output = run_command(command)
     assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" not in output
     assert "SDF 1" in output
+
 
 def test_validator_display_both():
     """Test the --validator-display=both command-line option."""

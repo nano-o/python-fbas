@@ -39,7 +39,8 @@ class TestFilenameGeneration:
         result = _get_cache_filename(url)
         assert result.startswith("stellar_network_data_")
         assert result.endswith(".json")
-        # Total length should be reasonable for all filesystems (prefix + 200 + suffix)
+        # Total length should be reasonable for all filesystems (prefix + 200 +
+        # suffix)
         assert len(result) <= 250
 
     def test_special_characters(self):
@@ -70,7 +71,7 @@ class TestFilenameGeneration:
         """Test that encoding preserves uniqueness (different URLs = different filenames)."""
         urls = [
             "https://example.com/api/v1",
-            "https://example.com/api/v2", 
+            "https://example.com/api/v2",
             "https://example.com:8080/api/v1",
             "https://example.com/api/v1?param=1",
             "https://example.com/api/v1?param=2"

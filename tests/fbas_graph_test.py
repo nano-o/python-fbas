@@ -333,7 +333,7 @@ def test_qset_of():
 def test_format_validator():
     fbas = FBASGraph()
     fbas.update_validator("GABCD", attrs={'name': 'Test Validator'})
-    fbas.add_validator("GXYZ") # Validator without a name
+    fbas.add_validator("GXYZ")  # Validator without a name
 
     with temporary_config(validator_display='id'):
         assert fbas.format_validator("GABCD") == "GABCD"

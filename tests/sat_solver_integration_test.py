@@ -1,4 +1,3 @@
-import pytest
 import python_fbas.propositional_logic as pl
 from python_fbas.propositional_logic import Atom, Not, And, Or, Card, to_cnf, decode_model
 from python_fbas.solver import solve_sat
@@ -7,6 +6,8 @@ import python_fbas.config as cfg
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+
+
 def _reset():
     pl.variables.clear()
     pl.variables_inv.clear()
