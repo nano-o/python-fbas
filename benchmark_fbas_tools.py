@@ -16,10 +16,14 @@ from pathlib import Path
 from datetime import datetime
 import sys
 import os
+import tempfile
+from python_fbas.fbas_graph import FBASGraph
 
 
 class TimeoutError(Exception):
     pass
+
+
 
 
 def timeout_handler(signum, frame):
@@ -128,59 +132,88 @@ def run_benchmark_on_file(original_file, timeout):
     print(f"  Testing {original_file.name}...", end="", flush=True)
 
     org_count = get_network_info(original_file)
+    
+    # Create temporary file for stellarbeat format
+    temp_file = None
+    try:
+        # Load the original file
+        with open(original_file, 'r') as f:
+            original_data = json.load(f)
+        
+        # Check if it's already in array format (what fbas_analyzer expects)
+        if isinstance(original_data, list):
+            # Already in array format, use as-is
+            stellarbeat_json = json.dumps(original_data, indent=2)
+        else:
+            # It's in API format (dict with validators), need to convert
+            graph = FBASGraph.from_json(json.dumps(original_data))
+            stellarbeat_json = graph.to_json_stellarbeat()
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
+            tf.write(stellarbeat_json)
+            temp_file = tf.name
 
-    # Define test cases
-    test_cases = [{'name': 'intersection',
-                   'python_cmd': f'python-fbas --fbas={original_file} check-intersection',
-                   'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {original_file} --alternative-quorum-intersection-check --results-only'},
-                  {'name': 'blocking',
-                   'python_cmd': f'python-fbas --fbas={original_file} min-blocking-set',
-                   'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {original_file} -b --results-only'},
-                  {'name': 'splitting',
-                   'python_cmd': f'python-fbas --fbas={original_file} min-splitting-set',
-                   'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {original_file} -s --results-only'}]
+        # Define test cases - use original file for python, temp file for rust
+        test_cases = [{'name': 'intersection',
+                       'python_cmd': f'python-fbas --fbas={original_file} check-intersection',
+                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} --alternative-quorum-intersection-check --results-only'},
+                      {'name': 'blocking',
+                       'python_cmd': f'python-fbas --fbas={original_file} min-blocking-set',
+                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -b --results-only'},
+                      {'name': 'splitting',
+                       'python_cmd': f'python-fbas --fbas={original_file} min-splitting-set',
+                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -s --results-only'}]
 
-    results = []
+        results = []
 
-    for test_case in test_cases:
-        # Run Python version
-        py_result = run_with_timeout(test_case['python_cmd'], timeout)
-        py_status = 'timeout' if py_result['timed_out'] else (
-            'success' if py_result['success'] else 'error')
-        py_time = py_result['elapsed'] if py_status == 'success' else None
+        for test_case in test_cases:
+            # Run Python version
+            py_result = run_with_timeout(test_case['python_cmd'], timeout)
+            py_status = 'timeout' if py_result['timed_out'] else (
+                'success' if py_result['success'] else 'error')
+            py_time = py_result['elapsed'] if py_status == 'success' else None
 
-        # Run Rust version
-        rust_result = run_with_timeout(test_case['rust_cmd'], timeout)
-        rust_status = 'timeout' if rust_result['timed_out'] else (
-            'success' if rust_result['success'] else 'error')
-        rust_time = rust_result['elapsed'] if rust_status == 'success' else None
+            # Run Rust version
+            rust_result = run_with_timeout(test_case['rust_cmd'], timeout)
+            rust_status = 'timeout' if rust_result['timed_out'] else (
+                'success' if rust_result['success'] else 'error')
+            rust_time = rust_result['elapsed'] if rust_status == 'success' else None
 
-        # Calculate speedup
-        speedup = None
-        if py_time and rust_time:
-            speedup = py_time / rust_time
+            # Calculate speedup
+            speedup = None
+            if py_time and rust_time:
+                speedup = py_time / rust_time
 
-        results.append({
-            'file_name': original_file.name,
-            'network_size': org_count,
-            'test_type': test_case['name'],
-            'python_time': py_time,
-            'python_status': py_status,
-            'rust_time': rust_time,
-            'rust_status': rust_status,
-            'speedup': speedup
-        })
+            results.append({
+                'file_name': original_file.name,
+                'network_size': org_count,
+                'test_type': test_case['name'],
+                'python_time': py_time,
+                'python_status': py_status,
+                'rust_time': rust_time,
+                'rust_status': rust_status,
+                'speedup': speedup
+            })
 
-    # Print simple progress indicator
-    # Count individual tool runs (each result has both python and rust runs)
-    # Each result represents 1 python + 1 rust run
-    total_runs = len(results) * 2
-    completed_runs = sum(
-        1 for r in results if r['python_status'] != 'error') + sum(
-        1 for r in results if r['rust_status'] != 'error')
-    print(f" {completed_runs}/{total_runs} completed")
+        # Print simple progress indicator
+        # Count individual tool runs (each result has both python and rust runs)
+        # Each result represents 1 python + 1 rust run
+        total_runs = len(results) * 2
+        completed_runs = sum(
+            1 for r in results if r['python_status'] != 'error') + sum(
+            1 for r in results if r['rust_status'] != 'error')
+        print(f" {completed_runs}/{total_runs} completed")
 
-    return results
+        return results
+        
+    finally:
+        # Clean up temporary file
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass  # Ignore cleanup errors
 
 
 def generate_short_handle(file_name, handle_map):
@@ -272,7 +305,7 @@ def generate_markdown_report(results, timeout, output_file):
         f.write("./fbas_analyzer <file> -s --results-only\n")
         f.write("```\n\n")
         f.write(
-            "**Note:** Both tools use the same JSON format directly, no conversion needed.\n\n")
+            "**Note:** Test files are automatically converted from python-fbas format to stellarbeat format for fbas_analyzer.\n\n")
 
         f.write("## Summary\n\n")
         f.write(f"- **Total tests:** {total_tests}\n")
@@ -452,7 +485,7 @@ def main():
     # Get all test files, excluding unwanted ones
     all_test_files = list(test_data_dir.glob("*.json"))
     test_files = [f for f in all_test_files if "for_stellar_core" not in f.name and not f.name.endswith(
-        "_orgs_.json") and not f.name.endswith("_orgs_orgs.json") and not any(f.name.endswith(f"_factor_{i}_orgs.json") for i in range(1, 100))]
+        "_.json") and not f.name.endswith("_orgs.json")]
     if args.max_files:
         test_files = test_files[:args.max_files]
 
