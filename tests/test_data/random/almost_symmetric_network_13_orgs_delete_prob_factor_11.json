@@ -1,1082 +1,446 @@
-[
+{
+  "validators": [
     {
-        "publicKey": "org0v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org10v2",
+      "qset": "_qd748c2a2cdfa4c26aad47a8074b853f1",
+      "attrs": {
+        "publicKey": "org10v2"
+      }
     },
     {
-        "publicKey": "org0v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org7v1",
+      "qset": "_qb6a29c22a490489cb42e3e9dedbfd37c",
+      "attrs": {
+        "publicKey": "org7v1"
+      }
     },
     {
-        "publicKey": "org0v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org12v1",
+      "qset": "_qfbb3536369674c0cb96d8ced591cdb57",
+      "attrs": {
+        "publicKey": "org12v1"
+      }
     },
     {
-        "publicKey": "org1v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org9v1",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org9v1"
+      }
     },
     {
-        "publicKey": "org1v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v0",
+      "qset": "_qe373593509b2411698c80ad51c8631d1",
+      "attrs": {
+        "publicKey": "org0v0"
+      }
     },
     {
-        "publicKey": "org1v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v2",
+      "qset": "_qacfe526a9f584a62a34dfe373a2b28be",
+      "attrs": {
+        "publicKey": "org4v2"
+      }
     },
     {
-        "publicKey": "org2v0",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v2",
+      "qset": "_q7ddefdc4f999452797a9ffd057285e27",
+      "attrs": {
+        "publicKey": "org3v2"
+      }
     },
     {
-        "publicKey": "org2v1",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org11v0",
+      "qset": "_q2bb24e3d4f81461c9b1ae154f9b6fd81",
+      "attrs": {
+        "publicKey": "org11v0"
+      }
     },
     {
-        "publicKey": "org2v2",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v1",
+      "qset": "_qe373593509b2411698c80ad51c8631d1",
+      "attrs": {
+        "publicKey": "org0v1"
+      }
     },
     {
-        "publicKey": "org3v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org10v0",
+      "qset": "_qd748c2a2cdfa4c26aad47a8074b853f1",
+      "attrs": {
+        "publicKey": "org10v0"
+      }
     },
     {
-        "publicKey": "org3v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v0",
+      "qset": "_q79c8fdf994a245dea72b7dcf9f25be48",
+      "attrs": {
+        "publicKey": "org1v0"
+      }
     },
     {
-        "publicKey": "org3v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v1",
+      "qset": "_q7ddefdc4f999452797a9ffd057285e27",
+      "attrs": {
+        "publicKey": "org3v1"
+      }
     },
     {
-        "publicKey": "org4v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org6v2",
+      "qset": "_q8662723bf41745bba77110ef4eec1b7d",
+      "attrs": {
+        "publicKey": "org6v2"
+      }
     },
     {
-        "publicKey": "org4v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v2",
+      "qset": "_q79c8fdf994a245dea72b7dcf9f25be48",
+      "attrs": {
+        "publicKey": "org1v2"
+      }
     },
     {
-        "publicKey": "org4v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org11v2",
-                        "org11v0",
-                        "org11v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org6v0",
+      "qset": "_q8662723bf41745bba77110ef4eec1b7d",
+      "attrs": {
+        "publicKey": "org6v0"
+      }
     },
     {
-        "publicKey": "org5v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v2",
+      "qset": "_qe373593509b2411698c80ad51c8631d1",
+      "attrs": {
+        "publicKey": "org0v2"
+      }
     },
     {
-        "publicKey": "org5v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v2",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org5v2"
+      }
     },
     {
-        "publicKey": "org5v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org12v0",
+      "qset": "_qfbb3536369674c0cb96d8ced591cdb57",
+      "attrs": {
+        "publicKey": "org12v0"
+      }
     },
     {
-        "publicKey": "org6v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v0",
+      "qset": "_q7ddefdc4f999452797a9ffd057285e27",
+      "attrs": {
+        "publicKey": "org3v0"
+      }
     },
     {
-        "publicKey": "org6v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v2",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org2v2"
+      }
     },
     {
-        "publicKey": "org6v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org9v0",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org9v0"
+      }
     },
     {
-        "publicKey": "org7v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org7v2",
-                        "org7v0",
-                        "org7v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v0",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org5v0"
+      }
     },
     {
-        "publicKey": "org7v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org7v2",
-                        "org7v0",
-                        "org7v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v1",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org5v1"
+      }
     },
     {
-        "publicKey": "org7v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v2",
-                        "org0v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org7v2",
-                        "org7v0",
-                        "org7v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org7v2",
+      "qset": "_qb6a29c22a490489cb42e3e9dedbfd37c",
+      "attrs": {
+        "publicKey": "org7v2"
+      }
     },
     {
-        "publicKey": "org8v0",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org8v1",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org8v1"
+      }
     },
     {
-        "publicKey": "org8v1",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org11v2",
+      "qset": "_q2bb24e3d4f81461c9b1ae154f9b6fd81",
+      "attrs": {
+        "publicKey": "org11v2"
+      }
     },
     {
-        "publicKey": "org8v2",
-        "quorumSet": {
-            "threshold": 2,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org9v2",
-                        "org9v1",
-                        "org9v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v1",
+      "qset": "_qacfe526a9f584a62a34dfe373a2b28be",
+      "attrs": {
+        "publicKey": "org4v1"
+      }
     },
     {
-        "publicKey": "org9v0",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v0",
+      "qset": "_qacfe526a9f584a62a34dfe373a2b28be",
+      "attrs": {
+        "publicKey": "org4v0"
+      }
     },
     {
-        "publicKey": "org9v1",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org10v1",
+      "qset": "_qd748c2a2cdfa4c26aad47a8074b853f1",
+      "attrs": {
+        "publicKey": "org10v1"
+      }
     },
     {
-        "publicKey": "org9v2",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v0",
-                        "org2v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org8v0",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org8v0"
+      }
     },
     {
-        "publicKey": "org10v0",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org12v2",
+      "qset": "_qfbb3536369674c0cb96d8ced591cdb57",
+      "attrs": {
+        "publicKey": "org12v2"
+      }
     },
     {
-        "publicKey": "org10v1",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org6v1",
+      "qset": "_q8662723bf41745bba77110ef4eec1b7d",
+      "attrs": {
+        "publicKey": "org6v1"
+      }
     },
     {
-        "publicKey": "org10v2",
-        "quorumSet": {
-            "threshold": 1,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org9v2",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org9v2"
+      }
     },
     {
-        "publicKey": "org11v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org6v1",
-                        "org6v0",
-                        "org6v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v1",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org2v1"
+      }
     },
     {
-        "publicKey": "org11v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org6v1",
-                        "org6v0",
-                        "org6v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org11v1",
+      "qset": "_q2bb24e3d4f81461c9b1ae154f9b6fd81",
+      "attrs": {
+        "publicKey": "org11v1"
+      }
     },
     {
-        "publicKey": "org11v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v1",
-                        "org5v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v1",
-                        "org1v0",
-                        "org1v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org6v1",
-                        "org6v0",
-                        "org6v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org7v0",
+      "qset": "_qb6a29c22a490489cb42e3e9dedbfd37c",
+      "attrs": {
+        "publicKey": "org7v0"
+      }
     },
     {
-        "publicKey": "org12v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v0",
+      "qset": "_q752c7f8ea33b46ffa32e100033d243be",
+      "attrs": {
+        "publicKey": "org2v0"
+      }
     },
     {
-        "publicKey": "org12v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org8v2",
+      "qset": "_qd790a0c3e52248dabea4c206067d69e8",
+      "attrs": {
+        "publicKey": "org8v2"
+      }
     },
     {
-        "publicKey": "org12v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org8v1",
-                        "org8v2",
-                        "org8v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org10v2",
-                        "org10v1",
-                        "org10v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v0",
-                        "org3v1",
-                        "org3v2"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v1",
+      "qset": "_q79c8fdf994a245dea72b7dcf9f25be48",
+      "attrs": {
+        "publicKey": "org1v1"
+      }
     }
-]
+  ],
+  "qsets": {
+    "_qe81c22f1dca54a6c81833a6f2c300fd4": {
+      "threshold": 2,
+      "members": [
+        "org11v2",
+        "org11v1",
+        "org11v0"
+      ]
+    },
+    "_q3feee558310c4875983ff91b34e6c7ca": {
+      "threshold": 2,
+      "members": [
+        "org3v0",
+        "org3v2",
+        "org3v1"
+      ]
+    },
+    "_qe373593509b2411698c80ad51c8631d1": {
+      "threshold": 2,
+      "members": [
+        "_q3feee558310c4875983ff91b34e6c7ca",
+        "_qe81c22f1dca54a6c81833a6f2c300fd4"
+      ]
+    },
+    "_q5733ccce3c944bcda7aa0daeabfb7852": {
+      "threshold": 2,
+      "members": [
+        "org9v0",
+        "org9v2",
+        "org9v1"
+      ]
+    },
+    "_q5bb46c7bdf6149a190d11c59b1fea020": {
+      "threshold": 2,
+      "members": [
+        "org0v0",
+        "org0v1",
+        "org0v2"
+      ]
+    },
+    "_q79c8fdf994a245dea72b7dcf9f25be48": {
+      "threshold": 2,
+      "members": [
+        "_q5bb46c7bdf6149a190d11c59b1fea020",
+        "_q5733ccce3c944bcda7aa0daeabfb7852"
+      ]
+    },
+    "_q6188d1073fbd47f6b436b7e757c5e51f": {
+      "threshold": 2,
+      "members": [
+        "org2v1",
+        "org2v2",
+        "org2v0"
+      ]
+    },
+    "_q752c7f8ea33b46ffa32e100033d243be": {
+      "threshold": 1,
+      "members": [
+        "_q6188d1073fbd47f6b436b7e757c5e51f"
+      ]
+    },
+    "_qaa8d5223ad214e38aa0bb0c6514a559d": {
+      "threshold": 2,
+      "members": [
+        "org10v2",
+        "org10v1",
+        "org10v0"
+      ]
+    },
+    "_q7ddefdc4f999452797a9ffd057285e27": {
+      "threshold": 2,
+      "members": [
+        "_qaa8d5223ad214e38aa0bb0c6514a559d",
+        "_q5bb46c7bdf6149a190d11c59b1fea020"
+      ]
+    },
+    "_q991217a6f7cd44b5aa89ee54b5695b80": {
+      "threshold": 2,
+      "members": [
+        "org8v0",
+        "org8v2",
+        "org8v1"
+      ]
+    },
+    "_qacfe526a9f584a62a34dfe373a2b28be": {
+      "threshold": 3,
+      "members": [
+        "_q991217a6f7cd44b5aa89ee54b5695b80",
+        "_q5bb46c7bdf6149a190d11c59b1fea020",
+        "_qe81c22f1dca54a6c81833a6f2c300fd4"
+      ]
+    },
+    "_q657ac32f32bb474384035a286df0d258": {
+      "threshold": 2,
+      "members": [
+        "org1v2",
+        "org1v0",
+        "org1v1"
+      ]
+    },
+    "_qd790a0c3e52248dabea4c206067d69e8": {
+      "threshold": 2,
+      "members": [
+        "_q657ac32f32bb474384035a286df0d258",
+        "_q5733ccce3c944bcda7aa0daeabfb7852"
+      ]
+    },
+    "_q8662723bf41745bba77110ef4eec1b7d": {
+      "threshold": 2,
+      "members": [
+        "_qaa8d5223ad214e38aa0bb0c6514a559d",
+        "_q657ac32f32bb474384035a286df0d258"
+      ]
+    },
+    "_qed28a3f9fb944749963fc39b5785de90": {
+      "threshold": 2,
+      "members": [
+        "org5v0",
+        "org5v1",
+        "org5v2"
+      ]
+    },
+    "_q045ea0ddd9444c989e80245674cc0aa6": {
+      "threshold": 2,
+      "members": [
+        "org7v0",
+        "org7v1",
+        "org7v2"
+      ]
+    },
+    "_qb6a29c22a490489cb42e3e9dedbfd37c": {
+      "threshold": 3,
+      "members": [
+        "_qed28a3f9fb944749963fc39b5785de90",
+        "_q045ea0ddd9444c989e80245674cc0aa6",
+        "_q5bb46c7bdf6149a190d11c59b1fea020"
+      ]
+    },
+    "_qd748c2a2cdfa4c26aad47a8074b853f1": {
+      "threshold": 1,
+      "members": [
+        "_qaa8d5223ad214e38aa0bb0c6514a559d"
+      ]
+    },
+    "_q5042c2aecde74b2a9bbd2868488db95e": {
+      "threshold": 2,
+      "members": [
+        "org6v2",
+        "org6v0",
+        "org6v1"
+      ]
+    },
+    "_q2bb24e3d4f81461c9b1ae154f9b6fd81": {
+      "threshold": 3,
+      "members": [
+        "_qed28a3f9fb944749963fc39b5785de90",
+        "_q657ac32f32bb474384035a286df0d258",
+        "_q5042c2aecde74b2a9bbd2868488db95e"
+      ]
+    },
+    "_qfbb3536369674c0cb96d8ced591cdb57": {
+      "threshold": 3,
+      "members": [
+        "_q991217a6f7cd44b5aa89ee54b5695b80",
+        "_qaa8d5223ad214e38aa0bb0c6514a559d",
+        "_q3feee558310c4875983ff91b34e6c7ca"
+      ]
+    }
+  }
+}

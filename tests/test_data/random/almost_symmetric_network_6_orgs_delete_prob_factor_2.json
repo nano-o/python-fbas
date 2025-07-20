@@ -1,812 +1,234 @@
-[
+{
+  "validators": [
     {
-        "publicKey": "org0v0",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v2",
+      "qset": "_qea95323c40b64761b230fe452872386e",
+      "attrs": {
+        "publicKey": "org1v2"
+      }
     },
     {
-        "publicKey": "org0v1",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v2",
+      "qset": "_q4fbb0729fa7248b5ac7699186c502598",
+      "attrs": {
+        "publicKey": "org0v2"
+      }
     },
     {
-        "publicKey": "org0v2",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v2",
+      "qset": "_q7d93c218456d486ba35b66c35ac4defa",
+      "attrs": {
+        "publicKey": "org5v2"
+      }
     },
     {
-        "publicKey": "org1v0",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v1",
+      "qset": "_q3b75b7aa232c4064957c824e7bc6dda4",
+      "attrs": {
+        "publicKey": "org4v1"
+      }
     },
     {
-        "publicKey": "org1v1",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v1",
+      "qset": "_q9a3c77dc1e674d2d8bbb9e02b0ce7be0",
+      "attrs": {
+        "publicKey": "org2v1"
+      }
     },
     {
-        "publicKey": "org1v2",
-        "quorumSet": {
-            "threshold": 5,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v0",
+      "qset": "_q4fbb0729fa7248b5ac7699186c502598",
+      "attrs": {
+        "publicKey": "org0v0"
+      }
     },
     {
-        "publicKey": "org2v0",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v2",
+      "qset": "_q3b75b7aa232c4064957c824e7bc6dda4",
+      "attrs": {
+        "publicKey": "org4v2"
+      }
     },
     {
-        "publicKey": "org2v1",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v2",
+      "qset": "_q9a3c77dc1e674d2d8bbb9e02b0ce7be0",
+      "attrs": {
+        "publicKey": "org2v2"
+      }
     },
     {
-        "publicKey": "org2v2",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org4v0",
-                        "org4v1",
-                        "org4v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org2v1",
-                        "org2v2",
-                        "org2v0"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v0",
+      "qset": "_q5b4d8d2fe32743fba78fec709e21f151",
+      "attrs": {
+        "publicKey": "org3v0"
+      }
     },
     {
-        "publicKey": "org3v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org4v0",
+      "qset": "_q3b75b7aa232c4064957c824e7bc6dda4",
+      "attrs": {
+        "publicKey": "org4v0"
+      }
     },
     {
-        "publicKey": "org3v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v2",
+      "qset": "_q5b4d8d2fe32743fba78fec709e21f151",
+      "attrs": {
+        "publicKey": "org3v2"
+      }
     },
     {
-        "publicKey": "org3v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org2v0",
+      "qset": "_q9a3c77dc1e674d2d8bbb9e02b0ce7be0",
+      "attrs": {
+        "publicKey": "org2v0"
+      }
     },
     {
-        "publicKey": "org4v0",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v0",
+      "qset": "_q7d93c218456d486ba35b66c35ac4defa",
+      "attrs": {
+        "publicKey": "org5v0"
+      }
     },
     {
-        "publicKey": "org4v1",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org0v1",
+      "qset": "_q4fbb0729fa7248b5ac7699186c502598",
+      "attrs": {
+        "publicKey": "org0v1"
+      }
     },
     {
-        "publicKey": "org4v2",
-        "quorumSet": {
-            "threshold": 3,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org5v1",
+      "qset": "_q7d93c218456d486ba35b66c35ac4defa",
+      "attrs": {
+        "publicKey": "org5v1"
+      }
     },
     {
-        "publicKey": "org5v0",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org3v1",
+      "qset": "_q5b4d8d2fe32743fba78fec709e21f151",
+      "attrs": {
+        "publicKey": "org3v1"
+      }
     },
     {
-        "publicKey": "org5v1",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v0",
+      "qset": "_qea95323c40b64761b230fe452872386e",
+      "attrs": {
+        "publicKey": "org1v0"
+      }
     },
     {
-        "publicKey": "org5v2",
-        "quorumSet": {
-            "threshold": 4,
-            "validators": [],
-            "innerQuorumSets": [
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org0v0",
-                        "org0v1",
-                        "org0v2"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org5v0",
-                        "org5v2",
-                        "org5v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org1v0",
-                        "org1v2",
-                        "org1v1"
-                    ],
-                    "innerQuorumSets": []
-                },
-                {
-                    "threshold": 2,
-                    "validators": [
-                        "org3v2",
-                        "org3v0",
-                        "org3v1"
-                    ],
-                    "innerQuorumSets": []
-                }
-            ]
-        }
+      "id": "org1v1",
+      "qset": "_qea95323c40b64761b230fe452872386e",
+      "attrs": {
+        "publicKey": "org1v1"
+      }
     }
-]
+  ],
+  "qsets": {
+    "_qb76c43dc552249908452862256a039a7": {
+      "threshold": 2,
+      "members": [
+        "org1v2",
+        "org1v0",
+        "org1v1"
+      ]
+    },
+    "_q0256dd813aa74b8698cca99cf8225623": {
+      "threshold": 2,
+      "members": [
+        "org4v2",
+        "org4v1",
+        "org4v0"
+      ]
+    },
+    "_qa87407dc293c4a4c8275f7d9ac405913": {
+      "threshold": 2,
+      "members": [
+        "org0v0",
+        "org0v1",
+        "org0v2"
+      ]
+    },
+    "_q8b923f2839754cdaa3354fe9ae1a3119": {
+      "threshold": 2,
+      "members": [
+        "org2v1",
+        "org2v2",
+        "org2v0"
+      ]
+    },
+    "_q56705a6e25c9444aa62687cfebd069aa": {
+      "threshold": 2,
+      "members": [
+        "org3v0",
+        "org3v2",
+        "org3v1"
+      ]
+    },
+    "_q4fbb0729fa7248b5ac7699186c502598": {
+      "threshold": 5,
+      "members": [
+        "_q0256dd813aa74b8698cca99cf8225623",
+        "_q8b923f2839754cdaa3354fe9ae1a3119",
+        "_qb76c43dc552249908452862256a039a7",
+        "_qa87407dc293c4a4c8275f7d9ac405913",
+        "_q56705a6e25c9444aa62687cfebd069aa"
+      ]
+    },
+    "_qe70787ecd8b24594ad5a7ff564c626ea": {
+      "threshold": 2,
+      "members": [
+        "org5v0",
+        "org5v1",
+        "org5v2"
+      ]
+    },
+    "_qea95323c40b64761b230fe452872386e": {
+      "threshold": 5,
+      "members": [
+        "_q0256dd813aa74b8698cca99cf8225623",
+        "_qe70787ecd8b24594ad5a7ff564c626ea",
+        "_q8b923f2839754cdaa3354fe9ae1a3119",
+        "_qa87407dc293c4a4c8275f7d9ac405913",
+        "_q56705a6e25c9444aa62687cfebd069aa"
+      ]
+    },
+    "_q9a3c77dc1e674d2d8bbb9e02b0ce7be0": {
+      "threshold": 4,
+      "members": [
+        "_q0256dd813aa74b8698cca99cf8225623",
+        "_qe70787ecd8b24594ad5a7ff564c626ea",
+        "_qa87407dc293c4a4c8275f7d9ac405913",
+        "_q8b923f2839754cdaa3354fe9ae1a3119"
+      ]
+    },
+    "_q5b4d8d2fe32743fba78fec709e21f151": {
+      "threshold": 3,
+      "members": [
+        "_qb76c43dc552249908452862256a039a7",
+        "_qe70787ecd8b24594ad5a7ff564c626ea",
+        "_q56705a6e25c9444aa62687cfebd069aa"
+      ]
+    },
+    "_q3b75b7aa232c4064957c824e7bc6dda4": {
+      "threshold": 3,
+      "members": [
+        "_qe70787ecd8b24594ad5a7ff564c626ea",
+        "_qb76c43dc552249908452862256a039a7",
+        "_qa87407dc293c4a4c8275f7d9ac405913"
+      ]
+    },
+    "_q7d93c218456d486ba35b66c35ac4defa": {
+      "threshold": 4,
+      "members": [
+        "_qe70787ecd8b24594ad5a7ff564c626ea",
+        "_qb76c43dc552249908452862256a039a7",
+        "_qa87407dc293c4a4c8275f7d9ac405913",
+        "_q56705a6e25c9444aa62687cfebd069aa"
+      ]
+    }
+  }
+}

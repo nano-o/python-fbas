@@ -21,7 +21,7 @@ class TestOptionalFbas:
 
     def test_fbas_explicit_file_still_works(self):
         """Test that explicit --fbas with file path still works."""
-        fbas_file = "tests/test_data/top_tier.json"
+        fbas_file = "tests/test_data/small/top_tier.json"
 
         cmd = [
             sys.executable,
@@ -55,7 +55,7 @@ class TestOptionalFbas:
 
     def test_data_source_displayed(self):
         """Test that data source information is displayed."""
-        fbas_file = "tests/test_data/top_tier.json"
+        fbas_file = "tests/test_data/small/top_tier.json"
 
         cmd = [
             sys.executable,
@@ -87,7 +87,7 @@ class TestOptionalFbas:
 
     def test_update_cache_with_file_fails(self):
         """Test that --update-cache fails when using a local file."""
-        fbas_file = "tests/test_data/top_tier.json"
+        fbas_file = "tests/test_data/small/top_tier.json"
 
         cmd = [
             sys.executable,

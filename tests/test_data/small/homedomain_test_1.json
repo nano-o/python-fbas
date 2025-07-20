@@ -1,0 +1,36 @@
+{
+  "validators": [
+    {
+      "id": "PK1",
+      "qset": "_q948118f4d3a74551b93561254c8d677a",
+      "attrs": {
+        "publicKey": "PK1",
+        "homeDomain": "domain-1"
+      }
+    },
+    {
+      "id": "PK2",
+      "qset": "_q948118f4d3a74551b93561254c8d677a",
+      "attrs": {
+        "publicKey": "PK2",
+        "homeDomain": "domain-2"
+      }
+    },
+    {
+      "id": "PK3",
+      "qset": "_q948118f4d3a74551b93561254c8d677a",
+      "attrs": {
+        "publicKey": "PK3",
+        "homeDomain": "domain-3"
+      }
+    }
+  ],
+  "qsets": {
+    "_q948118f4d3a74551b93561254c8d677a": {
+      "threshold": 1,
+      "members": [
+        "PK2"
+      ]
+    }
+  }
+}

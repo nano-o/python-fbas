@@ -39,7 +39,7 @@ class TestUpdateCache:
             sys.executable,
             "-m",
             "python_fbas.main",
-            "--fbas=tests/test_data/top_tier.json",
+            "--fbas=tests/test_data/small/top_tier.json",
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)

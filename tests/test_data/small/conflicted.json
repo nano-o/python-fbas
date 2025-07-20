@@ -1,0 +1,78 @@
+{
+  "validators": [
+    {
+      "id": "PK13",
+      "qset": "_q10fbea31e4d94f57bc92fef32a48eb5d",
+      "attrs": {
+        "publicKey": "PK13"
+      }
+    },
+    {
+      "id": "PK12",
+      "qset": "_q10fbea31e4d94f57bc92fef32a48eb5d",
+      "attrs": {
+        "publicKey": "PK12"
+      }
+    },
+    {
+      "id": "PKX",
+      "qset": "_q85ffd71f25ee45f081c62cbdba4c727e",
+      "attrs": {
+        "publicKey": "PKX"
+      }
+    },
+    {
+      "id": "PK11",
+      "qset": "_q10fbea31e4d94f57bc92fef32a48eb5d",
+      "attrs": {
+        "publicKey": "PK11"
+      }
+    },
+    {
+      "id": "PK23",
+      "qset": "_qe8be4b25aff94ddf83bdb655aaca4be3",
+      "attrs": {
+        "publicKey": "PK23"
+      }
+    },
+    {
+      "id": "PK21",
+      "qset": "_qe8be4b25aff94ddf83bdb655aaca4be3",
+      "attrs": {
+        "publicKey": "PK21"
+      }
+    },
+    {
+      "id": "PK22",
+      "qset": "_qe8be4b25aff94ddf83bdb655aaca4be3",
+      "attrs": {
+        "publicKey": "PK22"
+      }
+    }
+  ],
+  "qsets": {
+    "_q10fbea31e4d94f57bc92fef32a48eb5d": {
+      "threshold": 2,
+      "members": [
+        "PK11",
+        "PK12",
+        "PK13"
+      ]
+    },
+    "_qe8be4b25aff94ddf83bdb655aaca4be3": {
+      "threshold": 2,
+      "members": [
+        "PK23",
+        "PK22",
+        "PK21"
+      ]
+    },
+    "_q85ffd71f25ee45f081c62cbdba4c727e": {
+      "threshold": 2,
+      "members": [
+        "_qe8be4b25aff94ddf83bdb655aaca4be3",
+        "_q10fbea31e4d94f57bc92fef32a48eb5d"
+      ]
+    }
+  }
+}

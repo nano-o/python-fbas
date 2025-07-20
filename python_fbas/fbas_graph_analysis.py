@@ -347,6 +347,8 @@ def find_minimal_splitting_set(
             logging.info(
                 "Minimal-cardinality splitting set (corresponding validators): %s",
                 [fbas.format_validator(s) for s in ss if s not in groups])
+
+        # TODO: it would be nice to "minimize" q1 and q2
         q1 = {
             v for v in extract_true_tagged_variables(
                 model,

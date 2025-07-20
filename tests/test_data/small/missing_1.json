@@ -1,0 +1,31 @@
+{
+  "validators": [
+    {
+      "id": "PK1",
+      "qset": "_q8058fac325f3458ab8c018c52ccce8ba",
+      "attrs": {
+        "publicKey": "PK1"
+      }
+    },
+    {
+      "id": "PK2",
+      "qset": "_q8058fac325f3458ab8c018c52ccce8ba",
+      "attrs": {
+        "publicKey": "PK2"
+      }
+    },
+    {
+      "id": "PK3",
+      "qset": null,
+      "attrs": {}
+    }
+  ],
+  "qsets": {
+    "_q8058fac325f3458ab8c018c52ccce8ba": {
+      "threshold": 1,
+      "members": [
+        "PK3"
+      ]
+    }
+  }
+}

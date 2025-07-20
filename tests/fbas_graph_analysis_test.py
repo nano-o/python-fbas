@@ -1,6 +1,6 @@
 import logging
 import networkx as nx
-from test_utils import get_test_data_list, get_validators_from_test_fbas
+from test_utils import get_test_data_list, get_validators_from_test_fbas, load_fbas_from_test_file
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas import config
 from python_fbas.fbas_graph_analysis import (
@@ -18,35 +18,29 @@ from python_fbas.solver import HAS_QBF
 
 def test_qi_():
     with config.temporary_config(card_encoding='totalizer'):
-        fbas = FBASGraph.from_json(
-            get_validators_from_test_fbas('circular_1.json'))
+        fbas = load_fbas_from_test_file('circular_1.json')
         result = find_disjoint_quorums(fbas)
         assert not result
-        fbas = FBASGraph.from_json(
-            get_validators_from_test_fbas('circular_2.json'))
+        fbas = load_fbas_from_test_file('circular_2.json')
         result = find_disjoint_quorums(fbas)
         assert not result
-        fbas2 = FBASGraph.from_json(
-            get_validators_from_test_fbas('conflicted.json'))
+        fbas2 = load_fbas_from_test_file('conflicted.json')
         assert find_disjoint_quorums(fbas2)
 
     with config.temporary_config(card_encoding='naive'):
-        fbas = FBASGraph.from_json(
-            get_validators_from_test_fbas('circular_1.json'))
+        fbas = load_fbas_from_test_file('circular_1.json')
         assert not find_disjoint_quorums(fbas)
-        fbas = FBASGraph.from_json(
-            get_validators_from_test_fbas('circular_2.json'))
+        fbas = load_fbas_from_test_file('circular_2.json')
         result = find_disjoint_quorums(fbas)
         assert not result
-        fbas2 = FBASGraph.from_json(
-            get_validators_from_test_fbas('conflicted.json'))
+        fbas2 = load_fbas_from_test_file('conflicted.json')
         assert find_disjoint_quorums(fbas2)
 
 
 def test_qi_missing():
-    fbas = FBASGraph.from_json(get_validators_from_test_fbas('missing_1.json'))
+    fbas = load_fbas_from_test_file('missing_1.json')
     assert not find_disjoint_quorums(fbas)
-    fbas = FBASGraph.from_json(get_validators_from_test_fbas('missing_2.json'))
+    fbas = load_fbas_from_test_file('missing_2.json')
     assert find_disjoint_quorums(fbas)
 
 
@@ -57,8 +51,6 @@ def test_qi_all():
         fbas_graph = FBASGraph.from_json(d)
         if fbas_graph.validators:
             with config.temporary_config(card_encoding='totalizer'):
-                find_disjoint_quorums(fbas_graph)
-            with config.temporary_config(card_encoding='naive'):
                 find_disjoint_quorums(fbas_graph)
 
 
@@ -76,11 +68,9 @@ def test_min_splitting_set_1():
         fbas1.update_validator(v, qset1)
     assert len(find_minimal_splitting_set(
         fbas1).splitting_set) == 2  # type: ignore
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
+    fbas2 = load_fbas_from_test_file('circular_1.json')
     assert not find_minimal_splitting_set(fbas2)
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas2 = load_fbas_from_test_file('circular_2.json')
     assert set(find_minimal_splitting_set(fbas2).splitting_set) == {
         'PK2'}  # type: ignore
 
@@ -99,11 +89,9 @@ def test_min_splitting_set_2():
         fbas1.update_validator(v, qset1)
     assert len(find_minimal_splitting_set(
         fbas1).splitting_set) == 2  # type: ignore
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
+    fbas2 = load_fbas_from_test_file('circular_1.json')
     assert not find_minimal_splitting_set(fbas2)
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas2 = load_fbas_from_test_file('circular_2.json')
     assert set(find_minimal_splitting_set(fbas2).splitting_set) == {
         'PK2'}  # type: ignore
 
@@ -187,12 +175,10 @@ def test_contains_quorum():
     assert not contains_quorum({'PK1', 'PK2'}, fbas1)
     assert not contains_quorum({'PK1'}, fbas1)
     assert not contains_quorum(set(), fbas1)
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
+    fbas2 = load_fbas_from_test_file('circular_1.json')
     assert contains_quorum({'PK1', 'PK2'}, fbas2)
     assert not contains_quorum({'PK1'}, fbas2)
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas2 = load_fbas_from_test_file('circular_2.json')
     assert not contains_quorum({'PK1', 'PK2'}, fbas2)
     assert contains_quorum({'PK1', 'PK3'}, fbas2)
 

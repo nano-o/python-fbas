@@ -11,6 +11,8 @@ from collections.abc import Collection, Set
 from itertools import chain, combinations
 import logging
 from pprint import pformat
+import json
+import uuid
 import networkx as nx
 from networkx.classes.reportviews import NodeView
 from python_fbas.utils import powerset
@@ -43,14 +45,24 @@ class QSet:
                 if not (0 <= threshold <= card):
                     logging.info(
                         "QSet validation failed: threshold=%d not in range [0, %d] for qset with %d validators and %d inner quorum sets. Qset: %s",
-                        threshold, card, len(validators), len(inner_qsets), qset)
-                    raise ValueError(f"Invalid qset threshold {threshold} (must be 0 <= threshold <= {card}): {qset}")
+                        threshold,
+                        card,
+                        len(validators),
+                        len(inner_qsets),
+                        qset)
+                    raise ValueError(
+                        f"Invalid qset threshold {threshold} (must be 0 <= threshold <= {card}): {qset}")
                 return QSet(threshold, validators, inner_qsets)
             case _:
                 logging.info(
                     "QSet.make failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
-                    list(qset.keys()) if isinstance(qset, dict) else "not a dict", qset)
-                raise ValueError(f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
+                    list(
+                        qset.keys()) if isinstance(
+                        qset,
+                        dict) else "not a dict",
+                    qset)
+                raise ValueError(
+                    f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
 
 
 class FBASGraph:
@@ -70,7 +82,6 @@ class FBASGraph:
     graph: nx.DiGraph
     # only a subset of the vertices in the graph represent validators:
     validators: set[str]
-    qset_count = 1  # used to create unique qset identifiers
     # maps qset vertices (str) to their associated qset:
     qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph?
 
@@ -83,7 +94,6 @@ class FBASGraph:
         fbas = FBASGraph()
         fbas.graph = nx.DiGraph(self.graph)
         fbas.validators = self.validators.copy()
-        fbas.qset_count = self.qset_count
         fbas.qsets = self.qsets.copy()
         return fbas
 
@@ -196,8 +206,7 @@ class FBASGraph:
                 iqs_vertices = [self.add_qset(iq) for iq in iqs]
                 for v in vs:
                     self.add_validator(v)
-                n = "_q" + str(self.qset_count)
-                self.qset_count += 1
+                n = "_q" + uuid.uuid4().hex
                 self.qsets[n] = fqs
                 self.graph.add_node(n, threshold=int(t))
                 for member in set(vs) | set(iqs_vertices):
@@ -206,8 +215,13 @@ class FBASGraph:
             case _:
                 logging.info(
                     "add_qset failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
-                    list(qset.keys()) if isinstance(qset, dict) else "not a dict", qset)
-                raise ValueError(f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
+                    list(
+                        qset.keys()) if isinstance(
+                        qset,
+                        dict) else "not a dict",
+                    qset)
+                raise ValueError(
+                    f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
 
     def __str__(self) -> str:
         def info(v: str) -> str:
@@ -264,10 +278,40 @@ class FBASGraph:
         return self.compute_qset(self.qset_vertex_of(n))
 
     @staticmethod
-    def from_json(data: list[Dict[str, Any]], from_stellarbeat: bool = False) -> 'FBASGraph':
+    def from_json(data, ignore_non_validating: bool = False) -> 'FBASGraph':
+        """
+        Create a FBASGraph from JSON data, automatically detecting the format.
+
+        Supports both:
+        - Stellarbeat format: list of validator objects with publicKey and quorumSet
+        - Python-fbas format: dict with 'validators' and 'qsets' keys
+
+        Args:
+            data: Parsed JSON data (list for stellarbeat, dict for python-fbas, or str for auto-parse)
+            from_stellarbeat: Legacy parameter for backwards compatibility
+        """
+        # If data is a string, parse it first
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        # Detect format
+        format_type = FBASGraph.detect_json_format(data)
+        logging.info("Detected JSON format: %s", format_type)
+
+        if format_type == 'stellarbeat':
+            return FBASGraph._from_json_stellarbeat(data, ignore_non_validating)
+        elif format_type == 'python-fbas':
+            return FBASGraph.from_json_python_fbas(json.dumps(data))
+        else:
+            raise ValueError(
+                f"Unknown or unsupported JSON format. Data type: {type(data)}")
+
+    @staticmethod
+    def _from_json_stellarbeat(
+            data: list[Dict[str, Any]], from_stellarbeat: bool = False) -> 'FBASGraph':
         """
         Create a FBASGraph from a list of validators in serialized
-        stellarbeat.io format.
+        stellarbeat.io format. (Internal method - use from_json instead)
         """
         # first do some validation
         validators = []
@@ -323,7 +367,11 @@ class FBASGraph:
                     c not in self.validators and self.is_qset_sat(c, s)
                     or c in self.validators and c in s)
 
-    def is_sat(self, n: str, s: Collection[str], over_approximate: bool = True) -> bool:
+    def is_sat(
+            self,
+            n: str,
+            s: Collection[str],
+            over_approximate: bool = True) -> bool:
         """
         Returns True if and only if n's agreement requirements are satisfied by s.
         """
@@ -333,7 +381,10 @@ class FBASGraph:
         return self.is_qset_sat(self.qset_vertex_of(n), s)
 
     def is_quorum(
-            self, vs: Collection[str], *, over_approximate: bool = True) -> bool:
+            self,
+            vs: Collection[str],
+            *,
+            over_approximate: bool = True) -> bool:
         """
         Returns True if and only if s is a non-empty quorum. If
         `over_approximate` is true, we consider that a validator that has no
@@ -599,3 +650,322 @@ class FBASGraph:
                     break
             else:
                 return
+
+    def to_json(self) -> str:
+        """
+        Serialize the FBASGraph to python-fbas JSON format.
+
+        Returns a JSON string representing the graph in a compact format:
+        {
+            "validators": [
+                {
+                    "id": "validator_id",
+                    "qset": "qset_id_or_null",
+                    "attrs": {...}
+                },
+                ...
+            ],
+            "qsets": {
+                "qset_id": {
+                    "threshold": int,
+                    "members": ["validator_or_qset_id", ...]
+                },
+                ...
+            }
+        }
+        """
+        # Collect validator data
+        validators_data = []
+        for v in self.validators:
+            attrs = self.vertice_attrs(v).copy()
+
+            # Remove quorum set related fields to avoid duplication
+            # since we represent quorum sets separately in the qsets section
+            attrs.pop('quorumSet', None)
+            attrs.pop('quorumSetHashKey', None)
+
+            qset_id = None
+            if self.graph.out_degree(v) == 1:
+                qset_id = self.qset_vertex_of(v)
+
+            validators_data.append({
+                "id": v,
+                "qset": qset_id,
+                "attrs": attrs
+            })
+
+        # Collect qset data
+        qsets_data = {}
+        for qset_id in self.qsets.keys():
+            if qset_id in self.graph:
+                threshold = self.threshold(qset_id)
+                members = list(self.graph.successors(qset_id))
+                qsets_data[qset_id] = {
+                    "threshold": threshold,
+                    "members": members
+                }
+
+        result = {
+            "validators": validators_data,
+            "qsets": qsets_data
+        }
+
+        return json.dumps(result, indent=2)
+
+    def to_json_stellarbeat(self) -> str:
+        """
+        Serialize the FBASGraph to stellarbeat.io JSON format.
+
+        Returns a JSON string representing the graph as a list of validators
+        in the stellarbeat format:
+        [
+            {
+                "publicKey": "validator_id",
+                "quorumSet": {
+                    "threshold": int,
+                    "validators": ["validator_id", ...],
+                    "innerQuorumSets": [
+                        {
+                            "threshold": int,
+                            "validators": ["validator_id", ...],
+                            "innerQuorumSets": [...]
+                        },
+                        ...
+                    ]
+                },
+                ...other attributes...
+            },
+            ...
+        ]
+        """
+        validators_list = []
+
+        for v in sorted(self.validators):  # Sort for consistent output
+            # Get all validator attributes
+            attrs = self.vertice_attrs(v).copy()
+
+            # The publicKey is the validator ID
+            attrs['publicKey'] = v
+
+            # Get the quorum set if it exists
+            qset = self.qset_of(v)
+            if qset is not None:
+                attrs['quorumSet'] = self._qset_to_stellarbeat_format(qset)
+
+            validators_list.append(attrs)
+
+        return json.dumps(validators_list, indent=2)
+
+    def _qset_to_stellarbeat_format(self, qset: QSet) -> Dict[str, Any]:
+        """
+        Convert a QSet to stellarbeat.io format.
+        """
+        result = {
+            "threshold": qset.threshold,
+            "validators": list(qset.validators),
+            "innerQuorumSets": []
+        }
+
+        # Recursively convert inner quorum sets
+        for inner_qset in qset.inner_quorum_sets:
+            result["innerQuorumSets"].append(
+                self._qset_to_stellarbeat_format(inner_qset))
+
+        return result
+
+    @staticmethod
+    def detect_json_format(data) -> str:
+        """
+        Detect the format of JSON data for FBAS.
+
+        Returns:
+            'stellarbeat': Traditional stellarbeat.io format (list of validators)
+            'python-fbas': New efficient python-fbas format (dict with validators/qsets)
+            'unknown': Unable to determine format
+        """
+        if isinstance(data, list):
+            # Stellarbeat format is a list of validator objects
+            # If it's an empty list, assume stellarbeat format
+            if len(data) == 0:
+                return 'stellarbeat'
+
+            # Check if all items are dictionaries (which would be validators)
+            if all(isinstance(item, dict) for item in data):
+                # For stellarbeat format, we expect most validators to have 'publicKey'
+                # Check if at least some validators have this key
+                validators_with_publickey = sum(
+                    1 for item in data if 'publicKey' in item)
+                if validators_with_publickey > 0:
+                    return 'stellarbeat'
+
+            return 'unknown'
+
+        elif isinstance(data, dict):
+            # Python-fbas format is a dict with 'validators' and 'qsets' keys
+            if 'validators' in data and 'qsets' in data:
+                # Additional validation: validators should be a list, qsets
+                # should be a dict
+                if isinstance(
+                        data['validators'],
+                        list) and isinstance(
+                        data['qsets'],
+                        dict):
+                    return 'python-fbas'
+            return 'unknown'
+
+        return 'unknown'
+
+    @staticmethod
+    def from_json_python_fbas(json_str: str) -> 'FBASGraph':
+        """
+        Create a FBASGraph from the python-fbas JSON format.
+
+        Expects JSON in the format:
+        {
+            "validators": [
+                {
+                    "id": "validator_id",
+                    "qset": "qset_id_or_null",
+                    "attrs": {...}
+                },
+                ...
+            ],
+            "qsets": {
+                "qset_id": {
+                    "threshold": int,
+                    "members": ["validator_or_qset_id", ...]
+                },
+                ...
+            }
+        }
+        """
+        data = json.loads(json_str)
+
+        if not isinstance(data, dict):
+            raise ValueError("JSON data must be a dictionary")
+
+        if "validators" not in data or "qsets" not in data:
+            raise ValueError(
+                "JSON data must contain 'validators' and 'qsets' keys")
+
+        fbas = FBASGraph()
+
+        # Check for duplicate IDs across validators and qsets
+        all_ids = set()
+        duplicates = set()
+
+        # Check validator IDs
+        for v_data in data["validators"]:
+            if isinstance(v_data, dict) and "id" in v_data:
+                validator_id = v_data["id"]
+                if validator_id in all_ids:
+                    duplicates.add(validator_id)
+                all_ids.add(validator_id)
+
+        # Check qset IDs
+        for qset_id in data["qsets"]:
+            if qset_id in all_ids:
+                duplicates.add(qset_id)
+            all_ids.add(qset_id)
+
+        if duplicates:
+            raise ValueError(f"Duplicate IDs found: {sorted(duplicates)}")
+
+        # First pass: add all validators
+        for v_data in data["validators"]:
+            if not isinstance(v_data, dict):
+                logging.warning("Skipping invalid validator data: %s", v_data)
+                continue
+
+            if "id" not in v_data:
+                logging.warning("Skipping validator without id: %s", v_data)
+                continue
+
+            validator_id = v_data["id"]
+            attrs = v_data.get("attrs", {})
+
+            # Validate that threshold is not in attrs
+            if "threshold" in attrs:
+                logging.warning(
+                    "Removing 'threshold' from validator %s attributes",
+                    validator_id)
+                attrs = attrs.copy()
+                del attrs["threshold"]
+
+            fbas.add_validator(validator_id)
+            if attrs:
+                fbas.graph.nodes[validator_id].update(attrs)
+
+        # Second pass: add qsets
+        for qset_id, qset_data in data["qsets"].items():
+            if not isinstance(qset_data, dict):
+                logging.warning(
+                    "Skipping invalid qset data for %s: %s",
+                    qset_id,
+                    qset_data)
+                continue
+
+            if "threshold" not in qset_data or "members" not in qset_data:
+                logging.warning(
+                    "Skipping qset %s missing threshold or members", qset_id)
+                continue
+
+            threshold = qset_data["threshold"]
+            members = qset_data["members"]
+
+            if not isinstance(threshold, int) or threshold < 0:
+                logging.warning(
+                    "Skipping qset %s with invalid threshold: %s",
+                    qset_id,
+                    threshold)
+                continue
+
+            if not isinstance(members, list):
+                logging.warning(
+                    "Skipping qset %s with invalid members: %s",
+                    qset_id,
+                    members)
+                continue
+
+            if threshold > len(members):
+                logging.warning(
+                    "Skipping qset %s with threshold > members count", qset_id)
+                continue
+
+            # Check for self-referencing qset
+            if qset_id in members:
+                logging.warning(
+                    "Skipping qset %s that references itself", qset_id)
+                continue
+
+            # Add qset node
+            fbas.graph.add_node(qset_id, threshold=threshold)
+
+            # Add edges to members (ensure all members exist first)
+            for member in members:
+                if member not in fbas.validators and member not in data["qsets"]:
+                    logging.warning(
+                        "Qset %s references unknown member %s", qset_id, member)
+                    continue
+                fbas.graph.add_edge(qset_id, member)
+
+            # Compute and store the QSet
+            try:
+                fbas.qsets[qset_id] = fbas.compute_qset(qset_id)
+            except Exception as e:
+                logging.warning(
+                    "Failed to compute qset for %s: %s", qset_id, e)
+
+        # Third pass: connect validators to their qsets
+        for v_data in data["validators"]:
+            if "id" not in v_data:
+                continue
+
+            validator_id = v_data["id"]
+            qset_id = v_data.get("qset")
+
+            if qset_id and qset_id in fbas.graph:
+                fbas.graph.add_edge(validator_id, qset_id)
+
+        fbas.check_integrity()
+        return fbas

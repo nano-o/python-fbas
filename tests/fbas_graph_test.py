@@ -1,7 +1,7 @@
 import logging
 import pytest
 import random
-from test_utils import get_test_data_list, get_validators_from_test_fbas
+from test_utils import get_test_data_list, load_fbas_from_test_file, get_validators_from_test_fbas
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.config import temporary_config
 
@@ -32,8 +32,7 @@ def test_collapse():
 
 
 def test_is_quorum():
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
+    fbas = load_fbas_from_test_file('conflicted.json')
     assert fbas.is_quorum({'PK11', 'PK12', 'PK13'})
     assert fbas.is_quorum({'PK11', 'PK12'})
     assert not fbas.is_quorum({'PK11'})
@@ -63,23 +62,19 @@ def test_is_quorum_2():
 
 
 def test_is_sat():
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas = load_fbas_from_test_file('circular_2.json')
     assert fbas.is_sat('PK3', {'PK3'})
     assert fbas.is_sat('PK2', {'PK3'})
     assert not fbas.is_sat('PK1', {'PK3'})
 
 
 def test_find_disjoint_quorums():
-    fbas1 = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
+    fbas1 = load_fbas_from_test_file('conflicted.json')
     q1, q2 = fbas1.find_disjoint_quorums()  # type: ignore
     logging.info("disjoint quorums: %s, %s", q1, q2)
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
+    fbas2 = load_fbas_from_test_file('circular_1.json')
     assert not fbas2.find_disjoint_quorums()
-    fbas3 = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas3 = load_fbas_from_test_file('circular_2.json')
     assert not fbas3.find_disjoint_quorums()
 
 
@@ -97,14 +92,12 @@ def test_closure():
 
 
 def test_closure_2():
-    fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    fbas = load_fbas_from_test_file('circular_2.json')
     assert fbas.closure({'PK3'}) == {'PK1', 'PK2', 'PK3'}
     assert fbas.closure({'PK2'}) == {'PK1', 'PK2'}
     assert fbas.closure({'PK1'}) == {'PK1'}
     assert fbas.closure({'PK2', 'PK3'}) == {'PK1', 'PK2', 'PK3'}
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
+    fbas2 = load_fbas_from_test_file('conflicted.json')
     assert fbas2.closure({'PK11', 'PK12'}) == {'PK11', 'PK12', 'PK13', 'PKX'}
     assert fbas2.closure({'PKX'}) == {'PKX'}
     assert fbas2.closure({'PK11', 'PK22'}) == {'PK11', 'PK22'}
@@ -257,16 +250,14 @@ def test_intersection_bound():
 
 
 def test_fast_intersection_1():
-    fbas = FBASGraph.from_json(get_validators_from_test_fbas('top_tier.json'))
+    fbas = load_fbas_from_test_file('top_tier.json')
     assert fbas.fast_intersection_check() == 'true'
-    fbas2 = FBASGraph.from_json(
-        get_validators_from_test_fbas('validators.json'))
+    fbas2 = load_fbas_from_test_file('validators.json')
     assert fbas2.fast_intersection_check() == 'true'
 
 
 def test_fast_intersection_2():
-    conflicted_fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('conflicted.json'))
+    conflicted_fbas = load_fbas_from_test_file('conflicted.json')
     v11 = 'PK11'
     v23 = 'PK23'
     vx = 'PKX'
@@ -282,8 +273,7 @@ def test_fast_intersection_2():
 def test_fast_intersection_3():
     # This is an example where the fbas is intertwined but the fast heuristic
     # fails to see it
-    circular_fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_1.json'))
+    circular_fbas = load_fbas_from_test_file('circular_1.json')
     assert not circular_fbas.find_disjoint_quorums()
     assert circular_fbas.fast_intersection_check() == 'unknown'
 
@@ -291,8 +281,7 @@ def test_fast_intersection_3():
 def test_fast_intersection_4():
     # This is an example where the fbas is intertwined but the fast heuristic
     # fails to see it
-    circular_fbas = FBASGraph.from_json(
-        get_validators_from_test_fbas('circular_2.json'))
+    circular_fbas = load_fbas_from_test_file('circular_2.json')
     assert not circular_fbas.find_disjoint_quorums()
     assert circular_fbas.fast_intersection_check() == 'unknown'
 

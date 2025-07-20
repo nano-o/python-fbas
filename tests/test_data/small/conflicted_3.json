@@ -1,0 +1,46 @@
+{
+  "validators": [
+    {
+      "id": "PK11",
+      "qset": "_q07760414829c495a93623a4a79fc108a",
+      "attrs": {
+        "publicKey": "PK11"
+      }
+    },
+    {
+      "id": "PKX",
+      "qset": "_qf2554670721946a19f73b3aab67d8dad",
+      "attrs": {
+        "publicKey": "PKX"
+      }
+    },
+    {
+      "id": "PK21",
+      "qset": "_qfdaa83f6428349d29bda7f08f7ea2326",
+      "attrs": {
+        "publicKey": "PK21"
+      }
+    }
+  ],
+  "qsets": {
+    "_q07760414829c495a93623a4a79fc108a": {
+      "threshold": 1,
+      "members": [
+        "PK11"
+      ]
+    },
+    "_qfdaa83f6428349d29bda7f08f7ea2326": {
+      "threshold": 1,
+      "members": [
+        "PK21"
+      ]
+    },
+    "_qf2554670721946a19f73b3aab67d8dad": {
+      "threshold": 2,
+      "members": [
+        "_q07760414829c495a93623a4a79fc108a",
+        "_qfdaa83f6428349d29bda7f08f7ea2326"
+      ]
+    }
+  }
+}

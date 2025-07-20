@@ -53,13 +53,13 @@ class TestErrorHandling:
             sys.executable,
             "-m",
             "python_fbas.main",
-            "--fbas=tests/test_data/top_tier.json",
+            "--fbas=tests/test_data/small/top_tier.json",
             "check-intersection"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
-        assert "Using local FBAS file: tests/test_data/top_tier.json" in result.stdout
+        assert "Using local FBAS file: tests/test_data/small/top_tier.json" in result.stdout
         assert (
             "disjoint quorums" in result.stdout or "No disjoint quorums found" in result.stdout)
 

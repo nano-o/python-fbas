@@ -5,7 +5,7 @@ import os
 
 # Get the absolute path to the test data file
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
-FBAS_JSON = os.path.join(TEST_DATA_DIR, 'top_tier.json')
+FBAS_JSON = os.path.join(TEST_DATA_DIR, 'small', 'top_tier.json')
 
 
 def run_command(command):

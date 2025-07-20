@@ -41,7 +41,7 @@ def test_config_file_invalid_solver():
     config_content = """
 sat_solver: "invalid_solver"
 """
-    fbas_file = "tests/test_data/top_tier.json"
+    fbas_file = "tests/test_data/small/top_tier.json"
 
     stdout, stderr = run_command_with_config(
         config_content,
@@ -58,7 +58,7 @@ def test_config_file_invalid_encoding():
     config_content = """
 card_encoding: "invalid_encoding"
 """
-    fbas_file = "tests/test_data/top_tier.json"
+    fbas_file = "tests/test_data/small/top_tier.json"
 
     stdout, stderr = run_command_with_config(
         config_content,
@@ -77,7 +77,7 @@ sat_solver: "minisat22"
 card_encoding: "naive"
 validator_display: "name"
 """
-    fbas_file = "tests/test_data/top_tier.json"
+    fbas_file = "tests/test_data/small/top_tier.json"
 
     stdout, stderr = run_command_with_config(
         config_content,
@@ -94,7 +94,7 @@ def test_cli_overrides_config():
     config_content = """
 validator_display: "name"
 """
-    fbas_file = "tests/test_data/top_tier.json"
+    fbas_file = "tests/test_data/small/top_tier.json"
 
     # CLI argument should override config file
     stdout, stderr = run_command_with_config(
