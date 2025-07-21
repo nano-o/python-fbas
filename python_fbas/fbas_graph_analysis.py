@@ -625,8 +625,8 @@ def find_min_quorum(
     set of validators, then the quorum should contain at least one validator
     outside this set.
 
-    TODO: this is buggy... try with project_on_scc=False using pubnet_observer.json from-validator GAGLRZGH3NKNOTIMHDUR7SASUU7CHSHFTLSQETOSRFVCWRRHD7OCTKKX
-    I think there is a subtle and wrong interaction between quantifiers and (a) tseitin variables and (b) the totalizer encoding.
+    TODO: this is buggy... try removing the projection on the scc in top_tier,
+    then run the tests.
     """
 
     if not HAS_QBF:
@@ -664,24 +664,30 @@ def find_min_quorum(
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
     qb_quorum = And(*quorum_constraints(fbas, in_quorum_b))
-    qb_subset_qa = And(
-        *[Implies(in_quorum_b(n),
-                  in_quorum_a(n)) for n in fbas.validators])
-    qb_constraints = Implies(qb_subset_qa, Not(qb_quorum))
+    qb_subset_qa_constraints = \
+        [Implies(in_quorum_b(n),
+                 in_quorum_a(n)) for n in fbas.validators]
+    qb_subset_qa_constraints += \
+        [Or(*[And(in_quorum_a(n), Not(in_quorum_b(n)))
+              for n in fbas.validators])]
+    qb_constraints = Implies(And(*qb_subset_qa_constraints), Not(qb_quorum))
 
     qa_clauses = to_cnf(qa_constraints)
     qb_clauses = to_cnf(qb_constraints)
     pcnf = PCNF(from_clauses=qa_clauses + qb_clauses)  # type: ignore
 
     qa_atoms: set[int] = atoms_of_clauses(qa_clauses)
+    qa_vertex_atoms: set[int] = set(
+        abs(variables[in_quorum_a(n).identifier]) for n in fbas.vertices())
+    qb_atoms: set[int] = atoms_of_clauses(qb_clauses)
     qb_vertex_atoms: set[int] = set(
         abs(variables[in_quorum_b(n).identifier]) for n in fbas.vertices())
-    qb_tseitin_atoms: set[int] = \
-        atoms_of_clauses(qb_clauses) - (qb_vertex_atoms | qa_atoms)
+    tseitin_atoms: set[int] = \
+        (qa_atoms | qb_atoms) - (qb_vertex_atoms | qa_vertex_atoms)
 
     pcnf.exists(
-        *list(qa_atoms)).forall(
-            *list(qb_vertex_atoms)).exists(*list(qb_tseitin_atoms))
+        *list(qa_vertex_atoms)).forall(
+            *list(qb_vertex_atoms)).exists(*list(tseitin_atoms))
 
     qbf_res = slv.solve_qbf(pcnf)  # type: ignore
     res = qbf_res.sat
