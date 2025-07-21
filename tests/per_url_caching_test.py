@@ -185,6 +185,7 @@ class TestPerUrlCaching:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             f"--fbas={url}",
             "update-cache"
         ]
@@ -193,7 +194,7 @@ class TestPerUrlCaching:
         assert result.returncode == 0
         assert f"Updating cache for URL: {url}" in result.stdout
         assert "Cache file:" in result.stdout
-        assert f"Successfully updated cache for: {url}" in result.stdout
+        assert f"Successfully updated cache for: {url}" in result.stderr
 
 
 if __name__ == '__main__':

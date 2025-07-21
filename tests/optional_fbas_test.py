@@ -27,13 +27,14 @@ class TestOptionalFbas:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             f"--fbas={fbas_file}",
             "check-intersection"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
-        assert f"Using local FBAS file: {fbas_file}" in result.stdout
+        assert f"Using local FBAS file: {fbas_file}" in result.stderr
         assert "disjoint quorums" in result.stdout or "No disjoint quorums found" in result.stdout
 
     def test_fbas_explicit_url_still_works(self):
@@ -44,13 +45,14 @@ class TestOptionalFbas:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             f"--fbas={url}",
             "check-intersection"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
-        assert f"Using Stellar network data from: {url}" in result.stdout
+        assert f"Using Stellar network data from: {url}" in result.stderr
         assert ("Cache:" in result.stdout or "Updating cache" in result.stdout)
 
     def test_data_source_displayed(self):
@@ -61,13 +63,14 @@ class TestOptionalFbas:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             f"--fbas={fbas_file}",
             "min-quorum"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
-        assert "Using local FBAS file:" in result.stdout
+        assert "Using local FBAS file:" in result.stderr
         assert "Example min quorum:" in result.stdout
 
     def test_update_cache_validation(self):
@@ -76,6 +79,7 @@ class TestOptionalFbas:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             "--update-cache",
             "check-intersection"
         ]
@@ -83,7 +87,7 @@ class TestOptionalFbas:
 
         # Should work since default is a URL
         assert result.returncode == 0
-        assert "Using default Stellar network data from:" in result.stdout
+        assert "Using default Stellar network data from:" in result.stderr
 
     def test_update_cache_with_file_fails(self):
         """Test that --update-cache fails when using a local file."""

@@ -10,13 +10,14 @@ class TestUpdateCache:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             "update-cache"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
         assert "Updating cache for URL:" in result.stdout
-        assert "Successfully updated cache for default URL:" in result.stdout
+        assert "Successfully updated cache for default URL:" in result.stderr
 
     def test_update_cache_with_url(self):
         """Test update-cache with --fbas URL."""
@@ -24,6 +25,7 @@ class TestUpdateCache:
             sys.executable,
             "-m",
             "python_fbas.main",
+            "--log-level=INFO",
             "--fbas=https://api.stellaratlas.io/v1/node",
             "update-cache"
         ]
@@ -31,7 +33,7 @@ class TestUpdateCache:
 
         assert result.returncode == 0
         assert "Updating cache for URL: https://api.stellaratlas.io/v1/node" in result.stdout
-        assert "Successfully updated cache for: https://api.stellaratlas.io/v1/node" in result.stdout
+        assert "Successfully updated cache for: https://api.stellaratlas.io/v1/node" in result.stderr
 
     def test_update_cache_with_file_errors(self):
         """Test that update-cache with local file shows clear error."""
