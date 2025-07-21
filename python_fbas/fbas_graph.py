@@ -83,7 +83,7 @@ class FBASGraph:
     # only a subset of the vertices in the graph represent validators:
     validators: set[str]
     # maps qset vertices (str) to their associated qset:
-    qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph?
+    qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph? I think this is only used when loading from JSON (or maybe in tests) so we should make it private to that method.
 
     def __init__(self) -> None:
         self.graph = nx.DiGraph()
@@ -884,14 +884,6 @@ class FBASGraph:
             validator_id = v_data["id"]
             attrs = v_data.get("attrs", {})
 
-            # Validate that threshold is not in attrs
-            if "threshold" in attrs:
-                logging.warning(
-                    "Removing 'threshold' from validator %s attributes",
-                    validator_id)
-                attrs = attrs.copy()
-                del attrs["threshold"]
-
             fbas.add_validator(validator_id)
             if attrs:
                 fbas.graph.nodes[validator_id].update(attrs)
@@ -932,31 +924,10 @@ class FBASGraph:
                     "Skipping qset %s with threshold > members count", qset_id)
                 continue
 
-            # Check for self-referencing qset
-            if qset_id in members:
-                logging.warning(
-                    "Skipping qset %s that references itself", qset_id)
-                continue
-
             # Add qset node
             fbas.graph.add_node(qset_id, threshold=threshold)
 
-            # Add edges to members (ensure all members exist first)
-            for member in members:
-                if member not in fbas.validators and member not in data["qsets"]:
-                    logging.warning(
-                        "Qset %s references unknown member %s", qset_id, member)
-                    continue
-                fbas.graph.add_edge(qset_id, member)
-
-            # Compute and store the QSet
-            try:
-                fbas.qsets[qset_id] = fbas.compute_qset(qset_id)
-            except Exception as e:
-                logging.warning(
-                    "Failed to compute qset for %s: %s", qset_id, e)
-
-        # Third pass: connect validators to their qsets
+        # Third pass: add the edges
         for v_data in data["validators"]:
             if "id" not in v_data:
                 continue
@@ -966,6 +937,23 @@ class FBASGraph:
 
             if qset_id and qset_id in fbas.graph:
                 fbas.graph.add_edge(validator_id, qset_id)
+
+        for qset_id, qset_data in data["qsets"].items():
+            for member in qset_data.get("members", []):
+                if member in fbas.graph:
+                    # Add edge from qset to its members
+                    fbas.graph.add_edge(qset_id, member)
+                else:
+                    logging.warning(
+                        "Member %s of qset %s not found in graph", member, qset_id)
+
+        # Populate qsets dict (TODO probably not needed)
+        for qset_id in data["qsets"].keys():
+            try:
+                fbas.qsets[qset_id] = fbas.compute_qset(qset_id)
+            except Exception as e:
+                logging.warning(
+                    "Failed to compute qset for %s: %s", qset_id, e)
 
         fbas.check_integrity()
         return fbas
