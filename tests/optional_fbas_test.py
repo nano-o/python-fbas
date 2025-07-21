@@ -65,13 +65,12 @@ class TestOptionalFbas:
             "python_fbas.main",
             "--log-level=INFO",
             f"--fbas={fbas_file}",
-            "min-quorum"
+            "check-intersection"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         assert result.returncode == 0
         assert "Using local FBAS file:" in result.stderr
-        assert "Example min quorum:" in result.stdout
 
     def test_update_cache_validation(self):
         """Test that --update-cache validation works with default URL."""

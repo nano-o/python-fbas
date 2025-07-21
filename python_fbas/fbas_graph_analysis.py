@@ -629,6 +629,9 @@ def find_min_quorum(
     then run the tests.
     """
 
+    # raise an error because there is a known bug:
+    raise NotImplementedError("This function is currently not working correctly.")
+
     if not HAS_QBF:
         raise ImportError(
             "QBF support not available. Install with: pip install python-fbas[qbf]")
@@ -709,7 +712,9 @@ def find_min_quorum(
 
 def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collection[str]:
     """
-    Compute the top tier of the FBAS graph, i.e. the union of all minimal quorums.
+    Compute the top tier of the FBAS graph.  This is supposed to be the union of
+    all minimal quorums, but for now we just return a maximal strongly-connected
+    component that contains a quorum.
     """
 
     if from_validator:
@@ -725,18 +730,20 @@ def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collec
     if not sccs:
         return []
     scc = set(sccs[0])
-    fbas = fbas.project(scc & fbas.validators)
+    return {v for v in scc if v in fbas.validators}
 
-    top_tier_set: set[str] = set()
-    while True:
-        q = find_min_quorum(
-            fbas,
-            not_subset_of=top_tier_set,
-            project_on_scc=False)
-        if not q:
-            break
-        top_tier_set |= set(q)
-    return top_tier_set
+    # fbas = fbas.project(scc & fbas.validators)
+
+    # top_tier_set: set[str] = set()
+    # while True:
+    #     q = find_min_quorum(
+    #         fbas,
+    #         not_subset_of=top_tier_set,
+    #         project_on_scc=False)
+    #     if not q:
+    #         break
+    #     top_tier_set |= set(q)
+    # return top_tier_set
 
 
 def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:

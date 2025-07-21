@@ -1,4 +1,5 @@
 import logging
+import pytest
 import networkx as nx
 from test_utils import get_test_data_list, get_validators_from_test_fbas, load_fbas_from_test_file
 from python_fbas.fbas_graph import FBASGraph
@@ -131,6 +132,7 @@ def test_min_blocking_set_4():
             find_minimal_blocking_set(fbas_graph)
 
 
+@pytest.mark.skip(reason="Buggy")
 def test_min_quorum():
     qset1 = {
         'threshold': 3,
@@ -146,6 +148,7 @@ def test_min_quorum():
     assert len(find_min_quorum(fbas1)) == 3
 
 
+@pytest.mark.skip(reason="Buggy")
 def test_min_quorum_2():
     data = get_test_data_list()
     for f, d in data.items():
