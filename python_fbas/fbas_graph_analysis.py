@@ -373,11 +373,7 @@ def find_minimal_splitting_set(
                 quorum_b=q2)
 
 
-def max_scc(fbas: FBASGraph) -> Collection[str]:
-    """
-    Compute a maximal strongly-connected component that contains a quorum
-    """
-
+def sccs_including_quorum(fbas: FBASGraph) -> list[Collection[str]]:
     # First, find all sccs that contain at least one quorum:
     sccs = [scc for scc in nx.strongly_connected_components(fbas.graph)
             if any(fbas.threshold(v) > 0 for v in set(scc))]
@@ -391,8 +387,18 @@ def max_scc(fbas: FBASGraph) -> Collection[str]:
         logging.warning("There are disjoint quorums")
     if len(sccs) == 0:
         logging.warning("Found no SCC that contains a quorum. This is due to validators for which we do not have a qset.")
-        return []
-    return {v for v in sccs[0] if v in fbas.validators}
+    return sccs
+
+
+def max_scc(fbas: FBASGraph) -> Collection[str]:
+    """
+    Compute a maximal strongly-connected component that contains a quorum
+    """
+    sccs = sccs_including_quorum(fbas)
+    if sccs:
+        return {v for v in sccs[0] if v in fbas.validators}
+    else:
+        return {}
 
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
@@ -613,25 +619,30 @@ def find_min_quorum(
         fbas: FBASGraph,
         *,
         not_subset_of: Optional[Collection[str]] = None,
-        restrict_to_scc: bool = True) -> Collection[str]:
+        project_on_scc: bool = True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
     set of validators, then the quorum should contain at least one validator
     outside this set.
+
+    TODO: this is buggy... try with project_on_scc=False using pubnet_observer.json from-validator GAGLRZGH3NKNOTIMHDUR7SASUU7CHSHFTLSQETOSRFVCWRRHD7OCTKKX
+    I think there is a subtle and wrong interaction between quantifiers and (a) tseitin variables and (b) the totalizer encoding.
     """
 
     if not HAS_QBF:
         raise ImportError(
             "QBF support not available. Install with: pip install python-fbas[qbf]")
 
-    if restrict_to_scc:
-        scc = set(max_scc(fbas))
-        if not scc:
+    if project_on_scc:
+        sccs = sccs_including_quorum(fbas)
+        if not sccs:
             return []
-        fbas = fbas.project(scc & fbas.validators)
+        if len(sccs) == 1:
+            scc = set(sccs[0])
+            fbas = fbas.project(scc & fbas.validators)
 
     if not fbas.validators:
-        logging.info("The projected FBAS is empty!")
+        logging.info("The FBAS has no validators!")
         return []
 
     quorum_a_tagger = Tagger("quorum_A")
@@ -643,15 +654,8 @@ def find_min_quorum(
     def in_quorum_b(v: Any) -> Atom:
         return quorum_b_tagger.atom(v)
 
-    def quorum_constraints_(make_atom: Callable[[Any], Atom]) -> list[Formula]:
-        constraints: list[Formula] = []
-        constraints += [Or(*[make_atom(n)
-                           for n in fbas.validators if fbas.threshold(n) > 0])]
-        constraints += quorum_constraints(fbas, make_atom)
-        return constraints
-
     # The set 'A' is a quorum in the scc:
-    qa_constraints: list[Formula] = quorum_constraints_(in_quorum_a)
+    qa_constraints: list[Formula] = quorum_constraints(fbas, in_quorum_a)
 
     # it contains at least one validator outside not_subset_of:
     if not_subset_of:
@@ -659,7 +663,7 @@ def find_min_quorum(
                               for n in fbas.validators if n not in not_subset_of])]
 
     # If 'B' is a subset of 'A', then 'B' is not a quorum:
-    qb_quorum = And(*quorum_constraints_(in_quorum_b))
+    qb_quorum = And(*quorum_constraints(fbas, in_quorum_b))
     qb_subset_qa = And(
         *[Implies(in_quorum_b(n),
                   in_quorum_a(n)) for n in fbas.validators])
@@ -690,9 +694,7 @@ def find_min_quorum(
         assert fbas.is_quorum(qa, over_approximate=True)
         if not_subset_of:
             assert not set(qa) <= set(not_subset_of)
-            if fbas.is_quorum(not_subset_of, over_approximate=False):
-                assert not set(not_subset_of) <= set(qa)  # TODO why this?
-        logging.info("Minimal quorum found: %s", qa)
+        logging.info("Minimal quorum found: %s",  [fbas.format_validator(v) for v in qa])
         return qa
     else:
         logging.info("No minimal quorum found!")
@@ -709,9 +711,14 @@ def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collec
             raise ValueError(f"{from_validator} is not a known validator")
         fbas = fbas.restrict_to_reachable(from_validator)
 
-    scc = set(max_scc(fbas))
-    if not scc:
+    if find_disjoint_quorums(fbas):
+        logging.warning("The FBAS contains disjoint quorums")
         return []
+
+    sccs = sccs_including_quorum(fbas)
+    if not sccs:
+        return []
+    scc = set(sccs[0])
     fbas = fbas.project(scc & fbas.validators)
 
     top_tier_set: set[str] = set()
@@ -719,7 +726,7 @@ def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collec
         q = find_min_quorum(
             fbas,
             not_subset_of=top_tier_set,
-            restrict_to_scc=False)
+            project_on_scc=False)
         if not q:
             break
         top_tier_set |= set(q)
