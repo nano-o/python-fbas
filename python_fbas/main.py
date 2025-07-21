@@ -26,7 +26,7 @@ def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
 
 def _load_fbas_graph(args: Any) -> FBASGraph:
     cfg = get_config()
-    
+
     # Determine data source
     if args.fbas:
         # User specified --fbas
@@ -37,7 +37,8 @@ def _load_fbas_graph(args: Any) -> FBASGraph:
             if update_cache:
                 print("Forcing cache update...")
             try:
-                return FBASGraph.from_json(get_pubnet_config(update=update_cache, url=args.fbas))
+                return FBASGraph.from_json(get_pubnet_config(
+                    update=update_cache, url=args.fbas))
             except (ValueError, IOError) as e:
                 print(f"Error: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -50,7 +51,9 @@ def _load_fbas_graph(args: Any) -> FBASGraph:
                 print(f"Error: File not found: {args.fbas}", file=sys.stderr)
                 sys.exit(1)
             except Exception as e:
-                print(f"Error: Could not load file {args.fbas}: {e}", file=sys.stderr)
+                print(
+                    f"Error: Could not load file {args.fbas}: {e}",
+                    file=sys.stderr)
                 sys.exit(1)
     else:
         # Use default URL from config
@@ -72,9 +75,10 @@ def _format_validators(fbas: FBASGraph, vs: Collection[str]) -> list[str]:
 
 def _command_update_cache(args: Any) -> None:
     cfg = get_config()
-    
+
     # Determine which URL to update cache for
-    if args.fbas and (args.fbas.startswith('http://') or args.fbas.startswith('https://')):
+    if args.fbas and (args.fbas.startswith('http://')
+                      or args.fbas.startswith('https://')):
         # Update cache for specific URL
         url = args.fbas
         try:
@@ -85,7 +89,9 @@ def _command_update_cache(args: Any) -> None:
             sys.exit(1)
     elif args.fbas:
         # Invalid: trying to update cache for a file
-        print("Error: Cannot update cache for local files. Cache updates only work with URLs.", file=sys.stderr)
+        print(
+            "Error: Cannot update cache for local files. Cache updates only work with URLs.",
+            file=sys.stderr)
         sys.exit(1)
     else:
         # Update cache for default URL
@@ -107,7 +113,9 @@ def _command_show_config(args: Any) -> None:
 def _command_check_intersection(args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     if cfg.group_by:
-        print("Error: --group-by cannot be used with check-intersection", file=sys.stderr)
+        print(
+            "Error: --group-by cannot be used with check-intersection",
+            file=sys.stderr)
         sys.exit(1)
     if args.fast:
         fast_result = fbas.fast_intersection_check()
@@ -146,12 +154,15 @@ def _command_min_blocking_set(_args: Any, fbas: FBASGraph) -> None:
 def _command_history_loss(_args: Any, fbas: FBASGraph) -> None:
     cfg = get_config()
     if cfg.group_by:
-        print("Error: --group-by cannot be used with history-loss", file=sys.stderr)
+        print(
+            "Error: --group-by cannot be used with history-loss",
+            file=sys.stderr)
         sys.exit(1)
     result = min_history_loss_critical_set(fbas)
     print(
         f"Minimal history-loss critical set cardinality is: {len(result.min_critical_set)}")
-    print(f"Example min critical set:\n{_format_validators(fbas, result.min_critical_set)}")
+    print(
+        f"Example min critical set:\n{_format_validators(fbas, result.min_critical_set)}")
     print(
         f"Corresponding history-less quorum:\n {_format_validators(fbas, result.quorum)}")
 
@@ -174,6 +185,19 @@ def _command_max_scc(_args: Any, fbas: FBASGraph) -> None:
         sys.exit(1)
     result = max_scc(fbas)
     print(f"Maximal SCC with a quorum: {_format_validators(fbas, result)}")
+
+
+def _command_to_json(args: Any, fbas: FBASGraph) -> None:
+    """Convert the loaded FBAS to JSON format and print to stdout."""
+    if args.format == 'python-fbas':
+        print(fbas.to_json())
+    elif args.format == 'stellarbeat':
+        print(fbas.to_json_stellarbeat())
+    else:
+        print(
+            f"Error: Unknown format '{args.format}'. Must be 'python-fbas' or 'stellarbeat'",
+            file=sys.stderr)
+        sys.exit(1)
 
 
 def main() -> None:
@@ -285,12 +309,23 @@ def main() -> None:
         'max-scc', help="Find a maximal strongly-connected component of the FBAS that contains a quorum")
     parser_max_scc.set_defaults(func=_command_max_scc)
 
+    parser_to_json = subparsers.add_parser(
+        'to-json', help="Convert the loaded FBAS to JSON format and print to stdout")
+    parser_to_json.add_argument(
+        '--format',
+        default='python-fbas',
+        choices=['python-fbas', 'stellarbeat'],
+        help="Output format: 'python-fbas' (default) or 'stellarbeat'")
+    parser_to_json.set_defaults(func=_command_to_json)
+
     args = parser.parse_args()
 
     # Set log level early
     debug_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
     if args.log_level not in debug_levels:
-        print(f"Error: Log level must be one of {debug_levels}", file=sys.stderr)
+        print(
+            f"Error: Log level must be one of {debug_levels}",
+            file=sys.stderr)
         sys.exit(1)
     logging.getLogger().setLevel(args.log_level)
 
@@ -303,8 +338,9 @@ def main() -> None:
 
     # CLI arguments override config file settings
     config_kwargs = {}
-    
-    # Only set CLI values that are not defaults (to preserve config file values)
+
+    # Only set CLI values that are not defaults (to preserve config file
+    # values)
     if args.output_problem is not None:
         config_kwargs['output'] = args.output_problem
     if args.cardinality_encoding != 'totalizer':  # default value
@@ -317,9 +353,10 @@ def main() -> None:
         config_kwargs['max_sat_algo'] = args.max_sat_algo
     if args.validator_display != 'both':  # default value
         config_kwargs['validator_display'] = args.validator_display
-    if args.fbas and (args.fbas.startswith('http://') or args.fbas.startswith('https://')):
+    if args.fbas and (args.fbas.startswith('http://')
+                      or args.fbas.startswith('https://')):
         config_kwargs['stellar_data_url'] = args.fbas
-    
+
     if config_kwargs:
         update_config(**config_kwargs)
     cfg = get_config()
@@ -331,7 +368,9 @@ def main() -> None:
 
     # Validate configuration for commands that need it
     if cfg.card_encoding not in ['naive', 'totalizer']:
-        print("Error: Cardinality encoding must be either 'naive' or 'totalizer'", file=sys.stderr)
+        print(
+            "Error: Cardinality encoding must be either 'naive' or 'totalizer'",
+            file=sys.stderr)
         sys.exit(1)
 
     if cfg.sat_solver not in solvers:
@@ -339,7 +378,9 @@ def main() -> None:
         sys.exit(1)
 
     if cfg.max_sat_algo not in ['LSU', 'RC2']:
-        print("Error: MaxSAT algorithm must be either 'LSU' or 'RC2'", file=sys.stderr)
+        print(
+            "Error: MaxSAT algorithm must be either 'LSU' or 'RC2'",
+            file=sys.stderr)
         sys.exit(1)
 
     # Validate that --update-cache is only used with URLs
@@ -347,13 +388,16 @@ def main() -> None:
         cfg = get_config()
         # Check if using URL (either from --fbas or default)
         using_url = False
-        if args.fbas and (args.fbas.startswith('http://') or args.fbas.startswith('https://')):
+        if args.fbas and (args.fbas.startswith('http://')
+                          or args.fbas.startswith('https://')):
             using_url = True
         elif not args.fbas and cfg.stellar_data_url.startswith('http'):
             using_url = True
-        
+
         if not using_url:
-            print("Error: --update-cache can only be used with URLs", file=sys.stderr)
+            print(
+                "Error: --update-cache can only be used with URLs",
+                file=sys.stderr)
             sys.exit(1)
 
     fbas = _load_fbas_graph(args)

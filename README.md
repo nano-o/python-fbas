@@ -119,6 +119,12 @@ python-fbas history-loss
 ```
 *Finds validators that could cause history loss if they stop publishing valid history archives*
 
+**Export FBAS to JSON:**
+```bash
+python-fbas to-json
+```
+*Converts the loaded FBAS to JSON format (see [Export to JSON](#export-to-json) section for format options)*
+
 ### Options
 
 **Group validators by attribute:**
@@ -226,3 +232,28 @@ python-fbas update-cache
 python-fbas --fbas=https://api.stellaratlas.io/v1/node update-cache
 ```
 *Updates cached Stellar network data. Useful when you want fresh data without waiting for automatic cache invalidation.*
+
+### Data formats
+
+python-fbas can read FBAS data in two formats:
+
+**Stellarbeat format** (traditional): A JSON array of validator objects, each containing a `publicKey` and optional `quorumSet`. This is the format used by stellarbeat.io and similar network explorers.
+
+**Python-fbas format** (efficient): A JSON object with separate `validators` and `qsets` sections. This format is more compact and efficient for large networks as it avoids duplicating identical quorum sets.
+
+python-fbas automatically detects the input format when loading data.
+
+### Export to JSON
+
+**Convert loaded FBAS to JSON:**
+```bash
+# Export in python-fbas format (default)
+python-fbas --fbas=tests/test_data/small/circular_1.json to-json
+
+# Export in stellarbeat format
+python-fbas --fbas=tests/test_data/small/circular_1.json to-json --format=stellarbeat
+
+# Export current Stellar network in stellarbeat format
+python-fbas to-json --format=stellarbeat
+```
+*Converts the loaded FBAS to JSON format and prints to stdout. Useful for format conversion or creating snapshots of network data.*
