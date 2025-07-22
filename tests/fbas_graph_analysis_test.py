@@ -56,17 +56,12 @@ def test_qi_all():
 
 
 def test_min_splitting_set_1():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     assert len(find_minimal_splitting_set(
         fbas1).splitting_set) == 2  # type: ignore
     fbas2 = load_fbas_from_test_file('circular_1.json')
@@ -77,17 +72,12 @@ def test_min_splitting_set_1():
 
 
 def test_min_splitting_set_2():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     assert len(find_minimal_splitting_set(
         fbas1).splitting_set) == 2  # type: ignore
     fbas2 = load_fbas_from_test_file('circular_1.json')
@@ -107,17 +97,12 @@ def test_min_splitting_set():
 
 
 def test_min_blocking_set_3():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     with config.temporary_config(card_encoding='totalizer', max_sat_algo='RC2'):
         b = find_minimal_blocking_set(fbas1)
         assert len(b) == 2  # type: ignore
@@ -134,17 +119,12 @@ def test_min_blocking_set_4():
 
 @pytest.mark.skip(reason="Buggy")
 def test_min_quorum():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     assert len(find_min_quorum(fbas1)) == 3
 
 
@@ -162,17 +142,12 @@ def test_min_quorum_2():
 
 
 def test_contains_quorum():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     assert contains_quorum({'PK1', 'PK2', 'PK3', 'PK4'}, fbas1)
     assert contains_quorum({'PK1', 'PK3', 'PK4'}, fbas1)
     assert not contains_quorum({'PK1', 'PK2'}, fbas1)
@@ -188,17 +163,12 @@ def test_contains_quorum():
 
 def test_top_tier():
     if HAS_QBF:
-        qset1 = {
-            'threshold': 3,
-            'validators': [
-                'PK1',
-                'PK2',
-                'PK3',
-                'PK4'],
-            'innerQuorumSets': []}
         fbas1 = FBASGraph()
         for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
-            fbas1.update_validator(v, qset1)
+            fbas1.add_validator(v)
+        qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+        for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
+            fbas1.update_validator(v, qset1_id)
         assert top_tier(fbas1) == {'PK1', 'PK2', 'PK3', 'PK4'}
 
 
@@ -219,22 +189,22 @@ def test_top_tier_from_validator():
     if HAS_QBF:
         # Create a more complex FBAS with multiple validators to test
         # restriction
-        qset1 = {
-            'threshold': 2,
-            'validators': ['PK1', 'PK2', 'PK3'],
-            'innerQuorumSets': []}
-        qset2 = {
-            'threshold': 2,
-            'validators': ['PK4', 'PK5', 'PK6'],
-            'innerQuorumSets': []}
-
         fbas = FBASGraph()
+        # Add all validators first
+        for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5', 'PK6']:
+            fbas.add_validator(v)
+        
+        # Create first qset
+        qset1_id = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='qset1')
+        # Create second qset  
+        qset2_id = fbas.add_qset(threshold=2, members=['PK4', 'PK5', 'PK6'], qset_id='qset2')
+
         # Add first group
         for v in ['PK1', 'PK2', 'PK3']:
-            fbas.update_validator(v, qset1)
+            fbas.update_validator(v, qset1_id)
         # Add second group that references first group
         for v in ['PK4', 'PK5', 'PK6']:
-            fbas.update_validator(v, qset2)
+            fbas.update_validator(v, qset2_id)
 
         # Test top tier from specific validator
         # When we restrict from PK1, we should get validators reachable from
@@ -250,17 +220,12 @@ def test_top_tier_from_validator():
 
 
 def test_is_overlay_resilient():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     g1 = nx.complete_graph(iter(['PK1', 'PK2', 'PK3', 'PK4']))
     assert is_overlay_resilient(fbas1, g1)
     g2 = nx.Graph()
@@ -278,17 +243,12 @@ def test_is_overlay_resilient():
 
 
 def test_num_not_blocked():
-    qset1 = {
-        'threshold': 3,
-        'validators': [
-            'PK1',
-            'PK2',
-            'PK3',
-            'PK4'],
-        'innerQuorumSets': []}
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
-        fbas1.update_validator(v, qset1)
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=3, members=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+    for v in ['PK1', 'PK2', 'PK3', 'PK4']:
+        fbas1.update_validator(v, qset1_id)
     g1 = nx.complete_graph(iter(['PK1', 'PK2', 'PK3', 'PK4']))
     assert num_not_blocked(fbas1, g1) == 0
     g2 = nx.Graph()

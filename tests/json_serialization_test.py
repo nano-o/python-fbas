@@ -23,11 +23,8 @@ class TestJSONSerialization:
         fbas.graph.nodes['v1']['homeDomain'] = 'example.com'
 
         # Add qset
-        qset_data = {
-            'threshold': 1,
-            'validators': ['v2'],
-            'innerQuorumSets': []}
-        fbas.update_validator('v1', qset_data)
+        qset_id = fbas.add_qset(threshold=1, members=['v2'], qset_id='qset1')
+        fbas.update_validator('v1', qset_id)
 
         json_str = fbas.to_json()
 
@@ -79,23 +76,12 @@ class TestJSONSerialization:
             fbas_original.graph.nodes[f'v{i}']['homeDomain'] = f'domain{i}.com'
 
         # Create complex qsets with inner quorum sets
-        inner_qset = {
-            'threshold': 2,
-            'validators': [
-                'v3',
-                'v4'],
-            'innerQuorumSets': []}
-        main_qset = {
-            'threshold': 2,
-            'validators': ['v1'],
-            'innerQuorumSets': [inner_qset]}
-        fbas_original.update_validator('v0', main_qset)
+        inner_qset_id = fbas_original.add_qset(threshold=2, members=['v3', 'v4'], qset_id='inner_qset')
+        main_qset_id = fbas_original.add_qset(threshold=2, members=['v1', 'inner_qset'], qset_id='main_qset')
+        fbas_original.update_validator('v0', main_qset_id)
 
-        simple_qset = {
-            'threshold': 1,
-            'validators': ['v0'],
-            'innerQuorumSets': []}
-        fbas_original.update_validator('v2', simple_qset)
+        simple_qset_id = fbas_original.add_qset(threshold=1, members=['v0'], qset_id='simple_qset')
+        fbas_original.update_validator('v2', simple_qset_id)
 
         # Round trip
         json_str = fbas_original.to_json()
@@ -103,7 +89,6 @@ class TestJSONSerialization:
 
         # Verify consistency
         assert fbas_original.validators == fbas_restored.validators
-        assert len(fbas_original.qsets) == len(fbas_restored.qsets)
 
         # Check qsets match
         for v in fbas_original.validators:
@@ -280,7 +265,6 @@ class TestFileBasedSerialization:
 
             # Should be equivalent
             assert fbas_stellarbeat.validators == fbas_python_fbas.validators
-            assert len(fbas_stellarbeat.qsets) == len(fbas_python_fbas.qsets)
 
             # Check qsets are equivalent
             for v in fbas_stellarbeat.validators:
@@ -307,13 +291,7 @@ class TestUUIDGeneration:
             # Create different qsets by varying validator combinations
             # [v1], [v1,v2], etc.
             validators = [f'v{j+1}' for j in range(i + 1)]
-            qset_data = {
-                # Threshold matches validator count
-                'threshold': len(validators),
-                'validators': validators,
-                'innerQuorumSets': []
-            }
-            qset_id = fbas.add_qset(qset_data)
+            qset_id = fbas.add_qset(threshold=len(validators), members=validators)
             assert qset_id.startswith('_q')
             assert len(qset_id) == 34  # _q + 32 hex chars
             qset_ids.add(qset_id)
@@ -400,12 +378,8 @@ class TestUUIDGeneration:
         fbas1.add_validator('v3')
 
         # Create qsets using add_qset (will generate UUIDs)
-        qset1 = {
-            'threshold': 2,
-            'validators': ['v2', 'v3'],
-            'innerQuorumSets': []
-        }
-        fbas1.update_validator('v1', qset1)
+        qset1_id = fbas1.add_qset(threshold=2, members=['v2', 'v3'])
+        fbas1.update_validator('v1', qset1_id)
 
         # Get the generated qset ID
         qset_id = list(fbas1.graph.successors('v1'))[0]
@@ -439,12 +413,8 @@ class TestStellarBeatSerialization:
         fbas.graph.nodes['V1']['homeDomain'] = 'example.com'
 
         # Add qset
-        qset_data = {
-            'threshold': 2,
-            'validators': ['V2', 'V3'],
-            'innerQuorumSets': []
-        }
-        fbas.update_validator('V1', qset_data)
+        qset_id = fbas.add_qset(threshold=2, members=['V2', 'V3'], qset_id='qset1')
+        fbas.update_validator('V1', qset_id)
 
         # Serialize to stellarbeat format
         json_str = fbas.to_json_stellarbeat()
@@ -638,7 +608,6 @@ class TestPubnetRoundTrip:
 
         # Verify the graphs are equivalent
         assert fbas_original.validators == fbas_restored.validators
-        assert len(fbas_original.qsets) == len(fbas_restored.qsets)
 
         # Check that all validators have the same qsets
         validators_checked = 0
@@ -691,7 +660,7 @@ class TestEdgeCases:
     """Test edge cases and error conditions."""
 
     def test_self_referencing_qset_skipped(self):
-        """Test that self-referencing qsets are skipped during deserialization."""
+        """Test that self-referencing qsets cause an error."""
         json_data = {
             "validators": [
                 {"id": "v1", "qset": "q1", "attrs": {}},
@@ -702,13 +671,9 @@ class TestEdgeCases:
             }
         }
 
-        # Should not raise an error, but should skip the self-referencing qset
-        fbas = FBASGraph.from_json_python_fbas(json.dumps(json_data))
-
-        # Validator should exist but have no qset connection
-        assert "v1" in fbas.validators
-        assert "q1" not in fbas.graph.nodes  # qset should be skipped
-        assert fbas.qset_of("v1") is None
+        # An assert should fail here because self-referencing qsets are not allowed
+        with pytest.raises(Exception):
+            FBASGraph.from_json_python_fbas(json.dumps(json_data))
 
     def test_empty_fbas_serialization(self):
         """Test serialization of empty FBAS."""
@@ -765,20 +730,11 @@ class TestEdgeCases:
         fbas.add_validator('v4')
 
         # Create deeply nested qsets
-        inner_inner = {
-            'threshold': 1,
-            'validators': ['v4'],
-            'innerQuorumSets': []}
-        inner = {
-            'threshold': 1,
-            'validators': ['v3'],
-            'innerQuorumSets': [inner_inner]}
-        outer = {
-            'threshold': 2,
-            'validators': ['v2'],
-            'innerQuorumSets': [inner]}
+        inner_inner_id = fbas.add_qset(threshold=1, members=['v4'], qset_id='inner_inner')
+        inner_id = fbas.add_qset(threshold=1, members=['v3', 'inner_inner'], qset_id='inner')
+        outer_id = fbas.add_qset(threshold=2, members=['v2', 'inner'], qset_id='outer')
 
-        fbas.update_validator('v1', outer)
+        fbas.update_validator('v1', outer_id)
 
         # Round trip
         json_str = fbas.to_json()

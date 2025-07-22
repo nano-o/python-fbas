@@ -83,18 +83,15 @@ class FBASGraph:
     # only a subset of the vertices in the graph represent validators:
     validators: set[str]
     # maps qset vertices (str) to their associated qset:
-    qsets: dict[str, QSet]  # TODO: how to keep in sync with the graph? I think this is only used when loading from JSON (or maybe in tests) so we should make it private to that method.
 
     def __init__(self) -> None:
         self.graph = nx.DiGraph()
         self.validators = set()
-        self.qsets = dict()
 
     def __copy__(self) -> 'FBASGraph':
         fbas = FBASGraph()
         fbas.graph = nx.DiGraph(self.graph)
         fbas.validators = self.validators.copy()
-        fbas.qsets = self.qsets.copy()
         return fbas
 
     def vertices(self, data: bool = False) -> NodeView:
@@ -132,12 +129,34 @@ class FBASGraph:
                 if self.graph.out_degree(n) == 1:
                     assert next(
                         self.graph.successors(n)) not in self.validators
-            else:
-                assert n in self.qsets.keys()
-                assert self.qsets[n] == self.compute_qset(n)
             if n in self.graph.successors(n):
                 raise ValueError(
                     f"Integrity check failed: vertex {n} has a self-loop")
+
+        # Check that qset vertices are not reachable from themselves without 
+        # passing through a validator vertex
+        qset_vertices = [q for q in self.graph.nodes()
+                         if q not in self.validators]
+        qset_only_graph = self.graph.subgraph(qset_vertices)
+        for q in qset_vertices:
+            # Check if there's a path from q back to itself using only qset vertices
+            # We need to check if any successor of q can eventually reach q
+            if any(nx.has_path(qset_only_graph, successor, q) for successor in qset_only_graph.successors(q)):
+                raise ValueError(
+                    f"Integrity check failed: qset vertex {q} is reachable from itself without passing through a validator vertex")
+
+        # Check for duplicate qsets (same threshold and same successors)
+        qset_signatures = {}
+        for q in qset_vertices:
+            threshold = self.threshold(q)
+            successors = tuple(sorted(self.graph.successors(q)))
+            signature = (threshold, successors)
+            
+            if signature in qset_signatures:
+                raise ValueError(
+                    f"Integrity check failed: duplicate qsets found with same threshold {threshold} "
+                    f"and members {list(successors)}: {qset_signatures[signature]} and {q}")
+            qset_signatures[signature] = q
 
     def format_validator(self, validator_id: str) -> str:
         """
@@ -157,14 +176,86 @@ class FBASGraph:
             return f"{validator_id} ({name})"
         return validator_id
 
-    def add_validator(self, v: Any) -> None:
+    def add_validator(self, v: str) -> None:
         """Add a validator to the graph."""
         self.graph.add_node(v)
         self.validators.add(v)
 
-    def update_validator(self, v: Any, qset: Optional[Dict[str, Any]] = None,
+    def update_validator(self, v: str, qset: str) -> None:
+        # first remove all existing edges from v:
+        if v in self.validators:
+            out_edges = list(self.graph.out_edges(v))
+            self.graph.remove_edges_from(out_edges)
+        # then add the new qset:
+        self.graph.add_edge(v, qset)
+
+    def add_qset(self, threshold: int, members: list[str], qset_id: Optional[str] = None) -> str:
+        """
+        Add a quorum set vertex to the graph. If a qset with the same threshold 
+        and members already exists, returns the existing qset's ID instead of creating a duplicate.
+
+        Args:
+            threshold: The threshold for the quorum set
+            members: List of vertex IDs (validators or other qset vertices) that are members
+            qset_id: Optional ID for the qset vertex. If not provided, a UUID-based ID will be generated.
+                    If provided but a duplicate qset exists, a warning is emitted.
+
+        Returns:
+            The ID of the qset vertex (either existing or newly created)
+        """
+        # Validate inputs
+        if threshold < 0:
+            raise ValueError(f"Threshold must be non-negative, got {threshold}")
+        if threshold > len(members):
+            raise ValueError(f"Threshold {threshold} cannot exceed number of members {len(members)}")
+
+        # Validate that all members exist in the graph
+        for member in members:
+            if member not in self.graph:
+                raise ValueError(f"Member {member} does not exist in the graph")
+
+        # Check for existing qset with same threshold and members
+        members_set = set(members)
+        qset_nodes = [q for q in self.graph.nodes() if q not in self.validators]
+        
+        for existing_qset_id in qset_nodes:
+            if (self.threshold(existing_qset_id) == threshold and 
+                set(self.graph.successors(existing_qset_id)) == members_set):
+                
+                # Found a duplicate - warn if qset_id was provided
+                if qset_id is not None:
+                    logging.warning(
+                        "Qset with threshold %d and members %s already exists as %s. "
+                        "Returning existing qset instead of creating new one with ID %s.",
+                        threshold, sorted(members), existing_qset_id, qset_id)
+                
+                return existing_qset_id
+
+        # No duplicate found, create new qset
+        # Create qset ID if not provided
+        if qset_id is None:
+            qset_id = "_q" + uuid.uuid4().hex
+        else:
+            # Validate that the ID doesn't already exist
+            if qset_id in self.graph:
+                raise ValueError(f"Vertex with ID {qset_id} already exists in the graph")
+            # Validate that it's not in the validators set
+            if qset_id in self.validators:
+                raise ValueError(f"ID {qset_id} is already used by a validator")
+
+        # Create the qset vertex
+        self.graph.add_node(qset_id, threshold=threshold)
+
+        # Add edges to all members
+        for member in members:
+            self.graph.add_edge(qset_id, member)
+
+        return qset_id
+
+    def _update_validator_from_json(self, v: Any, qsets_dict: dict[str, QSet], qset: Optional[Dict[str, Any]] = None,
                          attrs: Optional[Dict[str, Any]] = None) -> None:
         """
+        Private method for loading validators from JSON format.
         Add the validator v to the graph if it does not exist, using the
         supplied qset and attributes. Otherwise:
             - Update its attributes with attrs (existing attributes not in attrs
@@ -184,7 +275,7 @@ class FBASGraph:
         self.validators.add(v)
         if qset:
             try:
-                fqs = self.add_qset(qset)
+                fqs = self._add_qset_from_json(qset, qsets_dict)
             except ValueError as e:
                 logging.info(
                     "Failed to add qset for validator %s: %s. Qset data: %s", v, e, qset)
@@ -193,21 +284,22 @@ class FBASGraph:
             self.graph.remove_edges_from(out_edges)
             self.graph.add_edge(v, fqs)
 
-    def add_qset(self, qset: Dict[str, Any]) -> str:
+    def _add_qset_from_json(self, qset: Dict[str, Any], qsets_dict: dict[str, QSet]) -> str:
         """
+        Private method for loading qsets from JSON format.
         Takes a qset as a JSON-serializable dict in stellarbeat.io format.
         Returns the qset if it already exists, otherwise adds it to the graph.
         """
         match qset:
             case {'threshold': t, 'validators': vs, 'innerQuorumSets': iqs}:
                 fqs = QSet.make(qset)
-                if fqs in self.qsets.values():
-                    return next(k for k, v in self.qsets.items() if v == fqs)
-                iqs_vertices = [self.add_qset(iq) for iq in iqs]
+                if fqs in qsets_dict.values():
+                    return next(k for k, v in qsets_dict.items() if v == fqs)
+                iqs_vertices = [self._add_qset_from_json(iq, qsets_dict) for iq in iqs]
                 for v in vs:
                     self.add_validator(v)
                 n = "_q" + uuid.uuid4().hex
-                self.qsets[n] = fqs
+                qsets_dict[n] = fqs
                 self.graph.add_node(n, threshold=int(t))
                 for member in set(vs) | set(iqs_vertices):
                     self.graph.add_edge(n, member)
@@ -222,6 +314,7 @@ class FBASGraph:
                     qset)
                 raise ValueError(
                     f"Invalid qset format (expected dict with threshold, validators, innerQuorumSets): {qset}")
+
 
     def __str__(self) -> str:
         def info(v: str) -> str:
@@ -345,8 +438,12 @@ class FBASGraph:
             validators.append(v)
         # now create the graph:
         fbas = FBASGraph()
+        qsets_dict: dict[str, QSet] = {}  # Local qsets dictionary for stellarbeat loading
         for v in validators:
-            fbas.update_validator(v['publicKey'], v['quorumSet'], v)
+            fbas._update_validator_from_json(v['publicKey'], qsets_dict, v['quorumSet'], v)
+        
+        # Populate the instance qsets dict for backwards compatibility
+        fbas.qsets = qsets_dict
         fbas.check_integrity()
         return fbas
 
@@ -447,7 +544,6 @@ class FBASGraph:
         fbas = copy(self)
         fbas.graph = nx.subgraph(self.graph, reachable)
         fbas.validators = reachable & self.validators
-        fbas.qsets = {k: v for k, v in self.qsets.items() if k in reachable}
         return fbas
 
     def groups_dict(self, group_by: str = 'homeDomain') -> dict[str, set[str]]:
@@ -569,88 +665,6 @@ class FBASGraph:
                 self.validators,
                 2) if v1 != v2)
 
-    def flatten_diamonds(self) -> None:
-        """
-        Identify all the "diamonds" in the graph and "flatten" them.  This
-        creates a new logical validator in place of the diamond, and a 'logical'
-        attribute set to True.  A diamond is formed by a qset vertex whose
-        children have no other parent, whose threshold is non-zero and strictly
-        greater than half, and that has a unique grandchild.  This operation
-        mutates the FBAS in place.  It preserves both quorum intersection and
-        non-intersection.
-
-        NOTE: this is complex and doesn't seem that useful.
-        """
-
-        # a counter to create fresh logical validators:
-        count = 1
-
-        def collapse_diamond(n: Any) -> bool:
-            """collapse diamonds with > 1/2 threshold"""
-            nonlocal count
-            assert n in self.vertices()
-            if not all(n in self.validators for n in self.graph.successors(n)):
-                return False
-            # condition on threshold:
-            if self.threshold(n) <= 1 or 2 * \
-                    self.threshold(n) < self.graph.out_degree(n) + 1:
-                return False
-            # n must be its children's only parent:
-            children = set(self.graph.successors(n))
-            if not all(set(self.graph.predecessors(c))
-                       == {n} for c in children):
-                return False
-            # n must have a unique grandchild:
-            grandchildren = set.union(
-                *[set(self.graph.successors(c)) for c in children])
-            if len(grandchildren) != 1:
-                return False
-            # now collpase the diamond:
-            grandchild = next(iter(grandchildren))
-            logging.debug("Collapsing diamond at: %s", n)
-            assert n not in self.validators  # canary
-            # first remove the vertex:
-            parents = list(self.graph.predecessors(n))
-            in_edges = [(p, n) for p in parents]
-            self.graph.remove_node(n)
-            # now add the new vertex:
-            new_vertex = f"_l{count}"
-            count += 1
-            self.update_validator(new_vertex, attrs={'logical': True})
-            if n != grandchild:
-                self.graph.add_edge(new_vertex, grandchild)
-            else:
-                empty = self.add_qset(
-                    {'threshold': 0, 'validators': [], 'innerQuorumSets': []})
-                self.graph.add_edge(new_vertex, empty)
-            # TODO: can't we remove the children of n?
-            # if some parents are validators, then we need to add a qset
-            # vertex:
-            if any(p in self.validators for p in parents):
-                new_qset = self.add_qset({'threshold': 1, 'validators': [
-                                         new_vertex], 'innerQuorumSets': []})
-                for e in in_edges:
-                    self.graph.add_edge(e[0], new_qset)
-            else:
-                for e in in_edges:
-                    self.graph.add_edge(e[0], new_vertex)
-            # fixup the qsets dict:
-            # TODO: not efficient, we should only update what's changed
-            for n in self.graph.nodes():
-                if n not in self.qsets:
-                    continue
-                self.qsets[n] = self.compute_qset(n)
-            return True
-
-        # now collapse vertices until nothing changes:
-        while True:
-            for n in self.vertices():
-                if collapse_diamond(n):
-                    self.check_integrity()  # canary
-                    break
-            else:
-                return
-
     def to_json(self) -> str:
         """
         Serialize the FBASGraph to python-fbas JSON format.
@@ -696,7 +710,8 @@ class FBASGraph:
 
         # Collect qset data
         qsets_data = {}
-        for qset_id in self.qsets.keys():
+        qset_nodes = [q for q in self.graph.nodes() if q not in self.validators]
+        for qset_id in qset_nodes:
             if qset_id in self.graph:
                 threshold = self.threshold(qset_id)
                 members = list(self.graph.successors(qset_id))
@@ -947,13 +962,6 @@ class FBASGraph:
                     logging.warning(
                         "Member %s of qset %s not found in graph", member, qset_id)
 
-        # Populate qsets dict (TODO probably not needed)
-        for qset_id in data["qsets"].keys():
-            try:
-                fbas.qsets[qset_id] = fbas.compute_qset(qset_id)
-            except Exception as e:
-                logging.warning(
-                    "Failed to compute qset for %s: %s", qset_id, e)
-
         fbas.check_integrity()
+
         return fbas
