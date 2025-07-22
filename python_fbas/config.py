@@ -1,3 +1,10 @@
+"""
+This module defines a (private) singleton object to hold the configuration of
+the python-fbas library.  It provides public methods to get and update the
+configuration, to load a configuration from a file, and a context manager to
+temporarily override configuration values.
+"""
+
 from dataclasses import dataclass, replace, fields
 from typing import Literal, Optional, Dict, Any
 from contextlib import contextmanager
@@ -5,9 +12,7 @@ import os
 import yaml
 import logging
 
-# ---------------------------------------------------------------------------#
-# Immutable configuration object
-# ---------------------------------------------------------------------------#
+
 @dataclass(frozen=True, slots=True)
 class Config:
     stellar_data_url: str = "https://radar.withobsrvr.com/api/v1/node"
@@ -37,7 +42,7 @@ def load_from_file(config_path: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
-    
+
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f) or {}
@@ -55,14 +60,14 @@ def to_yaml() -> str:
     Returns valid YAML that can be saved as a config file.
     """
     cfg = get()
-    
+
     # Convert dataclass to dict, excluding None values for cleaner output
     config_dict = {}
     for field in fields(cfg):
         value = getattr(cfg, field.name)
         if value is not None:
             config_dict[field.name] = value
-    
+
     # Generate YAML with comments for better user experience
     yaml_lines = [
         "# python-fbas configuration file",
@@ -70,7 +75,7 @@ def to_yaml() -> str:
         "# You can edit these values and save as python-fbas.cfg",
         "",
     ]
-    
+
     # Add sections with comments
     sections = {
         "# Data source": ["stellar_data_url"],
@@ -78,21 +83,23 @@ def to_yaml() -> str:
         "# Output settings": ["validator_display", "output"],
         "# Optional settings": ["group_by"]
     }
-    
+
     for section_comment, keys in sections.items():
         section_has_values = any(key in config_dict for key in keys)
         if section_has_values:
             yaml_lines.append(section_comment)
             for key in keys:
                 if key in config_dict:
-                    # Use yaml.dump to properly escape values, but clean up output
-                    value_yaml = yaml.dump(config_dict[key], default_flow_style=False).strip()
+                    # Use yaml.dump to properly escape values, but clean up
+                    # output
+                    value_yaml = yaml.dump(
+                        config_dict[key], default_flow_style=False).strip()
                     # Remove the trailing '...' that yaml.dump adds
                     if value_yaml.endswith('...'):
                         value_yaml = value_yaml[:-3].strip()
                     yaml_lines.append(f"{key}: {value_yaml}")
             yaml_lines.append("")
-    
+
     return "\n".join(yaml_lines)
 
 
@@ -104,7 +111,7 @@ def load_config_file(config_path: Optional[str] = None) -> None:
     3. No config file (use defaults)
     """
     config_data = {}
-    
+
     # Try explicit config path first
     if config_path:
         config_data = load_from_file(config_path)
@@ -116,24 +123,31 @@ def load_config_file(config_path: Optional[str] = None) -> None:
         else:
             logging.debug("No config file found, using defaults")
             return
-    
+
     # Validate config keys against Config dataclass fields
     valid_keys = {f.name for f in fields(Config)}
     invalid_keys = set(config_data.keys()) - valid_keys
     if invalid_keys:
         logging.warning(f"Unknown config keys ignored: {invalid_keys}")
         config_data = {k: v for k, v in config_data.items() if k in valid_keys}
-    
+
     # Validate literal types
-    if 'card_encoding' in config_data and config_data['card_encoding'] not in ['naive', 'totalizer']:
-        raise ValueError(f"Invalid card_encoding in config file: {config_data['card_encoding']}")
-    
-    if 'max_sat_algo' in config_data and config_data['max_sat_algo'] not in ['LSU', 'RC2']:
-        raise ValueError(f"Invalid max_sat_algo in config file: {config_data['max_sat_algo']}")
-    
-    if 'validator_display' in config_data and config_data['validator_display'] not in ['id', 'name', 'both']:
-        raise ValueError(f"Invalid validator_display in config file: {config_data['validator_display']}")
-    
+    if 'card_encoding' in config_data and config_data['card_encoding'] not in [
+            'naive', 'totalizer']:
+        raise ValueError(
+            f"Invalid card_encoding in config file: {config_data['card_encoding']}")
+
+    if 'max_sat_algo' in config_data and config_data['max_sat_algo'] not in [
+        'LSU',
+            'RC2']:
+        raise ValueError(
+            f"Invalid max_sat_algo in config file: {config_data['max_sat_algo']}")
+
+    if 'validator_display' in config_data and config_data['validator_display'] not in [
+            'id', 'name', 'both']:
+        raise ValueError(
+            f"Invalid validator_display in config file: {config_data['validator_display']}")
+
     # Update configuration
     update(**config_data)
 
