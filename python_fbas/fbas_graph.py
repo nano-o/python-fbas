@@ -5,9 +5,8 @@ which has a threshold attribute.
 """
 
 from copy import copy
-from dataclasses import dataclass
 from typing import Any, Literal, Optional, Dict
-from collections.abc import Collection, Set
+from collections.abc import Collection
 from itertools import chain, combinations
 import logging
 from pprint import pformat
@@ -16,18 +15,6 @@ import networkx as nx
 from networkx.classes.reportviews import NodeView
 from python_fbas.utils import powerset
 from python_fbas.config import get as get_config
-
-
-@dataclass(frozen=True)
-class QSet:
-    """
-    Represents a stellar-core quorum set in a unique, hashable way. Note that a
-    quorum set is _not_ a set of quorums.  Instead, a quorum set represents
-    agreement requirements. For quorums, see `is_quorum` in `FBASGraph`.
-    """
-    threshold: int
-    validators: Set[str]
-    inner_quorum_sets: Set['QSet']
 
 
 class FBASGraph:
@@ -42,8 +29,11 @@ class FBASGraph:
 
     A qset vertex may have any number of successors (including none), which may
     be validator or qset vertices, but which must not include itself. It must
-    have a threshold between 0 and its number of successors. The subgraph of the
-    qset vertices must be acyclic.
+    have a threshold between 0 and its number of successors.
+
+    Two important invariants are that the subgraph of the qset vertices must be
+    acyclic and that no two qset vertices may have the same threshold and same
+    outgoing edges.
     """
 
     graph: nx.DiGraph
@@ -67,7 +57,7 @@ class FBASGraph:
         return self.graph.nodes[n]
 
     def check_integrity(self) -> None:
-        """Basic integrity checks"""
+        """Basic integrity checks; raises ValueError"""
         # check that all validators are in the graph:
         if not self.validators <= self.vertices():
             missing = self.validators - self.vertices()
@@ -245,32 +235,6 @@ class FBASGraph:
         assert n in self.validators
         assert self.graph.out_degree(n) == 1
         return next(self.graph.successors(n))
-
-    def compute_qset(self, qset_vertex: str) -> QSet:
-        """
-        Recursively computes the QSet associated with the given qset vertex.
-        """
-        assert qset_vertex not in self.validators
-        threshold = self.threshold(qset_vertex)
-        # validators are the children of the qset vertex that are validators:
-        validators = frozenset(v for v in self.graph.successors(
-            qset_vertex) if v in self.validators)
-        # inner_qsets are the children of the qset vertex that are qset
-        # vertices:
-        inner_qsets = frozenset(self.compute_qset(q) for q in self.graph.successors(
-            qset_vertex) if q not in self.validators)
-        return QSet(threshold, validators, inner_qsets)
-
-    def qset_of(self, n: str) -> Optional[QSet]:
-        """
-        Computes the QSet associated with the given vertex n based on the graph (does not use the qsets dict).
-        n must be a validator vertex.
-        """
-        assert n in self.validators
-        # if n has no successors, then we don't know its qset:
-        if self.graph.out_degree(n) == 0:
-            return None
-        return self.compute_qset(self.qset_vertex_of(n))
 
     def is_qset_sat(self, q: str, s: Collection[str]) -> bool:
         """

@@ -7,7 +7,8 @@ import logging
 import pytest
 from pathlib import Path
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.serialization import FBASSerializer
+from python_fbas.serialization import detect_format, serialize, deserialize
+from python_fbas.stellarbeat_serializer import qset_of
 
 
 class TestJSONSerialization:
@@ -27,8 +28,7 @@ class TestJSONSerialization:
         qset_id = fbas.add_qset(threshold=1, members=['v2'], qset_id='qset1')
         fbas.update_validator('v1', qset_id)
 
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas, format='python-fbas')
+        json_str = serialize(fbas, format='python-fbas')
 
         # Verify it's valid JSON
         data = json.loads(json_str)
@@ -60,14 +60,13 @@ class TestJSONSerialization:
             }
         }
 
-        serializer = FBASSerializer()
-        fbas = serializer.deserialize(json.dumps(json_data))
+        fbas = deserialize(json.dumps(json_data))
 
         assert len(fbas.validators) == 2
         assert 'v1' in fbas.validators
         assert 'v2' in fbas.validators
         assert fbas.vertice_attrs('v1')['name'] == 'Validator One'
-        assert fbas.qset_of('v1').threshold == 1
+        assert qset_of(fbas, 'v1').threshold == 1
 
     def test_round_trip_consistency(self):
         """Test that serialize -> deserialize produces identical graph."""
@@ -87,17 +86,16 @@ class TestJSONSerialization:
         fbas_original.update_validator('v2', simple_qset_id)
 
         # Round trip
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas_original, format='python-fbas')
-        fbas_restored = serializer.deserialize(json_str)
+        json_str = serialize(fbas_original, format='python-fbas')
+        fbas_restored = deserialize(json_str)
 
         # Verify consistency
         assert fbas_original.validators == fbas_restored.validators
 
         # Check qsets match
         for v in fbas_original.validators:
-            original_qset = fbas_original.qset_of(v)
-            restored_qset = fbas_restored.qset_of(v)
+            original_qset = qset_of(fbas_original, v)
+            restored_qset = qset_of(fbas_restored, v)
             assert original_qset == restored_qset
 
         # Check attributes match
@@ -123,8 +121,7 @@ class TestFormatDetection:
             }
         ]
 
-        serializer = FBASSerializer()
-        assert serializer.detect_format(stellarbeat_data) == 'stellarbeat'
+        assert detect_format(stellarbeat_data) == 'stellarbeat'
 
     def test_detect_python_fbas_format(self):
         """Test detection of python-fbas format."""
@@ -133,22 +130,18 @@ class TestFormatDetection:
             "qsets": {}
         }
 
-        serializer = FBASSerializer()
-        assert serializer.detect_format(python_fbas_data) == 'python-fbas'
+        assert detect_format(python_fbas_data) == 'python-fbas'
 
     def test_detect_unknown_format(self):
         """Test detection of unknown formats."""
         # String list (like organization names)
-        serializer = FBASSerializer()
-        assert serializer.detect_format(["org1", "org2"]) == 'unknown'
+        assert detect_format(["org1", "org2"]) == 'unknown'
 
         # Random dict
-        serializer = FBASSerializer()
-        assert serializer.detect_format({"random": "data"}) == 'unknown'
+        assert detect_format({"random": "data"}) == 'unknown'
 
         # Empty list
-        serializer = FBASSerializer()
-        assert serializer.detect_format(
+        assert detect_format(
             []) == 'stellarbeat'  # Empty lists default to stellarbeat
 
     def test_from_json_auto_detection(self, caplog):
@@ -159,16 +152,14 @@ class TestFormatDetection:
                 {"publicKey": "PK1", "quorumSet": {"threshold": 1,
                                                    "validators": [], "innerQuorumSets": []}}
             ]
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(stellarbeat_data))
+            deserialize(json.dumps(stellarbeat_data))
 
             # Test python-fbas
             python_fbas_data = {
                 "validators": [{"id": "v1", "qset": None, "attrs": {}}],
                 "qsets": {}
             }
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(python_fbas_data))
+            deserialize(json.dumps(python_fbas_data))
 
         # Check that format detection was logged
         log_messages = [record.message for record in caplog.records]
@@ -184,8 +175,7 @@ class TestFormatDetection:
             "qsets": {}
         })
 
-        serializer = FBASSerializer()
-        fbas = serializer.deserialize(json_str)
+        fbas = deserialize(json_str)
         assert len(fbas.validators) == 1
         assert 'v1' in fbas.validators
 
@@ -230,8 +220,7 @@ class TestFileBasedSerialization:
                 data = json.load(f)
 
             try:
-                serializer = FBASSerializer()
-                fbas = serializer.deserialize(json.dumps(data))
+                fbas = deserialize(json.dumps(data))
                 assert fbas.validators is not None
                 # Basic integrity check
                 fbas.check_integrity()
@@ -247,8 +236,7 @@ class TestFileBasedSerialization:
                 json_str = f.read()
 
             try:
-                serializer = FBASSerializer()
-                fbas = serializer.deserialize(json_str)
+                fbas = deserialize(json_str)
                 assert fbas.validators is not None
                 # Basic integrity check
                 fbas.check_integrity()
@@ -271,20 +259,19 @@ class TestFileBasedSerialization:
                 stellarbeat_data = json.load(f)
 
             # Load as stellarbeat
-            serializer = FBASSerializer()
-            fbas_stellarbeat = serializer.deserialize(json.dumps(stellarbeat_data))
+            fbas_stellarbeat = deserialize(json.dumps(stellarbeat_data))
 
             # Convert to python-fbas and reload
-            python_fbas_json = serializer.serialize(fbas_stellarbeat, format='python-fbas')
-            fbas_python_fbas = serializer.deserialize(python_fbas_json)
+            python_fbas_json = serialize(fbas_stellarbeat, format='python-fbas')
+            fbas_python_fbas = deserialize(python_fbas_json)
 
             # Should be equivalent
             assert fbas_stellarbeat.validators == fbas_python_fbas.validators
 
             # Check qsets are equivalent
             for v in fbas_stellarbeat.validators:
-                qset1 = fbas_stellarbeat.qset_of(v)
-                qset2 = fbas_python_fbas.qset_of(v)
+                qset1 = qset_of(fbas_stellarbeat, v)
+                qset2 = qset_of(fbas_python_fbas, v)
                 assert qset1 == qset2
 
 
@@ -293,7 +280,6 @@ class TestUUIDGeneration:
 
     def test_add_qset_generates_uuid(self):
         """Test that add_qset generates UUID-based IDs."""
-        fbas = FBASGraph()
         fbas.add_validator('v1')
         fbas.add_validator('v2')
         fbas.add_validator('v3')
@@ -330,8 +316,7 @@ class TestUUIDGeneration:
             }
         }
 
-        serializer = FBASSerializer()
-        fbas = serializer.deserialize(json.dumps(json_data))
+        fbas = deserialize(json.dumps(json_data))
 
         # Check that custom IDs are preserved
         assert "myCustomQset" in fbas.graph.nodes
@@ -355,8 +340,7 @@ class TestUUIDGeneration:
         }
 
         with pytest.raises(ValueError, match="Duplicate IDs found: \\['v1'\\]"):
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(json_data))
+            deserialize(json.dumps(json_data))
 
         # Test validator-qset collision
         json_data = {
@@ -370,8 +354,7 @@ class TestUUIDGeneration:
         }
 
         with pytest.raises(ValueError, match="Duplicate IDs found: \\['shared_id'\\]"):
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(json_data))
+            deserialize(json.dumps(json_data))
 
         # Test multiple duplicates
         json_data = {
@@ -386,8 +369,7 @@ class TestUUIDGeneration:
         }
 
         with pytest.raises(ValueError, match="Duplicate IDs found: \\['v1', 'v2'\\]"):
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(json_data))
+            deserialize(json.dumps(json_data))
 
     def test_round_trip_with_uuid_qsets(self):
         """Test that UUID-generated qsets survive round-trip serialization."""
@@ -406,16 +388,15 @@ class TestUUIDGeneration:
         assert len(qset_id) == 34
 
         # Round trip
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas1, format='python-fbas')
-        fbas2 = serializer.deserialize(json_str)
+        json_str = serialize(fbas1, format='python-fbas')
+        fbas2 = deserialize(json_str)
 
         # Check that the UUID-based ID is preserved
         qset_id2 = list(fbas2.graph.successors('v1'))[0]
         assert qset_id == qset_id2
 
         # Check that qsets are equivalent
-        assert fbas1.qset_of('v1') == fbas2.qset_of('v1')
+        assert qset_of(fbas1, 'v1') == qset_of(fbas2, 'v1')
 
 
 class TestStellarBeatSerialization:
@@ -437,8 +418,7 @@ class TestStellarBeatSerialization:
         fbas.update_validator('V1', qset_id)
 
         # Serialize to stellarbeat format
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas, format='stellarbeat')
+        json_str = serialize(fbas, format='stellarbeat')
         data = json.loads(json_str)
 
         # Verify structure
@@ -491,11 +471,10 @@ class TestStellarBeatSerialization:
         ]
 
         # Load from stellarbeat format
-        serializer = FBASSerializer()
-        fbas = serializer.deserialize(json.dumps(original_data))
+        fbas = deserialize(json.dumps(original_data))
 
         # Serialize back to stellarbeat format
-        json_str = serializer.serialize(fbas, format='stellarbeat')
+        json_str = serialize(fbas, format='stellarbeat')
         restored_data = json.loads(json_str)
 
         # Should have the same validators
@@ -556,17 +535,16 @@ class TestStellarBeatSerialization:
         ]
 
         # Step 1: Load from stellarbeat format
-        serializer = FBASSerializer()
-        fbas1 = serializer.deserialize(json.dumps(original_data))
+        fbas1 = deserialize(json.dumps(original_data))
 
         # Step 2: Convert to python-fbas format
-        python_fbas_json = serializer.serialize(fbas1, format='python-fbas')
+        python_fbas_json = serialize(fbas1, format='python-fbas')
 
         # Step 3: Load from python-fbas format
-        fbas2 = serializer.deserialize(python_fbas_json)
+        fbas2 = deserialize(python_fbas_json)
 
         # Step 4: Convert back to stellarbeat format
-        final_json = serializer.serialize(fbas2, format='stellarbeat')
+        final_json = serialize(fbas2, format='stellarbeat')
         final_data = json.loads(final_json)
 
         # Verify we have all validators
@@ -617,20 +595,19 @@ class TestPubnetRoundTrip:
             stellarbeat_data = json.load(f)
 
         # Load as stellarbeat format
-        serializer = FBASSerializer()
-        fbas_original = serializer.deserialize(json.dumps(stellarbeat_data))
+        fbas_original = deserialize(json.dumps(stellarbeat_data))
 
         # Basic sanity checks
         assert len(fbas_original.validators) > 0
         # Check we have some validators with quorum sets
-        validators_with_qsets = sum(1 for v in fbas_original.validators if fbas_original.qset_of(v) is not None)
+        validators_with_qsets = sum(1 for v in fbas_original.validators if qset_of(fbas_original, v) is not None)
         assert validators_with_qsets > 0
 
         # Convert to python-fbas format
-        python_fbas_json = serializer.serialize(fbas_original, format='python-fbas')
+        python_fbas_json = serialize(fbas_original, format='python-fbas')
 
         # Load from python-fbas format
-        fbas_restored = serializer.deserialize(python_fbas_json)
+        fbas_restored = deserialize(python_fbas_json)
 
         # Verify the graphs are equivalent
         assert fbas_original.validators == fbas_restored.validators
@@ -638,8 +615,8 @@ class TestPubnetRoundTrip:
         # Check that all validators have the same qsets
         validators_checked = 0
         for v in fbas_original.validators:
-            qset_original = fbas_original.qset_of(v)
-            qset_restored = fbas_restored.qset_of(v)
+            qset_original = qset_of(fbas_original, v)
+            qset_restored = qset_of(fbas_restored, v)
 
             # Both should be None or both should exist
             assert (qset_original is None) == (qset_restored is None)
@@ -699,44 +676,38 @@ class TestEdgeCases:
 
         # An assert should fail here because self-referencing qsets are not allowed
         with pytest.raises(Exception):
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps(json_data))
+            deserialize(json.dumps(json_data))
 
     def test_empty_fbas_serialization(self):
         """Test serialization of empty FBAS."""
         fbas = FBASGraph()
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas, format='python-fbas')
+        json_str = serialize(fbas, format='python-fbas')
 
         data = json.loads(json_str)
         assert data['validators'] == []
         assert data['qsets'] == {}
 
         # Should be able to deserialize
-        fbas2 = serializer.deserialize(json_str)
+        fbas2 = deserialize(json_str)
         assert len(fbas2.validators) == 0
 
     def test_invalid_python_fbas_format(self):
         """Test error handling for invalid python-fbas format."""
         with pytest.raises(ValueError, match="Unknown or unsupported JSON format"):
-            serializer = FBASSerializer()
-            serializer.deserialize('["not", "a", "dict"]')
+            deserialize('["not", "a", "dict"]')
 
         with pytest.raises(ValueError, match="Unknown or unsupported JSON format"):
-            serializer = FBASSerializer()
-            serializer.deserialize('{"invalid": "format"}')
+            deserialize('{"invalid": "format"}')
 
     def test_invalid_json_string(self):
         """Test error handling for invalid JSON strings."""
         with pytest.raises(json.JSONDecodeError):
-            serializer = FBASSerializer()
-            serializer.deserialize("invalid json")
+            deserialize("invalid json")
 
     def test_unknown_format_error(self):
         """Test error when format cannot be determined."""
         with pytest.raises(ValueError, match="Unknown or unsupported JSON format"):
-            serializer = FBASSerializer()
-            serializer.deserialize(json.dumps({"random": "data"}))
+            deserialize(json.dumps({"random": "data"}))
 
     def test_validators_without_qsets(self):
         """Test handling validators without quorum sets."""
@@ -748,11 +719,10 @@ class TestEdgeCases:
             "qsets": {}
         }
 
-        serializer = FBASSerializer()
-        fbas = serializer.deserialize(json.dumps(json_data))
+        fbas = deserialize(json.dumps(json_data))
         assert len(fbas.validators) == 2
-        assert fbas.qset_of('v1') is None
-        assert fbas.qset_of('v2') is None
+        assert qset_of(fbas, 'v1') is None
+        assert qset_of(fbas, 'v2') is None
 
     def test_complex_inner_quorum_sets(self):
         """Test complex nested inner quorum sets."""
@@ -770,8 +740,7 @@ class TestEdgeCases:
         fbas.update_validator('v1', outer_id)
 
         # Round trip
-        serializer = FBASSerializer()
-        json_str = serializer.serialize(fbas, format='python-fbas')
-        fbas2 = serializer.deserialize(json_str)
+        json_str = serialize(fbas, format='python-fbas')
+        fbas2 = deserialize(json_str)
 
-        assert fbas.qset_of('v1') == fbas2.qset_of('v1')
+        assert qset_of(fbas, 'v1') == qset_of(fbas2, 'v1')
