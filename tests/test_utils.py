@@ -31,10 +31,12 @@ def load_fbas_from_test_file(filename):
     """Load an FBASGraph from a test data file.
     
     This is a convenience function that combines get_validators_from_test_fbas()
-    and FBASGraph.from_json() to simplify the common pattern in tests.
+    and FBASSerializer.deserialize() to simplify the common pattern in tests.
     """
-    from python_fbas.fbas_graph import FBASGraph
-    return FBASGraph.from_json(get_validators_from_test_fbas(filename))
+    from python_fbas.serialization import FBASSerializer
+    serializer = FBASSerializer()
+    json_data = json.dumps(get_validators_from_test_fbas(filename))
+    return serializer.deserialize(json_data)
 
 
 def get_test_data_list() -> dict[str, list[dict]]:

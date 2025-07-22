@@ -17,6 +17,7 @@ from python_fbas.fbas_graph_analysis import (
 from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
 from python_fbas.config import update as update_config, get as get_config, load_config_file, to_yaml
+from python_fbas.serialization import FBASSerializer
 
 
 def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
@@ -37,8 +38,9 @@ def _load_fbas_graph(args: Any) -> FBASGraph:
             if update_cache:
                 logging.info("Forcing cache update...")
             try:
-                return FBASGraph.from_json(get_pubnet_config(
-                    update=update_cache, url=args.fbas))
+                serializer = FBASSerializer()
+                pubnet_data = get_pubnet_config(update=update_cache, url=args.fbas)
+                return serializer.deserialize(json.dumps(pubnet_data))
             except (ValueError, IOError) as e:
                 logging.error(f"Error: {e}")
                 sys.exit(1)
@@ -46,7 +48,9 @@ def _load_fbas_graph(args: Any) -> FBASGraph:
             # Local file
             logging.info(f"Using local FBAS file: {args.fbas}")
             try:
-                return FBASGraph.from_json(_load_json_from_file(args.fbas))
+                serializer = FBASSerializer()
+                json_data = json.dumps(_load_json_from_file(args.fbas))
+                return serializer.deserialize(json_data)
             except FileNotFoundError:
                 logging.error(f"Error: File not found: {args.fbas}")
                 sys.exit(1)
@@ -61,7 +65,9 @@ def _load_fbas_graph(args: Any) -> FBASGraph:
         if update_cache:
             logging.info("Forcing cache update...")
         try:
-            return FBASGraph.from_json(get_pubnet_config(update=update_cache))
+            serializer = FBASSerializer()
+            pubnet_data = get_pubnet_config(update=update_cache)
+            return serializer.deserialize(json.dumps(pubnet_data))
         except (ValueError, IOError) as e:
             logging.error(f"Error: {e}")
             sys.exit(1)
@@ -181,10 +187,11 @@ def _command_max_scc(_args: Any, fbas: FBASGraph) -> None:
 
 def _command_to_json(args: Any, fbas: FBASGraph) -> None:
     """Convert the loaded FBAS to JSON format and print to stdout."""
+    serializer = FBASSerializer()
     if args.format == 'python-fbas':
-        print(fbas.to_json())
+        print(serializer.serialize(fbas, format='python-fbas'))
     elif args.format == 'stellarbeat':
-        print(fbas.to_json_stellarbeat())
+        print(serializer.serialize(fbas, format='stellarbeat'))
     else:
         logging.error(f"Error: Unknown format '{args.format}'. Must be 'python-fbas' or 'stellarbeat'")
         sys.exit(1)

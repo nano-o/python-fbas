@@ -8,6 +8,7 @@ only other sybil validators, creating two disjoint networks.
 
 import json
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.serialization import FBASSerializer
 
 
 def generate_sybil_id(original_id: str) -> str:
@@ -75,7 +76,8 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 
     print(f"Loading FBAS from {input_file}...")
     with open(input_file, 'r') as f:
-        original_fbas = FBASGraph.from_json(f.read())
+        serializer = FBASSerializer()
+        original_fbas = serializer.deserialize(f.read())
 
     print(f"Original FBAS has {len(original_fbas.validators)} validators")
     print(f"Traitor homedomains: {traitor_homedomains}")
@@ -268,7 +270,8 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 
     # Save result using the API
     print(f"Saving to {output_file}...")
-    json_str = fbas.to_json()
+    serializer = FBASSerializer()
+    json_str = serializer.serialize(fbas, format='python-fbas')
     with open(output_file, 'w') as f:
         f.write(json_str)
 

@@ -1,8 +1,10 @@
 import logging
 import pytest
+import json
 import networkx as nx
 from test_utils import get_test_data_list, get_validators_from_test_fbas, load_fbas_from_test_file
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.serialization import FBASSerializer
 from python_fbas import config
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
@@ -49,7 +51,8 @@ def test_qi_all():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading graph of %s", f)
-        fbas_graph = FBASGraph.from_json(d)
+        serializer = FBASSerializer()
+        fbas_graph = serializer.deserialize(json.dumps(d))
         if fbas_graph.validators:
             with config.temporary_config(card_encoding='totalizer'):
                 find_disjoint_quorums(fbas_graph)
@@ -91,7 +94,8 @@ def test_min_splitting_set():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading graph of %s", f)
-        fbas_graph = FBASGraph.from_json(d)
+        serializer = FBASSerializer()
+        fbas_graph = serializer.deserialize(json.dumps(d))
         with config.temporary_config(card_encoding='totalizer'):
             find_minimal_splitting_set(fbas_graph)
 
@@ -112,7 +116,8 @@ def test_min_blocking_set_4():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading graph of %s", f)
-        fbas_graph = FBASGraph.from_json(d)
+        serializer = FBASSerializer()
+        fbas_graph = serializer.deserialize(json.dumps(d))
         with config.temporary_config(card_encoding='totalizer'):
             find_minimal_blocking_set(fbas_graph)
 
@@ -137,7 +142,8 @@ def test_min_quorum_2():
             continue
         else:
             logging.info("loading graph of %s", f)
-            fbas_graph = FBASGraph.from_json(d)
+            serializer = FBASSerializer()
+            fbas_graph = serializer.deserialize(json.dumps(d))
             find_min_quorum(fbas_graph)
 
 
@@ -181,7 +187,8 @@ def test_top_tier_2():
                 continue
             else:
                 logging.info("loading graph of %s", f)
-                fbas_graph = FBASGraph.from_json(d)
+                serializer = FBASSerializer()
+                fbas_graph = serializer.deserialize(json.dumps(d))
                 top_tier(fbas_graph)
 
 
