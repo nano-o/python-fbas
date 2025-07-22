@@ -1,7 +1,7 @@
 """
-Federated Byzantine Agreement System (FBAS) represented as directed graphs.
-
-TODO: Think about how to better deal with validators that do not have a qset.
+Federated byzantine agreement systems (FBAS) represented as directed graphs.
+Each vertex in the graph is either a validator vertex or a quorum set vertex,
+which has a threshold attribute.
 """
 
 from copy import copy
@@ -22,16 +22,16 @@ from python_fbas.config import get as get_config
 @dataclass(frozen=True)
 class QSet:
     """
-    Represents a quorum set. Note that a quorum set is _not_ a set of quorums.
-    Instead, a quorum set represents agreement requirements. For quorums, see
-    `is_quorum` in `FBASGraph`.
+    Represents a stellar-core quorum set in a unique, hashable way. Note that a
+    quorum set is _not_ a set of quorums.  Instead, a quorum set represents
+    agreement requirements. For quorums, see `is_quorum` in `FBASGraph`.
     """
     threshold: int
     validators: Set[str]
     inner_quorum_sets: Set['QSet']
 
     @staticmethod
-    def make(qset: Dict[str, Any]) -> 'QSet':
+    def from_json(qset: Dict[str, Any]) -> 'QSet':
         """
         Expects a JSON-serializable quorum-set (in stellarbeat.io format) and
         returns a QSet instance.
@@ -40,10 +40,10 @@ class QSet:
             case {'threshold': t, 'validators': vs, 'innerQuorumSets': iqs}:
                 threshold = int(t)
                 validators = frozenset(vs)
-                inner_qsets = frozenset(QSet.make(iq) for iq in iqs)
+                inner_qsets = frozenset(QSet.from_json(iq) for iq in iqs)
                 card = len(validators) + len(inner_qsets)
                 if not (0 <= threshold <= card):
-                    logging.info(
+                    logging.warning(
                         "QSet validation failed: threshold=%d not in range [0, %d] for qset with %d validators and %d inner quorum sets. Qset: %s",
                         threshold,
                         card,
@@ -54,8 +54,8 @@ class QSet:
                         f"Invalid qset threshold {threshold} (must be 0 <= threshold <= {card}): {qset}")
                 return QSet(threshold, validators, inner_qsets)
             case _:
-                logging.info(
-                    "QSet.make failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
+                logging.warning(
+                    "QSet.from_json failed: qset does not match expected format. Expected keys: threshold, validators, innerQuorumSets. Actual keys: %s. Qset: %s",
                     list(
                         qset.keys()) if isinstance(
                         qset,
@@ -68,8 +68,8 @@ class QSet:
 class FBASGraph:
     """
     An FBAS graph is a directed graph. Each vertex is either a validator or a
-    qset vertex, and may have a threshold attribute. Vertices are identified by
-    strings.
+    qset vertex, which may have a threshold attribute. Vertices are identified
+    by strings.
 
     A validator vertex must have at most one sucessor in the graph, which must
     be a qset vertex, and has no threshold. If it does not have a successor,
@@ -77,12 +77,13 @@ class FBASGraph:
 
     A qset vertex may have any number of successors (including none), which may
     be validator or qset vertices, but which must not include itself. It must
-    have a threshold between 0 and its number of successors.
+    have a threshold between 0 and its number of successors. The subgraph of the
+    qset vertices must be acyclic.
     """
+
     graph: nx.DiGraph
-    # only a subset of the vertices in the graph represent validators:
+    # tracts which vertices in the graph are validator vertices:
     validators: set[str]
-    # maps qset vertices (str) to their associated qset:
 
     def __init__(self) -> None:
         self.graph = nx.DiGraph()
@@ -114,7 +115,8 @@ class FBASGraph:
                 if attrs['threshold'] < 0 \
                    or attrs['threshold'] > self.graph.out_degree(n):
                     raise ValueError(
-                        f"Integrity check failed: threshold of {n} not in [0, out_degree={self.graph.out_degree(n)}]")
+                        f"Integrity check failed: threshold of {n} not in "
+                        f"[0, out_degree={self.graph.out_degree(n)}]")
             if n in self.validators:
                 # threshold is not explicitly set for validators, so it should
                 # not appear in the attributes of n:
@@ -124,7 +126,9 @@ class FBASGraph:
                 # requirements):
                 if self.graph.out_degree(n) > 1:
                     raise ValueError(
-                        f"Integrity check failed: validator {n} has an out-degree greater than 1 ({self.graph.out_degree(n)})")
+                        f"Integrity check failed: validator {n} has an "
+                        "out-degree greater than 1 "
+                        f"({self.graph.out_degree(n)})")
                 # a validator's successor must be a qset vertex:
                 if self.graph.out_degree(n) == 1:
                     assert next(
@@ -133,17 +137,13 @@ class FBASGraph:
                 raise ValueError(
                     f"Integrity check failed: vertex {n} has a self-loop")
 
-        # Check that qset vertices are not reachable from themselves without 
-        # passing through a validator vertex
+        # Check that the qset subgraph is loop-free
         qset_vertices = [q for q in self.graph.nodes()
                          if q not in self.validators]
         qset_only_graph = self.graph.subgraph(qset_vertices)
-        for q in qset_vertices:
-            # Check if there's a path from q back to itself using only qset vertices
-            # We need to check if any successor of q can eventually reach q
-            if any(nx.has_path(qset_only_graph, successor, q) for successor in qset_only_graph.successors(q)):
-                raise ValueError(
-                    f"Integrity check failed: qset vertex {q} is reachable from itself without passing through a validator vertex")
+        if not nx.is_directed_acyclic_graph(qset_only_graph):
+            raise ValueError(
+                "Integrity check failed: the qset subgraph has a cycle")
 
         # Check for duplicate qsets (same threshold and same successors)
         qset_signatures = {}
@@ -151,7 +151,7 @@ class FBASGraph:
             threshold = self.threshold(q)
             successors = tuple(sorted(self.graph.successors(q)))
             signature = (threshold, successors)
-            
+
             if signature in qset_signatures:
                 raise ValueError(
                     f"Integrity check failed: duplicate qsets found with same threshold {threshold} "
@@ -191,7 +191,7 @@ class FBASGraph:
 
     def add_qset(self, threshold: int, members: list[str], qset_id: Optional[str] = None) -> str:
         """
-        Add a quorum set vertex to the graph. If a qset with the same threshold 
+        Add a quorum set vertex to the graph. If a qset with the same threshold
         and members already exists, returns the existing qset's ID instead of creating a duplicate.
 
         Args:
@@ -217,18 +217,18 @@ class FBASGraph:
         # Check for existing qset with same threshold and members
         members_set = set(members)
         qset_nodes = [q for q in self.graph.nodes() if q not in self.validators]
-        
+
         for existing_qset_id in qset_nodes:
-            if (self.threshold(existing_qset_id) == threshold and 
+            if (self.threshold(existing_qset_id) == threshold and
                 set(self.graph.successors(existing_qset_id)) == members_set):
-                
+
                 # Found a duplicate - warn if qset_id was provided
                 if qset_id is not None:
                     logging.warning(
                         "Qset with threshold %d and members %s already exists as %s. "
                         "Returning existing qset instead of creating new one with ID %s.",
                         threshold, sorted(members), existing_qset_id, qset_id)
-                
+
                 return existing_qset_id
 
         # No duplicate found, create new qset
@@ -292,7 +292,7 @@ class FBASGraph:
         """
         match qset:
             case {'threshold': t, 'validators': vs, 'innerQuorumSets': iqs}:
-                fqs = QSet.make(qset)
+                fqs = QSet.from_json(qset)
                 if fqs in qsets_dict.values():
                     return next(k for k, v in qsets_dict.items() if v == fqs)
                 iqs_vertices = [self._add_qset_from_json(iq, qsets_dict) for iq in iqs]
@@ -441,7 +441,7 @@ class FBASGraph:
         qsets_dict: dict[str, QSet] = {}  # Local qsets dictionary for stellarbeat loading
         for v in validators:
             fbas._update_validator_from_json(v['publicKey'], qsets_dict, v['quorumSet'], v)
-        
+
         # Populate the instance qsets dict for backwards compatibility
         fbas.qsets = qsets_dict
         fbas.check_integrity()

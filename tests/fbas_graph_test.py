@@ -275,7 +275,7 @@ def test_qset_reachability_check():
     # This should fail the integrity check
     with pytest.raises(ValueError) as exc_info:
         fbas2.check_integrity()
-    assert "is reachable from itself without passing through a validator vertex" in str(exc_info.value)
+    assert "cycle" in str(exc_info.value)
 
     # Test case 3: Complex valid case with multiple levels
     fbas3 = FBASGraph()
