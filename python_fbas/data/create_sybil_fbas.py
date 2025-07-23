@@ -65,10 +65,10 @@ def duplicate_qset_with_sybils(
 def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedomains: list[str], traitor_only_sybil: bool = False):
     """
     Create a sybil FBAS variant using the FBASGraph API.
-    
+
     Args:
         input_file: Input JSON file
-        output_file: Output JSON file  
+        output_file: Output JSON file
         traitor_homedomains: List of homedomains that will be traitors
         traitor_only_sybil: If True, traitors only reference sybil qsets (threshold 5).
                            If False, traitors reference both original and sybil qsets (threshold 10).
@@ -79,19 +79,19 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
         serializer = FBASSerializer()
         original_fbas = serializer.deserialize(f.read())
 
-    print(f"Original FBAS has {len(original_fbas.validators)} validators")
+    print(f"Original FBAS has {len(original_fbas.get_validators())} validators")
     print(f"Traitor homedomains: {traitor_homedomains}")
 
     # Create new FBAS that will contain original + sybil + traitor structure
     fbas = FBASGraph()
-    
+
     # Add all original validators with their attributes
-    original_validators = list(original_fbas.validators)
+    original_validators = list(original_fbas.get_validators())
     for validator_id in original_validators:
         fbas.add_validator(validator_id)
         # Copy attributes
         attrs = original_fbas.vertice_attrs(validator_id)
-        fbas.graph.nodes[validator_id].update(attrs)
+        fbas.update_validator(validator_id, None, **attrs)
 
     # Create mapping from original validator IDs to sybil IDs
     validator_mapping = {}
@@ -104,7 +104,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
         sybil_id = generate_sybil_id(validator_id)
         fbas.add_validator(sybil_id)
         sybil_validators.append(sybil_id)
-        
+
         # Copy and modify attributes
         original_attrs = original_fbas.vertice_attrs(validator_id)
         sybil_attrs = original_attrs.copy()
@@ -112,17 +112,17 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
             sybil_attrs["name"] = f"Sybil {sybil_attrs['name']}"
         if "homeDomain" in sybil_attrs:
             sybil_attrs["homeDomain"] = f"Sybil {sybil_attrs['homeDomain']}"
-        fbas.graph.nodes[sybil_id].update(sybil_attrs)
+        fbas.update_validator(sybil_id, None, **sybil_attrs)
 
     print(f"Created {len(sybil_validators)} sybil validators")
 
     # Recreate qset structure using the API
     qset_mapping = {}  # Maps original qset IDs to new qset IDs
     sybil_qset_mapping = {}  # Maps original qset IDs to sybil qset IDs
-    
+
     # Get all qset nodes from original graph, process them in dependency order
-    original_qset_nodes = [q for q in original_fbas.graph.nodes() if q not in original_fbas.validators]
-    
+    original_qset_nodes = [q for q in original_fbas.vertices() if not original_fbas.is_validator(q)]
+
     # Create original qsets first (maintaining structure)
     def create_qsets_recursive(qset_id, is_sybil=False):
         if is_sybil:
@@ -135,14 +135,14 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
                 return qset_mapping[qset_id]
             target_mapping = qset_mapping
             id_suffix = ""
-            
+
         threshold = original_fbas.threshold(qset_id)
-        original_members = list(original_fbas.graph.successors(qset_id))
-        
+        original_members = original_fbas.get_successors(qset_id)
+
         # Convert members to new graph context
         new_members = []
         for member in original_members:
-            if member in original_fbas.validators:
+            if original_fbas.is_validator(member):
                 # It's a validator
                 if is_sybil:
                     new_members.append(validator_mapping[member])
@@ -152,17 +152,17 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
                 # It's a qset - recursively create it
                 new_qset_id = create_qsets_recursive(member, is_sybil)
                 new_members.append(new_qset_id)
-        
+
         # Create the qset using the API
         suggested_id = f"{qset_id}{id_suffix}" if qset_id != "_q0" else f"_q0{id_suffix}"
         new_qset_id = fbas.add_qset(threshold=threshold, members=new_members, qset_id=suggested_id)
         target_mapping[qset_id] = new_qset_id
         return new_qset_id
-    
+
     # Create all original qsets
     for qset_id in original_qset_nodes:
         create_qsets_recursive(qset_id, is_sybil=False)
-    
+
     # Create all sybil qsets
     for qset_id in original_qset_nodes:
         create_qsets_recursive(qset_id, is_sybil=True)
@@ -176,7 +176,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
         for original_qset_id in original_qset_nodes:
             if original_qset_id != "_q0":
                 traitor_qset_members.append(sybil_qset_mapping[original_qset_id])  # sybil versions
-        
+
         # Add traitor qsets for the traitor homedomains
         traitor_inner_qsets = []
         for i, domain in enumerate(traitor_homedomains):
@@ -186,18 +186,18 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
                 validator_domain = original_fbas.vertice_attrs(validator_id).get("homeDomain", "")
                 if validator_domain == domain:
                     domain_validators.append(validator_id)
-            
+
             if domain_validators:
                 # Create inner qset with majority threshold for domain validators
                 threshold = len(domain_validators) // 2 + 1  # majority
                 traitor_inner_qset_id = fbas.add_qset(
-                    threshold=threshold, 
-                    members=domain_validators, 
+                    threshold=threshold,
+                    members=domain_validators,
                     qset_id=f"_qtraitor_{i+1}"
                 )
                 traitor_inner_qsets.append(traitor_inner_qset_id)
                 traitor_qset_members.append(traitor_inner_qset_id)
-        
+
         traitor_qset_id = fbas.add_qset(
             threshold=7,  # threshold of 7 out of 9 (7 sybil + 2 traitor qsets)
             members=traitor_qset_members,
@@ -221,13 +221,13 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 
     # Connect validators to their qsets and identify traitors
     traitor_validators = []
-    
+
     # Connect original validators to their original qsets
     for validator_id in original_validators:
-        if original_fbas.graph.out_degree(validator_id) == 1:
+        if original_fbas.get_out_degree(validator_id) == 1:
             original_qset_id = original_fbas.qset_vertex_of(validator_id)
             new_qset_id = qset_mapping[original_qset_id]
-            
+
             # Check if this validator should be a traitor
             validator_domain = original_fbas.vertice_attrs(validator_id).get("homeDomain", "")
             if validator_domain in traitor_homedomains:
@@ -235,14 +235,14 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
                 traitor_validators.append(validator_id)
             else:
                 fbas.update_validator(validator_id, new_qset_id)
-    
+
     # Connect sybil validators to their sybil qsets
     for i, validator_id in enumerate(original_validators):
         sybil_id = sybil_validators[i]
-        if original_fbas.graph.out_degree(validator_id) == 1:
+        if original_fbas.get_out_degree(validator_id) == 1:
             original_qset_id = original_fbas.qset_vertex_of(validator_id)
             sybil_qset_id = sybil_qset_mapping[original_qset_id]
-            
+
             # Check if this sybil validator should be a traitor
             validator_domain = original_fbas.vertice_attrs(validator_id).get("homeDomain", "")
             if validator_domain in traitor_homedomains:
@@ -252,18 +252,18 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
                 fbas.update_validator(sybil_id, sybil_qset_id)
 
     print(f"Updated {len(traitor_validators)} validators to use traitor qset")
-    
+
     # Get traitor validator names for display
     traitor_names = []
     for validator_id in traitor_validators:
         name = fbas.vertice_attrs(validator_id).get("name", validator_id)
         traitor_names.append(name)
-    
+
     print(f"Traitor validators: {traitor_names}")
 
     # Get stats
-    qset_nodes = [q for q in fbas.graph.nodes() if q not in fbas.validators]
-    total_validators = len(fbas.validators)
+    qset_nodes = [q for q in fbas.vertices() if not fbas.is_validator(q)]
+    total_validators = len(fbas.get_validators())
     total_qsets = len(qset_nodes)
 
     print(f"Final FBAS has {total_validators} validators and {total_qsets} qsets")
@@ -295,7 +295,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 
     # Check that the new FBAS passes integrity check
     fbas.check_integrity()
-    print(f"Successfully created FBAS with {len(fbas.validators)} validators!")
+    print(f"Successfully created FBAS with {len(fbas.get_validators())} validators!")
 
     return fbas
 
@@ -303,37 +303,37 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 def main():
     """Create both sybil_1.json and sybil_2.json variants"""
     input_file = "top_tier.json"
-    
+
     # Select 2 homedomains for traitor behavior
     traitor_homedomains = [
         "lobstr.co",
         "satoshipay.io"
     ]
-    
+
     print("=" * 80)
     print("CREATING SYBIL_1.JSON - Traitors reference both original and sybil qsets")
     print("=" * 80)
-    
+
     # Create sybil_1.json: traitors reference both original and sybil qsets (threshold 10)
     create_sybil_fbas_variant(
         input_file=input_file,
-        output_file="sybil_1.json", 
+        output_file="sybil_1.json",
         traitor_homedomains=traitor_homedomains,
         traitor_only_sybil=False
     )
-    
+
     print("\n" + "=" * 80)
-    print("CREATING SYBIL_2.JSON - Traitors reference only sybil qsets") 
+    print("CREATING SYBIL_2.JSON - Traitors reference only sybil qsets")
     print("=" * 80)
-    
+
     # Create sybil_2.json: traitors reference only sybil qsets (threshold 5)
     create_sybil_fbas_variant(
         input_file=input_file,
         output_file="sybil_2.json",
-        traitor_homedomains=traitor_homedomains, 
+        traitor_homedomains=traitor_homedomains,
         traitor_only_sybil=True
     )
-    
+
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)

@@ -79,7 +79,7 @@ class FBASGraph:
         # the set of vertices in the graph is the union of validators and qset
         # vertices:
         union = self._validators | qset_vertices
-        if self._graph.nodes() != union:
+        if set(self._graph.nodes()) != union:
             raise ValueError(
                 "Integrity check failed: the set of vertices in the graph is "
                 "not equal to the union of _validators and _qsets.")
@@ -134,17 +134,20 @@ class FBASGraph:
             return f"{validator_id} ({name})"
         return validator_id
 
-    def add_validator(self, v: str, qset: Optional[str] = None, **attrs) -> None:
+    def add_validator(self, v: str, *, qset: Optional[str] = None, **attrs) -> None:
         """Add a validator to the graph."""
         if v in self._validators:
             raise ValueError(f"Validator {v} already exists in the graph")
-        self.update_validator(v, qset, **attrs)
+        self.update_validator(v, qset=qset, **attrs)
 
-    def update_validator(self, v: str, qset: Optional[str] = None, **attrs) -> None:
+    def update_validator(self, v: str, *, qset: Optional[str] = None, **attrs) -> None:
         self._graph.add_node(v, **attrs)
         self._validators.add(v)
         if qset:
-            # first remove all existing edges from v:
+            # check that qset is a valid qset vertex:
+            if qset not in self._qsets.values():
+                raise ValueError(f"QSet {qset} does not exist in the graph")
+            # remove all existing edges from v:
             if v in self._validators:
                 out_edges = list(self._graph.out_edges(v))
                 self._graph.remove_edges_from(out_edges)
@@ -166,6 +169,7 @@ class FBASGraph:
         Returns:
             The ID of the qset vertex (either existing or newly created)
         """
+
         # Validate inputs
         if threshold < 0:
             raise ValueError(f"Threshold must be non-negative, got {threshold}")
@@ -211,6 +215,7 @@ class FBASGraph:
         return qset_id
 
     def __str__(self) -> str:
+        # TODO: fix (cosmetic)
         def info(v: str) -> str:
             if self._graph.out_degree(v) > 0:
                 return f"({self.threshold(v)}, {set(self._graph.successors(v))})"
@@ -222,12 +227,18 @@ class FBASGraph:
     def threshold(self, n: str) -> Optional[int]:
         """
         Returns the threshold of the given vertex.
+        For validators, returns None since they don't have thresholds.
         """
-        return self.vertice_attrs(n)['threshold']
+        if self.is_validator(n):
+            return None
+        return self.vertice_attrs(n).get('threshold')
 
     def qset_vertex_of(self, n: str) -> Optional[str]:
         assert n in self._validators
         return next(self._graph.successors(n), None)
+
+    def has_qset(self, n: str) -> bool:
+        return self.qset_vertex_of(n) is not None
 
     def is_qset_sat(self, q: str, s: Collection[str]) -> bool:
         """
@@ -236,9 +247,10 @@ class FBASGraph:
         qset graph is very deep.
         """
         assert set(s) <= self._validators
+        assert q in self._qsets.values()
+        assert 'threshold' in self.vertice_attrs(q)
         if all(c in self._validators for c in self._graph.successors(q)):
             assert q not in self._validators
-            assert 'threshold' in self.vertice_attrs(q)  # canary
             return self.threshold(q) <= sum(
                 1 for c in self._graph.successors(q) if c in s)
         else:
@@ -291,15 +303,17 @@ class FBASGraph:
         return next(((q1, q2)
                     for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
 
-    def blocks(self, s: Collection[str], n: Any) -> bool:
+    def blocks(self, s: Collection[str], v: str) -> bool:
         """
-        Returns True if and only if s blocks v.
+        Returns True if and only if s blocks qset.
         TODO: should there be an `overapproximate` parameter?
         """
-        if self.threshold(n) == 0:
+        if v in self._qsets.values() and self.threshold(v) == 0:
             return False
-        remaining_successors = len(set(self._graph.successors(n)) - set(s))
-        return remaining_successors < self.threshold(n)
+        if v in self._validators and self._graph.out_degree(v) == 0:
+            return False # TODO: not clear what to do here
+        remaining_successors = len(set(self._graph.successors(v)) - set(s))
+        return remaining_successors < (self.threshold(v) or 1)
 
     def closure(self, vs: Collection[str]) -> frozenset[str]:
         """
@@ -327,6 +341,14 @@ class FBASGraph:
         fbas = copy(self)
         fbas._graph = nx.subgraph(self._graph, reachable)
         fbas._validators = reachable & self._validators
+
+        # Rebuild _qsets to only include qsets in the reachable set
+        new_qsets = {}
+        for key, qset_id in self._qsets.items():
+            if qset_id in reachable:
+                new_qsets[key] = qset_id
+        fbas._qsets = new_qsets
+
         return fbas
 
     def groups_dict(self, group_by: str = 'homeDomain') -> dict[str, set[str]]:
@@ -444,6 +466,53 @@ class FBASGraph:
             self.intersection_bound_heuristic(
                 self.qset_vertex_of(v1),
                 self.qset_vertex_of(v2)) for v1,
-            v2 in combinations(
+            v2 in combinations  (
                 self._validators,
                 2) if v1 != v2)
+
+    # Public API methods for read-only access to private members
+
+    def get_validators(self) -> frozenset[str]:
+        """Returns a read-only view of validators"""
+        return frozenset(self._validators)
+
+    def has_vertex(self, v: str) -> bool:
+        """Check if a vertex exists in the graph"""
+        return v in self._graph
+
+    def get_successors(self, v: str) -> list[str]:
+        """Get successors of a vertex"""
+        return list(self._graph.successors(v))
+
+    def get_out_degree(self, v: str) -> int:
+        """Get out-degree of a vertex"""
+        return self._graph.out_degree(v)
+
+    def is_validator(self, v: str) -> bool:
+        """Check if a vertex is a validator"""
+        return v in self._validators
+
+    def get_qset_vertices(self) -> frozenset[str]:
+        """Get all qset vertices"""
+        return frozenset(self._qsets.values())
+
+    def get_strongly_connected_components(self):
+        """Get strongly connected components of the graph"""
+        return nx.strongly_connected_components(self._graph)
+
+    def graph_view(self):
+        """Returns a read-only view of the underlying graph.
+
+        This allows NetworkX algorithms to be used on the graph while
+        preventing accidental modifications.
+        """
+        import networkx.classes.graphviews as gv
+        return gv.generic_graph_view(self._graph)
+
+    def number_of_nodes(self) -> int:
+        """Get the total number of nodes in the graph"""
+        return self._graph.number_of_nodes()
+
+    def number_of_edges(self) -> int:
+        """Get the total number of edges in the graph"""
+        return self._graph.number_of_edges()

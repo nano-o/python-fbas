@@ -125,6 +125,7 @@ next_int: int = 1
 
 # we use two dicts to keep track of which CNF atom represens which variable and
 # vice versa:
+# TODO: should this be marked private?
 variables: dict[Any, int] = {}  # maps variable identifiers to CNF atoms
 variables_inv: dict[int, Any] = {}  # inverse of variables; maps CNF atoms to variable identifiers
 
@@ -253,6 +254,7 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
                     if threshold == 1:
                         return inner_clauses + or_gate(ops_atoms)
                     global next_int
+                    # TODO: figure out if there is sharing of sub-formulas here that would interfer with QBF
                     cnfp = CardEnc.atleast(lits=list(ops_atoms), bound=threshold, top_id=next_int, encoding=EncType.totalizer)
                     next_int = cnfp.nv+1
                     return inner_clauses + cnfp.clauses

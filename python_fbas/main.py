@@ -387,7 +387,7 @@ def main() -> None:
 
     fbas = _load_fbas_graph(args)
     if cfg.group_by is not None and not all(
-            cfg.group_by in fbas.vertice_attrs(v) for v in fbas.validators):
+            cfg.group_by in fbas.vertice_attrs(v) for v in fbas.get_validators()):
         raise ValueError(
             f"Some validators do not have the \"{cfg.group_by}\" attribute")
     if args.reachable_from:

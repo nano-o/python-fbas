@@ -41,11 +41,11 @@ def test_is_quorum_2():
         # Use indulgent mode for test data that might have invalid entries
         with temporary_config(deserialization_mode='indulgent'):
             fbas_graph = deserialize(json.dumps(d))
-        if fbas_graph.validators:
+        if fbas_graph.get_validators():
             for _ in range(100):
                 # pick a random subset of validators for which we have a qset:
                 vs = [
-                    v for v in fbas_graph.validators if fbas_graph.threshold(v) > 0]
+                    v for v in fbas_graph.get_validators() if fbas_graph.has_qset(v)]
                 n = random.randint(1, len(vs))
                 validators = random.sample(vs, n)
                 fbas_graph.is_quorum(validators)
@@ -73,11 +73,11 @@ def test_closure():
     for f, d in data.items():
         logging.info("loading fbas of %s", f)
         fbas_graph = deserialize(json.dumps(d))
-        if fbas_graph.validators:
+        if fbas_graph.get_validators():
             for _ in range(100):
                 # pick a random subset of validators:
-                n = random.randint(1, len(fbas_graph.validators))
-                validators = random.sample(list(fbas_graph.validators), n)
+                n = random.randint(1, len(fbas_graph.get_validators()))
+                validators = random.sample(list(fbas_graph.get_validators()), n)
                 assert fbas_graph.closure(validators)
 
 
@@ -98,15 +98,15 @@ def test_self_intersecing():
     fbas.add_validator('PK1')
     fbas.add_validator('PK2')
     fbas.add_validator('PK3')
-    
+
     # Test self-intersecting qset (threshold > half of members)
-    n1 = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='n1')
+    n1 = fbas.add_qset(threshold=2, components=['PK1', 'PK2', 'PK3'], qset_id='n1')
     assert fbas.self_intersecting(n1)
-    
+
     # Test non-self-intersecting qset (threshold <= half of members)
-    n2 = fbas.add_qset(threshold=1, members=['PK1', 'PK2', 'PK3'], qset_id='n2')
+    n2 = fbas.add_qset(threshold=1, components=['PK1', 'PK2', 'PK3'], qset_id='n2')
     assert not fbas.self_intersecting(n2)
-    
+
     # Validators are always self-intersecting
     assert fbas.self_intersecting('PK1')
     with pytest.raises(AssertionError):
@@ -115,38 +115,38 @@ def test_self_intersecing():
 
 def test_intersection_bound():
     fbas = FBASGraph()
-    
+
     # Add all validators first
-    validators = ['a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'c1', 'c2', 'c3', 
-                  'd1', 'd2', 'd3', 'e1', 'e2', 'e3', 'f1', 'f2', 'f3', 
+    validators = ['a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'c1', 'c2', 'c3',
+                  'd1', 'd2', 'd3', 'e1', 'e2', 'e3', 'f1', 'f2', 'f3',
                   'g1', 'g2', 'g3', 'x', 'PK1', 'PK2', 'PK3']
     for v in validators:
         fbas.add_validator(v)
-    
+
     # Create org qsets (inner quorum sets)
-    org_a = fbas.add_qset(threshold=2, members=['a1', 'a2', 'a3'], qset_id='org_a')
-    org_b = fbas.add_qset(threshold=2, members=['b1', 'b2', 'b3'], qset_id='org_b')
-    org_c = fbas.add_qset(threshold=2, members=['c1', 'c2', 'c3'], qset_id='org_c')
-    org_d = fbas.add_qset(threshold=2, members=['d1', 'd2', 'd3'], qset_id='org_d')
-    org_e = fbas.add_qset(threshold=2, members=['e1', 'e2', 'e3'], qset_id='org_e')
-    org_f = fbas.add_qset(threshold=2, members=['f1', 'f2', 'f3'], qset_id='org_f')
-    org_g = fbas.add_qset(threshold=2, members=['g1', 'g2', 'g3'], qset_id='org_g')
-    
+    org_a = fbas.add_qset(threshold=2, components=['a1', 'a2', 'a3'], qset_id='org_a')
+    org_b = fbas.add_qset(threshold=2, components=['b1', 'b2', 'b3'], qset_id='org_b')
+    org_c = fbas.add_qset(threshold=2, components=['c1', 'c2', 'c3'], qset_id='org_c')
+    org_d = fbas.add_qset(threshold=2, components=['d1', 'd2', 'd3'], qset_id='org_d')
+    org_e = fbas.add_qset(threshold=2, components=['e1', 'e2', 'e3'], qset_id='org_e')
+    org_f = fbas.add_qset(threshold=2, components=['f1', 'f2', 'f3'], qset_id='org_f')
+    org_g = fbas.add_qset(threshold=2, components=['g1', 'g2', 'g3'], qset_id='org_g')
+
     # Create main qsets with inner quorum sets
-    n1 = fbas.add_qset(threshold=4, members=[org_a, org_b, org_c, org_d, org_e], qset_id='qset_1')
-    n2 = fbas.add_qset(threshold=4, members=[org_b, org_c, org_d, org_e, org_f], qset_id='qset_2')
-    n3 = fbas.add_qset(threshold=4, members=[org_c, org_d, org_e, org_f, org_g], qset_id='qset_3')
-    n4 = fbas.add_qset(threshold=4, members=['x', org_c, org_d, org_e, org_f], qset_id='qset_4')
-    
+    n1 = fbas.add_qset(threshold=4, components=[org_a, org_b, org_c, org_d, org_e], qset_id='qset_1')
+    n2 = fbas.add_qset(threshold=4, components=[org_b, org_c, org_d, org_e, org_f], qset_id='qset_2')
+    n3 = fbas.add_qset(threshold=4, components=[org_c, org_d, org_e, org_f, org_g], qset_id='qset_3')
+    n4 = fbas.add_qset(threshold=4, components=['x', org_c, org_d, org_e, org_f], qset_id='qset_4')
+
     assert fbas.intersection_bound_heuristic(n1, n2) == 2
     assert fbas.intersection_bound_heuristic(n1, n3) == 1
     assert fbas.intersection_bound_heuristic(n1, n4) == 1
-    
+
     # Simple qsets for the second part
-    nq1 = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='q1')
-    nq2 = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='q2')
-    nq3 = fbas.add_qset(threshold=1, members=['PK1', 'PK2', 'PK3'], qset_id='q3')
-    
+    nq1 = fbas.add_qset(threshold=2, components=['PK1', 'PK2', 'PK3'], qset_id='q1')
+    nq2 = fbas.add_qset(threshold=2, components=['PK1', 'PK2', 'PK3'], qset_id='q2')
+    nq3 = fbas.add_qset(threshold=1, components=['PK1', 'PK2', 'PK3'], qset_id='q3')
+
     assert fbas.intersection_bound_heuristic(nq1, nq2) == 1
     assert fbas.intersection_bound_heuristic(nq1, nq3) == 0
 
@@ -195,18 +195,18 @@ def test_is_qset_sat():
     fbas.add_validator('PK3')
     fbas.add_validator('PK4')
     fbas.add_validator('PK5')
-    
+
     # Simple qset with threshold 2 out of 3 validators
-    n1 = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='n1')
+    n1 = fbas.add_qset(threshold=2, components=['PK1', 'PK2', 'PK3'], qset_id='n1')
     assert fbas.is_qset_sat(n1, {'PK1', 'PK2'})
     assert not fbas.is_qset_sat(n1, {'PK1'})
-    
+
     # More complex qset with nested structure
     # First create inner qset
-    inner_qset = fbas.add_qset(threshold=2, members=['PK1', 'PK2', 'PK3'], qset_id='inner_qset')
+    inner_qset = fbas.add_qset(threshold=2, components=['PK1', 'PK2', 'PK3'], qset_id='inner_qset')
     # Then outer qset that needs 3 things: the inner qset + PK4 + PK5
-    n2 = fbas.add_qset(threshold=3, members=['PK3', 'PK4', 'PK5', inner_qset], qset_id='n2')
-    
+    n2 = fbas.add_qset(threshold=3, components=['PK3', 'PK4', 'PK5', inner_qset], qset_id='n2')
+
     # This should NOT satisfy n2 (only satisfies inner_qset and PK3, but needs 3 total)
     assert not fbas.is_qset_sat(n2, {'PK1', 'PK2', 'PK3'})
     # This SHOULD satisfy n2 (inner_qset + PK3 + PK4 = 3 requirements met)
@@ -222,15 +222,15 @@ def test_qset_of():
         # Use indulgent mode for test data that might have invalid entries
         with temporary_config(deserialization_mode='indulgent'):
             fg = deserialize(json.dumps(d))
-        for v in fg.validators:
-            if list(fg.graph.successors(v)):
+        for v in fg.get_validators():
+            if fg.get_successors(v):
                 qset_of(fg, v)
 
 
 def test_format_validator():
     fbas = FBASGraph()
     fbas.add_validator("GABCD")
-    fbas.graph.nodes["GABCD"]['name'] = 'Test Validator'
+    fbas.update_validator("GABCD", qset=None, name='Test Validator')
     fbas.add_validator("GXYZ")  # Validator without a name
 
     with temporary_config(validator_display='id'):
@@ -248,20 +248,20 @@ def test_format_validator():
 
 def test_qset_reachability_check():
     """Test that qset vertices cannot reach themselves without passing through a validator vertex."""
-    
+
     # Test case 1: Valid configuration - qset vertices only connected through validators
     fbas1 = FBASGraph()
     fbas1.add_validator('V1')
     fbas1.add_validator('V2')
-    
+
     # Create qsets for validators - no direct qset-to-qset cycles
-    qset_v1 = fbas1.add_qset(threshold=1, members=['V2'], qset_id='qset_v1')
-    qset_v2 = fbas1.add_qset(threshold=1, members=['V1'], qset_id='qset_v2')
-    
+    qset_v1 = fbas1.add_qset(threshold=1, components=['V2'], qset_id='qset_v1')
+    qset_v2 = fbas1.add_qset(threshold=1, components=['V1'], qset_id='qset_v2')
+
     # Connect validators to their qsets
-    fbas1.graph.add_edge('V1', qset_v1)
-    fbas1.graph.add_edge('V2', qset_v2)
-    
+    fbas1.update_validator('V1', qset=qset_v1)
+    fbas1.update_validator('V2', qset=qset_v2)
+
     # This should pass - no qset cycles without validators
     fbas1.check_integrity()
 
@@ -269,18 +269,18 @@ def test_qset_reachability_check():
     fbas2 = FBASGraph()
     fbas2.add_validator('V1')
     fbas2.add_validator('V2')
-    
+
     # Create two qsets that will form a cycle
-    qset1 = fbas2.add_qset(threshold=1, members=['V1'], qset_id='qset1')
-    qset2 = fbas2.add_qset(threshold=1, members=['V2'], qset_id='qset2')
-    
+    qset1 = fbas2.add_qset(threshold=1, components=['V1'], qset_id='qset1')
+    qset2 = fbas2.add_qset(threshold=1, components=['V2'], qset_id='qset2')
+
     # Create a cycle between qsets: qset1 -> qset2 -> qset1
     # Remove existing edges to validators and add edges between qsets
-    fbas2.graph.remove_edge(qset1, 'V1')
-    fbas2.graph.remove_edge(qset2, 'V2')
-    fbas2.graph.add_edge(qset1, qset2)
-    fbas2.graph.add_edge(qset2, qset1)
-    
+    fbas2._graph.remove_edge(qset1, 'V1')
+    fbas2._graph.remove_edge(qset2, 'V2')
+    fbas2._graph.add_edge(qset1, qset2)
+    fbas2._graph.add_edge(qset2, qset1)
+
     # This should fail the integrity check
     with pytest.raises(ValueError) as exc_info:
         fbas2.check_integrity()
@@ -291,14 +291,14 @@ def test_qset_reachability_check():
     fbas3.add_validator('V1')
     fbas3.add_validator('V2')
     fbas3.add_validator('V3')
-    
+
     # Create nested structure: V1 -> inner_qset -> V3 and V2 -> outer_qset -> inner_qset
-    inner_qset = fbas3.add_qset(threshold=1, members=['V3'], qset_id='inner_qset')
-    outer_qset = fbas3.add_qset(threshold=2, members=['V2', 'inner_qset'], qset_id='outer_qset')
-    
+    inner_qset = fbas3.add_qset(threshold=1, components=['V3'], qset_id='inner_qset')
+    outer_qset = fbas3.add_qset(threshold=2, components=['V2', 'inner_qset'], qset_id='outer_qset')
+
     # Connect validators to qsets
-    fbas3.graph.add_edge('V1', inner_qset)
-    fbas3.graph.add_edge('V2', outer_qset)
-    
+    fbas3.update_validator('V1', qset=inner_qset)
+    fbas3.update_validator('V2', qset=outer_qset)
+
     # This should pass - all qset connections go through validators
     fbas3.check_integrity()

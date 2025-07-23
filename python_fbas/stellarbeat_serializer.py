@@ -112,49 +112,40 @@ def deserialize(
                 continue
             else:
                 raise ValueError(f"Duplicate validator publicKey: {pk}")
-
-        keys.add(pk)
         validators.append(v)
 
     # now create the graph:
     fbas = FBASGraph()
-    qsets: dict[QSet, str] = {}
 
     def _process_qset(qset: QSet) -> str:
-        if qset in qsets:
-            return qsets[qset]
-        else:
-            qset_id = "_q" + uuid.uuid4().hex
-            qsets[qset] = qset_id
-            # add the qset to the graph
-            fbas.graph.add_node(qset_id, threshold=int(qset.threshold))
-            for pk in qset.validators:
-                keys.add(pk)
-                fbas.graph.add_edge(qset_id, pk)
-            for iqs in qset.inner_quorum_sets:
-                iqs_id = _process_qset(iqs)
-                fbas.graph.add_edge(qset_id, iqs_id)
-            return qset_id
+        # we need to add the inner qsets bottom up:
+        iqss = set()
+        if qset.inner_quorum_sets:
+            for inner_qset in qset.inner_quorum_sets:
+                qis = _process_qset(inner_qset)
+                iqss.add(qis)
+        for pk in qset.validators:
+            if not fbas.is_validator(pk):
+                fbas.add_validator(pk)
+        return fbas.add_qset(qset.threshold, qset.validators | iqss)
 
     for v in validators:
-        # remove 'quorumSet' from the validator attributes if it exists:
         attrs = v.copy()
-        attrs.pop('quorumSet', None)
+        # remove the quorumSet attribute as it's verbose and will be encoded in
+        # the graph:
+        q = attrs.pop('quorumSet', None)
         pk = v['publicKey']
-        fbas.graph.add_node(pk, **attrs)
-        qset_json = v.get('quorumSet', None)
-        if qset_json is not None:
+        fbas.update_validator(pk, qset=None, **attrs)
+        if q:
             try:
-                qset = QSet.from_json(qset_json)
-                qset_id = _process_qset(qset)
-                fbas.graph.add_edge(pk, qset_id)
+                qset_id = _process_qset(QSet.from_json(q))
             except ValueError as e:
-                if get_config().deserialization_mode == "indulgent":
-                    logging.warning(f"Skipping invalid quorum set for validator {pk}: {e}")
+                if config.deserialization_mode == "indulgent":
+                    logging.debug("Ignoring invalid quorum set: %s", e)
+                    continue
                 else:
-                    raise
-
-    fbas.validators = keys
+                    raise ValueError(f"Invalid quorum set format: {q}") from e
+            fbas.update_validator(pk, qset=qset_id)
 
     fbas.check_integrity()
     return fbas
@@ -165,15 +156,15 @@ def compute_qset(fbas: FBASGraph, qset_vertex: str) -> QSet:
     """
     Recursively computes the QSet associated with the given qset vertex.
     """
-    assert qset_vertex not in fbas.validators
+    assert not fbas.is_validator(qset_vertex)
     threshold = fbas.threshold(qset_vertex)
     # validators are the children of the qset vertex that are validators:
-    validators = frozenset(v for v in fbas.graph.successors(
-        qset_vertex) if v in fbas.validators)
+    validators = frozenset(v for v in fbas.get_successors(
+        qset_vertex) if fbas.is_validator(v))
     # inner_qsets are the children of the qset vertex that are qset
     # vertices:
-    inner_qsets = frozenset(compute_qset(fbas, q) for q in fbas.graph.successors(
-        qset_vertex) if q not in fbas.validators)
+    inner_qsets = frozenset(compute_qset(fbas, q) for q in fbas.get_successors(
+        qset_vertex) if not fbas.is_validator(q))
     return QSet(threshold, validators, inner_qsets)
 
 
@@ -182,9 +173,9 @@ def qset_of(fbas: FBASGraph, n: str) -> Optional[QSet]:
     Computes the QSet associated with the given vertex n based on the graph (does not use the qsets dict).
     n must be a validator vertex.
     """
-    assert n in fbas.validators
+    assert fbas.is_validator(n)
     # if n has no successors, then we don't know its qset:
-    if fbas.graph.out_degree(n) == 0:
+    if fbas.get_out_degree(n) == 0:
         return None
     return compute_qset(fbas, fbas.qset_vertex_of(n))
 
@@ -205,7 +196,7 @@ class StellarBeatSerializer:
         """
         validators_list = []
 
-        for v in sorted(self.fbas.validators):  # Sort for consistent output
+        for v in sorted(self.fbas.get_validators()):  # Sort for consistent output
             # Get all validator attributes
             attrs = self.fbas.vertice_attrs(v).copy()
 

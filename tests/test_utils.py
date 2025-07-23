@@ -42,36 +42,13 @@ def get_test_data_list() -> dict[str, list[dict]]:
     test_data_dir = Path(__file__).parent / 'test_data'
     data = {}
 
-    # Files that are not FBAS data and should be excluded
-    excluded_files = {
-        'top_tier_orgs.json',  # Contains list of organization names, not FBAS data
-    }
-    
-    def is_excluded_file(filename):
-        """Check if a file should be excluded from test data."""
-        if filename in excluded_files:
-            return True
-        if filename.endswith('_orgs.json') or filename.endswith('_orgs_orgs.json'):
-            return True
-        return False
-
     # Search in all subdirectories
     for subdir in ['small', 'pubnet']:
         subdir_path = test_data_dir / subdir
         if subdir_path.exists():
             for file in subdir_path.glob('*.json'):
-                # Skip excluded files
-                if is_excluded_file(file.name):
-                    continue
-
                 # Load and store with filename as key
                 with open(file, 'r', encoding='utf-8') as f:
                     data.update({file.name: json.load(f)})
 
-    # Also check root directory for any remaining files
-    for file in test_data_dir.glob('*.json'):
-        if not is_excluded_file(file.name) and file.name not in data:
-            with open(file, 'r', encoding='utf-8') as f:
-                data.update({file.name: json.load(f)})
-    
     return data
