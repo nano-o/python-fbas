@@ -30,7 +30,7 @@ def serialize(fbas: FBASGraph) -> str:
         attrs.pop('quorumSetHashKey', None)
 
         qset_id = None
-        if fbas.get_out_degree(v) == 1:
+        if fbas.graph_view().out_degree(v) == 1:
             qset_id = fbas.qset_vertex_of(v)
 
         validators_data.append({
@@ -44,9 +44,9 @@ def serialize(fbas: FBASGraph) -> str:
     qset_nodes = [
         q for q in fbas.vertices() if not fbas.is_validator(q)]
     for qset_id in qset_nodes:
-        if fbas.has_vertex(qset_id):
+        if qset_id in fbas.graph_view():
             threshold = fbas.threshold(qset_id)
-            members = fbas.get_successors(qset_id)
+            members = list(fbas.graph_view().successors(qset_id))
             qsets_data[qset_id] = {
                 "threshold": threshold,
                 "members": members
@@ -119,7 +119,7 @@ def deserialize(json_str: str) -> FBASGraph:
         validator_id = v_data["id"]
         qset_id = v_data.get("qset")
 
-        if qset_id and fbas.has_vertex(qset_id):
+        if qset_id and qset_id in fbas.graph_view():
             fbas.update_validator(validator_id, qset=qset_id)
 
     fbas.check_integrity()

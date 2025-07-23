@@ -137,7 +137,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
             id_suffix = ""
 
         threshold = original_fbas.threshold(qset_id)
-        original_members = original_fbas.get_successors(qset_id)
+        original_members = list(original_fbas.graph_view().successors(qset_id))
 
         # Convert members to new graph context
         new_members = []
@@ -224,7 +224,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
 
     # Connect original validators to their original qsets
     for validator_id in original_validators:
-        if original_fbas.get_out_degree(validator_id) == 1:
+        if original_fbas.graph_view().out_degree(validator_id) == 1:
             original_qset_id = original_fbas.qset_vertex_of(validator_id)
             new_qset_id = qset_mapping[original_qset_id]
 
@@ -239,7 +239,7 @@ def create_sybil_fbas_variant(input_file: str, output_file: str, traitor_homedom
     # Connect sybil validators to their sybil qsets
     for i, validator_id in enumerate(original_validators):
         sybil_id = sybil_validators[i]
-        if original_fbas.get_out_degree(validator_id) == 1:
+        if original_fbas.graph_view().out_degree(validator_id) == 1:
             original_qset_id = original_fbas.qset_vertex_of(validator_id)
             sybil_qset_id = sybil_qset_mapping[original_qset_id]
 

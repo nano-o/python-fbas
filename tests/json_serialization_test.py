@@ -318,14 +318,14 @@ class TestUUIDGeneration:
         fbas = deserialize(json.dumps(json_data))
 
         # Check that custom IDs are preserved
-        assert fbas.has_vertex("myCustomQset")
-        assert fbas.has_vertex("org-qset-1")
-        assert fbas.has_vertex("_q1")
+        assert "myCustomQset" in fbas.graph_view()
+        assert "org-qset-1" in fbas.graph_view()
+        assert "_q1" in fbas.graph_view()
 
         # Verify connections
-        assert fbas.get_successors('v1')[0] == "myCustomQset"
-        assert fbas.get_successors('v2')[0] == "org-qset-1"
-        assert fbas.get_successors('v3')[0] == "_q1"
+        assert list(fbas.graph_view().successors('v1'))[0] == "myCustomQset"
+        assert list(fbas.graph_view().successors('v2'))[0] == "org-qset-1"
+        assert list(fbas.graph_view().successors('v3'))[0] == "_q1"
 
     def test_duplicate_id_detection(self):
         """Test that duplicate IDs are detected and reported."""
@@ -382,7 +382,7 @@ class TestUUIDGeneration:
         fbas1.update_validator('v1', qset=qset1_id)
 
         # Get the generated qset ID
-        qset_id = fbas1.get_successors('v1')[0]
+        qset_id = list(fbas1.graph_view().successors('v1'))[0]
         assert qset_id.startswith('_q')
         assert len(qset_id) == 34
 
@@ -391,7 +391,7 @@ class TestUUIDGeneration:
         fbas2 = deserialize(json_str)
 
         # Check that the UUID-based ID is preserved
-        qset_id2 = fbas2.get_successors('v1')[0]
+        qset_id2 = list(fbas2.graph_view().successors('v1'))[0]
         assert qset_id == qset_id2
 
         # Check that qsets are equivalent
@@ -647,10 +647,10 @@ class TestPubnetRoundTrip:
             assert orig_attrs == rest_attrs
 
         # Verify graph structure is preserved
-        assert fbas_original.number_of_nodes(
-        ) == fbas_restored.number_of_nodes()
-        assert fbas_original.number_of_edges(
-        ) == fbas_restored.number_of_edges()
+        assert fbas_original.graph_view().number_of_nodes(
+        ) == fbas_restored.graph_view().number_of_nodes()
+        assert fbas_original.graph_view().number_of_edges(
+        ) == fbas_restored.graph_view().number_of_edges()
 
         # Both should pass integrity checks
         fbas_original.check_integrity()

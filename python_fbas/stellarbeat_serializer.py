@@ -159,11 +159,11 @@ def compute_qset(fbas: FBASGraph, qset_vertex: str) -> QSet:
     assert not fbas.is_validator(qset_vertex)
     threshold = fbas.threshold(qset_vertex)
     # validators are the children of the qset vertex that are validators:
-    validators = frozenset(v for v in fbas.get_successors(
+    validators = frozenset(v for v in fbas.graph_view().successors(
         qset_vertex) if fbas.is_validator(v))
     # inner_qsets are the children of the qset vertex that are qset
     # vertices:
-    inner_qsets = frozenset(compute_qset(fbas, q) for q in fbas.get_successors(
+    inner_qsets = frozenset(compute_qset(fbas, q) for q in fbas.graph_view().successors(
         qset_vertex) if not fbas.is_validator(q))
     return QSet(threshold, validators, inner_qsets)
 
@@ -175,7 +175,7 @@ def qset_of(fbas: FBASGraph, n: str) -> Optional[QSet]:
     """
     assert fbas.is_validator(n)
     # if n has no successors, then we don't know its qset:
-    if fbas.get_out_degree(n) == 0:
+    if fbas.graph_view().out_degree(n) == 0:
         return None
     return compute_qset(fbas, fbas.qset_vertex_of(n))
 

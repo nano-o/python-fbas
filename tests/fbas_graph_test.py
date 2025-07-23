@@ -223,7 +223,7 @@ def test_qset_of():
         with temporary_config(deserialization_mode='indulgent'):
             fg = deserialize(json.dumps(d))
         for v in fg.get_validators():
-            if fg.get_successors(v):
+            if list(fg.graph_view().successors(v)):
                 qset_of(fg, v)
 
 

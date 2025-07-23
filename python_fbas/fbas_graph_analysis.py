@@ -106,7 +106,7 @@ def quorum_constraints(fbas: FBASGraph,
     for q in fbas.get_qset_vertices():
         assert fbas.threshold(q) is not None
         if fbas.threshold(q) > 0:
-            vs = [make_atom(n) for n in fbas.get_successors(q)]
+            vs = [make_atom(n) for n in fbas.graph_view().successors(q)]
             constraints.append(
                 Implies(
                     make_atom(q),
@@ -167,7 +167,7 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
             sat_res.model,
             predicate=lambda ident: fbas.is_validator(ident))
         logging.info("Quorum %s is inside %s", q, s)
-        missing_qset = [v for v in q if fbas.get_out_degree(v) == 0]
+        missing_qset = [v for v in q if fbas.graph_view().out_degree(v) == 0]
         if missing_qset:
             logging.warning(f"validators {missing_qset} do not have a qset")
         assert fbas.is_quorum(q)
@@ -240,7 +240,7 @@ def find_disjoint_quorums(
         assert fbas.is_quorum(q1, over_approximate=True)
         assert fbas.is_quorum(q2, over_approximate=True)
         assert not set(q1) & set(q2)
-        missing_qset = [v for v in set(q1) | set(q2) if fbas.get_out_degree(v) == 0]
+        missing_qset = [v for v in set(q1) | set(q2) if fbas.graph_view().out_degree(v) == 0]
         if missing_qset:
             logging.warning(f"validators {missing_qset} do not have a qset")
         return DisjointQuorumsResult(quorum_a=q1, quorum_b=q2)
@@ -290,7 +290,7 @@ def find_minimal_splitting_set(
                                 in_quorum(q, fbas.qset_vertex_of(v))))
                 elif not fbas.is_validator(v) and fbas.threshold(v) > 0:
                     member_atoms = [in_quorum(q, n)
-                                    for n in fbas.get_successors(v)]
+                                    for n in fbas.graph_view().successors(v)]
                     # the threshold must be met:
                     constraints.append(
                         Implies(
@@ -353,7 +353,7 @@ def find_minimal_splitting_set(
         assert all(fbas.is_sat(v, q2, over_approximate=True) for v in q2 - ss)
         logging.info("Quorum A: %s", [fbas.format_validator(v) for v in q1])
         logging.info("Quorum B: %s", [fbas.format_validator(v) for v in q2])
-        missing_qset = [v for v in q1 | q2 if fbas.get_out_degree(v) == 0]
+        missing_qset = [v for v in q1 | q2 if fbas.graph_view().out_degree(v) == 0]
         if missing_qset:
             logging.warning(f"validators {missing_qset} do not have a qset")
         if not config.get().group_by:
@@ -433,7 +433,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
 
         def blocking_threshold(v: str) -> int:
             assert not fbas.is_validator(v)
-            return len(fbas.get_successors(v)) - fbas.threshold(v) + 1
+            return len(list(fbas.graph_view().successors(v))) - fbas.threshold(v) + 1
 
         # first, the threshold constraints:
         for v in fbas.get_validators():
@@ -457,8 +457,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
                 constraints.append(Not(is_blocked(q)))
             else:
                 assert fbas.threshold(q) > 0
-                vs = set(fbas.get_successors(q)) & fbas.get_validators()
-                qs = set(fbas.get_successors(q)) & fbas.get_qset_vertices()
+                vs = set(fbas.graph_view().successors(q)) & fbas.get_validators()
+                qs = set(fbas.graph_view().successors(q)) & fbas.get_qset_vertices()
                 may_block = [And(Or(is_blocked(n), is_faulty(n)),
                                  lt(n, q))
                              for n in vs]
@@ -529,7 +529,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             logging.info("Minimal-cardinality blocking set: %s",
                          [g for g in s if g in groups])
         vs = set(s) - groups
-        no_qset = {v for v in fbas.get_validators() if fbas.get_out_degree(v) == 0}
+        no_qset = {v for v in fbas.get_validators() if fbas.graph_view().out_degree(v) == 0}
         assert fbas.closure(vs | no_qset) == fbas.get_validators()
         if not fbas.closure(vs) == fbas.get_validators():
             logging.warning(f"The validators {no_qset} have no known qset and this affects the blocking-set analysis results")

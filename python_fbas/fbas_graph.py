@@ -476,18 +476,6 @@ class FBASGraph:
         """Returns a read-only view of validators"""
         return frozenset(self._validators)
 
-    def has_vertex(self, v: str) -> bool:
-        """Check if a vertex exists in the graph"""
-        return v in self._graph
-
-    def get_successors(self, v: str) -> list[str]:
-        """Get successors of a vertex"""
-        return list(self._graph.successors(v))
-
-    def get_out_degree(self, v: str) -> int:
-        """Get out-degree of a vertex"""
-        return self._graph.out_degree(v)
-
     def is_validator(self, v: str) -> bool:
         """Check if a vertex is a validator"""
         return v in self._validators
@@ -495,10 +483,6 @@ class FBASGraph:
     def get_qset_vertices(self) -> frozenset[str]:
         """Get all qset vertices"""
         return frozenset(self._qsets.values())
-
-    def get_strongly_connected_components(self):
-        """Get strongly connected components of the graph"""
-        return nx.strongly_connected_components(self._graph)
 
     def graph_view(self):
         """Returns a read-only view of the underlying graph.
@@ -508,11 +492,3 @@ class FBASGraph:
         """
         import networkx.classes.graphviews as gv
         return gv.generic_graph_view(self._graph)
-
-    def number_of_nodes(self) -> int:
-        """Get the total number of nodes in the graph"""
-        return self._graph.number_of_nodes()
-
-    def number_of_edges(self) -> int:
-        """Get the total number of edges in the graph"""
-        return self._graph.number_of_edges()
