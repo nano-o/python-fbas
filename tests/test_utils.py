@@ -33,10 +33,9 @@ def load_fbas_from_test_file(filename):
     This is a convenience function that combines get_validators_from_test_fbas()
     and FBASSerializer.deserialize() to simplify the common pattern in tests.
     """
-    from python_fbas.serialization import FBASSerializer
-    serializer = FBASSerializer()
+    from python_fbas.serialization import deserialize
     json_data = json.dumps(get_validators_from_test_fbas(filename))
-    return serializer.deserialize(json_data)
+    return deserialize(json_data)
 
 
 def get_test_data_list() -> dict[str, list[dict]]:

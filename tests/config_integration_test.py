@@ -128,7 +128,8 @@ sat_solver: "minisat22"
     "publicKey": "GDQWITFJLZ5HT6JCOXYEVV5VFD6FTLAKJAUDKHAV3HKYGVJWA2DPYSQV",
     "quorumSet": {
       "threshold": 1,
-      "validators": ["GDQWITFJLZ5HT6JCOXYEVV5VFD6FTLAKJAUDKHAV3HKYGVJWA2DPYSQV"]
+      "validators": ["GDQWITFJLZ5HT6JCOXYEVV5VFD6FTLAKJAUDKHAV3HKYGVJWA2DPYSQV"],
+      "innerQuorumSets": []
     }
   }
 ]"""

@@ -149,7 +149,7 @@ class TestFormatDetection:
         with caplog.at_level(logging.INFO):
             # Test stellarbeat
             stellarbeat_data = [
-                {"publicKey": "PK1", "quorumSet": {"threshold": 1,
+                {"publicKey": "PK1", "quorumSet": {"threshold": 0,
                                                    "validators": [], "innerQuorumSets": []}}
             ]
             deserialize(json.dumps(stellarbeat_data))
@@ -280,6 +280,7 @@ class TestUUIDGeneration:
 
     def test_add_qset_generates_uuid(self):
         """Test that add_qset generates UUID-based IDs."""
+        fbas = FBASGraph()
         fbas.add_validator('v1')
         fbas.add_validator('v2')
         fbas.add_validator('v3')

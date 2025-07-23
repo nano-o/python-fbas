@@ -67,7 +67,7 @@ def serialize(fbas: FBASGraph, format: str = 'python-fbas') -> str:
         return python_fbas_serializer.serialize(fbas)
     elif format == 'stellarbeat':
         serializer = stellarbeat.StellarBeatSerializer(fbas)
-        return serializer.serialize(fbas)
+        return serializer.serialize()
     else:
         raise ValueError(f"Unknown format: {format}")
 

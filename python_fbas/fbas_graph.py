@@ -207,7 +207,6 @@ class FBASGraph:
 
         return qset_id
 
-
     def __str__(self) -> str:
         def info(v: str) -> str:
             if self.graph.out_degree(v) > 0:

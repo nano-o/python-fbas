@@ -4,16 +4,18 @@ import random
 import json
 from test_utils import get_test_data_list, load_fbas_from_test_file, get_validators_from_test_fbas
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.serialization import FBASSerializer
+from python_fbas.serialization import deserialize
 from python_fbas.config import temporary_config
+from python_fbas.stellarbeat_serializer import qset_of
 
 
 def test_load_fbas():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading fbas %s", f)
-        serializer = FBASSerializer()
-        fg = serializer.deserialize(json.dumps(d))
+        # Use indulgent mode for test data that might have invalid entries
+        with temporary_config(deserialization_mode='indulgent'):
+            fg = deserialize(json.dumps(d))
         fg.check_integrity()
 
 
@@ -36,8 +38,9 @@ def test_is_quorum_2():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading fbas of %s", f)
-        serializer = FBASSerializer()
-        fbas_graph = serializer.deserialize(json.dumps(d))
+        # Use indulgent mode for test data that might have invalid entries
+        with temporary_config(deserialization_mode='indulgent'):
+            fbas_graph = deserialize(json.dumps(d))
         if fbas_graph.validators:
             for _ in range(100):
                 # pick a random subset of validators for which we have a qset:
@@ -69,8 +72,7 @@ def test_closure():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading fbas of %s", f)
-        serializer = FBASSerializer()
-        fbas_graph = serializer.deserialize(json.dumps(d))
+        fbas_graph = deserialize(json.dumps(d))
         if fbas_graph.validators:
             for _ in range(100):
                 # pick a random subset of validators:
@@ -217,11 +219,12 @@ def test_qset_of():
     data = get_test_data_list()
     for f, d in data.items():
         logging.info("loading fbas %s", f)
-        serializer = FBASSerializer()
-        fg = serializer.deserialize(json.dumps(d))
+        # Use indulgent mode for test data that might have invalid entries
+        with temporary_config(deserialization_mode='indulgent'):
+            fg = deserialize(json.dumps(d))
         for v in fg.validators:
             if list(fg.graph.successors(v)):
-                fg.qset_of(v)
+                qset_of(fg, v)
 
 
 def test_format_validator():

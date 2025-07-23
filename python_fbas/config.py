@@ -22,6 +22,7 @@ class Config:
     output: Optional[str] = None
     group_by: Optional[str] = None
     validator_display: Literal["id", "name", "both"] = "both"
+    deserialization_mode: Literal["strict", "indulgent"] = "indulgent"
 
 
 _cfg: Config = Config()           # single authoritative instance

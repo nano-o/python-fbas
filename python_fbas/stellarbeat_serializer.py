@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 from functools import lru_cache
 
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.config import get as get_config
 
 
 @dataclass(frozen=True)
@@ -70,9 +71,7 @@ class QSet:
 
         # Recursively convert inner quorum sets
         for inner_qset in self.inner_quorum_sets:
-            inner_qset_list = result["innerQuorumSets"]
-            inner_qset_list.append(
-                self._qset_to_stellarbeat_format(inner_qset))
+            result["innerQuorumSets"].append(inner_qset.to_json())
 
         return result
 
@@ -97,15 +96,22 @@ def deserialize(
     # first do some validation
     validators = []
     keys = set()
+    config = get_config()
     for v in data:
         if not isinstance(v, dict) or 'publicKey' not in v:
-            logging.warning("Ignoring invalid validator format: %s", v)
-            continue
+            if config.deserialization_mode == "indulgent":
+                logging.warning("Ignoring invalid validator format: %s", v)
+                continue
+            else:
+                raise ValueError(f"Invalid validator format (expected dict with 'publicKey'): {v}")
 
         pk = v['publicKey']
         if pk in keys:
-            logging.warning("Ignoring duplicate validator: %s", pk)
-            continue
+            if config.deserialization_mode == "indulgent":
+                logging.warning("Ignoring duplicate validator: %s", pk)
+                continue
+            else:
+                raise ValueError(f"Duplicate validator publicKey: {pk}")
 
         keys.add(pk)
         validators.append(v)
@@ -114,8 +120,7 @@ def deserialize(
     fbas = FBASGraph()
     qsets: dict[QSet, str] = {}
 
-    def _process_qset(q: Dict[str, Any]) -> str:
-        qset = QSet.from_json(q)
+    def _process_qset(qset: QSet) -> str:
         if qset in qsets:
             return qsets[qset]
         else:
@@ -139,8 +144,17 @@ def deserialize(
         fbas.graph.add_node(pk, **attrs)
         qset_json = v.get('quorumSet', None)
         if qset_json is not None:
-            qset_id = _process_qset(qset_json)
-            fbas.graph.add_edge(pk, qset_id)
+            try:
+                qset = QSet.from_json(qset_json)
+                qset_id = _process_qset(qset)
+                fbas.graph.add_edge(pk, qset_id)
+            except ValueError as e:
+                if get_config().deserialization_mode == "indulgent":
+                    logging.warning(f"Skipping invalid quorum set for validator {pk}: {e}")
+                else:
+                    raise
+
+    fbas.validators = keys
 
     fbas.check_integrity()
     return fbas
