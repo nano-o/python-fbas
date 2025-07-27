@@ -270,18 +270,25 @@ def test_qset_reachability_check():
     fbas2.add_validator('V1')
     fbas2.add_validator('V2')
 
-    # Create two qsets that will form a cycle
+    # Create two qsets normally first
     qset1 = fbas2.add_qset(threshold=1, components=['V1'], qset_id='qset1')
     qset2 = fbas2.add_qset(threshold=1, components=['V2'], qset_id='qset2')
 
-    # Create a cycle between qsets: qset1 -> qset2 -> qset1
-    # Remove existing edges to validators and add edges between qsets
+    # Now manually create a cycle by manipulating the graph and _qsets directly
+    # Remove existing edges and add cycle edges
     fbas2._graph.remove_edge(qset1, 'V1')
     fbas2._graph.remove_edge(qset2, 'V2')
     fbas2._graph.add_edge(qset1, qset2)
     fbas2._graph.add_edge(qset2, qset1)
 
-    # This should fail the integrity check
+    # Update _qsets to match the new graph structure
+    # Remove old entries and add new ones
+    del fbas2._qsets[(1, frozenset(['V1']))]
+    del fbas2._qsets[(1, frozenset(['V2']))]
+    fbas2._qsets[(1, frozenset([qset2]))] = qset1
+    fbas2._qsets[(1, frozenset([qset1]))] = qset2
+
+    # This should fail the integrity check due to qset cycle
     with pytest.raises(ValueError) as exc_info:
         fbas2.check_integrity()
     assert "cycle" in str(exc_info.value)

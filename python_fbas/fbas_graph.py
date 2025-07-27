@@ -19,9 +19,9 @@ from python_fbas.config import get as get_config
 
 class FBASGraph:
     """
-    An FBAS graph is a directed graph. Each vertex is either a validator or a
-    qset vertex, which may have a threshold attribute. Vertices are identified
-    by strings.
+    An FBAS graph is a directed graph where each vertex is either a validator or
+    a qset vertex. Qset vertices may have a threshold attribute. Vertices are
+    identified by strings.
 
     A validator vertex must have at most one sucessor in the graph, which must
     be a qset vertex, and has no threshold. If it does not have a successor,
@@ -36,15 +36,12 @@ class FBASGraph:
     Two important invariants are that the subgraph of the qset vertices must be
     acyclic and that no two qset vertices may have the same threshold and same
     outgoing edges.
-
-    TODO: rethink the interface; we need to maintain the invariants, so it would
-    be better if clients did not have to access the graph directly.
     """
 
-    _graph: nx.DiGraph  # TODO made private, don't use elsewhere
-    # tracts which vertices in the graph are validator vertices:
-    _validators: set[str]  # TODO should export only read-only view
-    _qsets: Dict[Tuple[int, frozenset[str]], str]  # maps (threshold, members) to qset vertex ID
+    _graph: nx.DiGraph
+    _validators: set[str]  # set of validator vertex IDs
+    # maps (threshold, members) to qset vertex ID
+    _qsets: Dict[Tuple[int, frozenset[str]], str]
 
     def __init__(self) -> None:
         self._graph = nx.DiGraph()
@@ -58,7 +55,8 @@ class FBASGraph:
         fbas._qsets = self._qsets.copy()
         return fbas
 
-    def vertices(self, data: bool = False) -> NodeView:  # TODO: looks like it's never used with data=True
+    # TODO: looks like it's never used with data=True
+    def vertices(self, data: bool = False) -> NodeView:
         return self._graph.nodes(data=data)
 
     def vertice_attrs(self, n: str) -> Dict[str, Any]:
@@ -97,6 +95,19 @@ class FBASGraph:
                         f"Integrity check failed: validator {v} has a successor "
                         f"{succ} that is not a qset vertex")
 
+        # _qsets and the graph must be consistent:
+        for (threshold, members), qset_id in self._qsets.items():
+            if self._graph.nodes[qset_id].get('threshold') != threshold:
+                raise ValueError(
+                    f"Integrity check failed: qset vertex {qset_id} has a "
+                    f"threshold {self._graph.nodes[qset_id].get('threshold')} "
+                    f"but expected {threshold}")
+            successors = set(self._graph.successors(qset_id))
+            if successors != set(members):
+                raise ValueError(
+                    f"Integrity check failed: qset vertex {qset_id} has "
+                    f"successors {successors} but expected {members}")
+
         # a qset vertice must have a threshold attribute between 0 and its
         # out-degree:
         for q in qset_vertices:
@@ -116,6 +127,67 @@ class FBASGraph:
                 "Integrity check failed: the qset subgraph has a cycle: "
                 f"{nx.find_cycle(qset_only_graph)}")
 
+    def equivalent(self, other: object) -> bool:
+        """
+        Compare two FBASGraph instances for equivalence.
+
+        Two graphs are equivalent when:
+        1. They have the same set of validators (with the same IDs)
+        2. The graphs are isomorphic (structurally equivalent)
+        3. During isomorphism check:
+           - Validators must have matching IDs
+           - Qset vertices must have matching thresholds
+
+        NOTE this is slow due to the isomorphism check
+        """
+        if not isinstance(other, FBASGraph):
+            return False
+
+        # Check if validators are the same
+        if self._validators != other._validators:
+            return False
+
+        def prepare_graph_for_matching(
+                graph: nx.DiGraph,
+                validators: set[str]) -> nx.DiGraph:
+            """Prepare a graph copy with special attributes for isomorphism matching"""
+            temp_graph = graph.copy()
+
+            for node in temp_graph.nodes():
+                if node in validators:
+                    # For validators, store their ID for exact matching
+                    temp_graph.nodes[node]['_match_type'] = 'validator'
+                    temp_graph.nodes[node]['_match_id'] = node
+                else:
+                    # For qset vertices, store their threshold for matching
+                    temp_graph.nodes[node]['_match_type'] = 'qset'
+                    temp_graph.nodes[node]['_match_threshold'] = temp_graph.nodes[node].get(
+                        'threshold', -1)
+
+            return temp_graph
+
+        # Create temporary copies with special attributes for isomorphism
+        # checking
+        temp_self = prepare_graph_for_matching(self._graph, self._validators)
+        temp_other = prepare_graph_for_matching(
+            other._graph, other._validators)
+
+        # Custom node match function
+        def node_match(n1_attrs, n2_attrs):
+            # Must be same type (validator or qset)
+            if n1_attrs.get('_match_type') != n2_attrs.get('_match_type'):
+                return False
+
+            if n1_attrs.get('_match_type') == 'validator':
+                # Validators must have same ID
+                return n1_attrs.get('_match_id') == n2_attrs.get('_match_id')
+            else:
+                # Qset vertices must have same threshold
+                return n1_attrs.get('_match_threshold') == n2_attrs.get(
+                    '_match_threshold')
+
+        return nx.is_isomorphic(temp_self, temp_other, node_match=node_match)
+
     def format_validator(self, validator_id: str) -> str:
         """
         Formats a validator's string representation based on the
@@ -134,13 +206,23 @@ class FBASGraph:
             return f"{validator_id} ({name})"
         return validator_id
 
-    def add_validator(self, v: str, *, qset: Optional[str] = None, **attrs) -> None:
+    def add_validator(
+            self,
+            v: str,
+            *,
+            qset: Optional[str] = None,
+            **attrs) -> None:
         """Add a validator to the graph."""
         if v in self._validators:
             raise ValueError(f"Validator {v} already exists in the graph")
         self.update_validator(v, qset=qset, **attrs)
 
-    def update_validator(self, v: str, *, qset: Optional[str] = None, **attrs) -> None:
+    def update_validator(
+            self,
+            v: str,
+            *,
+            qset: Optional[str] = None,
+            **attrs) -> None:
         self._graph.add_node(v, **attrs)
         self._validators.add(v)
         if qset:
@@ -172,16 +254,20 @@ class FBASGraph:
 
         # Validate inputs
         if threshold < 0:
-            raise ValueError(f"Threshold must be non-negative, got {threshold}")
+            raise ValueError(
+                f"Threshold must be non-negative, got {threshold}")
         if threshold > len(components):
-            raise ValueError(f"Threshold {threshold} cannot exceed {len(components)} (the number of components of the qset)")
+            raise ValueError(
+                f"Threshold {threshold} cannot exceed {len(components)} (the number of components of the qset)")
 
-        # first check if a qset with the same threshold and components already exists:
+        # first check if a qset with the same threshold and components already
+        # exists:
         components_set = frozenset(components)
         qset_spec = (threshold, components_set)
         if qset_spec in self._qsets:
             existing_qset_id = self._qsets[qset_spec]
-            # warn only if qset_id was provided and does not match the existing one:
+            # warn only if qset_id was provided and does not match the existing
+            # one:
             if qset_id is not None and qset_id != existing_qset_id:
                 logging.warning(
                     f"QSet with threshold {threshold} and components {components_set} already exists with ID {existing_qset_id}, "
@@ -199,10 +285,12 @@ class FBASGraph:
         else:
             # Validate that the ID doesn't already exist
             if qset_id in self._graph:
-                raise ValueError(f"Vertex with ID {qset_id} already exists in the graph")
+                raise ValueError(
+                    f"Vertex with ID {qset_id} already exists in the graph")
             # Validate that it's not in the validators set
             if qset_id in self._validators:
-                raise ValueError(f"ID {qset_id} is already used by a validator")
+                raise ValueError(
+                    f"ID {qset_id} is already used by a validator")
 
         # Create the qset vertex
         self._graph.add_node(qset_id, threshold=threshold)
@@ -311,7 +399,7 @@ class FBASGraph:
         if v in self._qsets.values() and self.threshold(v) == 0:
             return False
         if v in self._validators and self._graph.out_degree(v) == 0:
-            return False # TODO: not clear what to do here
+            return False  # TODO: not clear what to do here
         remaining_successors = len(set(self._graph.successors(v)) - set(s))
         return remaining_successors < (self.threshold(v) or 1)
 
@@ -466,7 +554,7 @@ class FBASGraph:
             self.intersection_bound_heuristic(
                 self.qset_vertex_of(v1),
                 self.qset_vertex_of(v2)) for v1,
-            v2 in combinations  (
+            v2 in combinations(
                 self._validators,
                 2) if v1 != v2)
 

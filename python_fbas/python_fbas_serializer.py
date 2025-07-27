@@ -27,7 +27,7 @@ def serialize(fbas: FBASGraph) -> str:
         # Remove quorum set related fields to avoid duplication
         # since we represent quorum sets separately in the qsets section
         attrs.pop('quorumSet', None)
-        attrs.pop('quorumSetHashKey', None)
+        # Keep quorumSetHashKey as it's part of the validator's attributes
 
         qset_id = None
         if fbas.graph_view().out_degree(v) == 1:
