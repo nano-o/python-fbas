@@ -5,7 +5,7 @@ which has a threshold attribute.
 """
 
 from copy import copy
-from typing import Any, Literal, Optional, Dict, Tuple
+from typing import Any, Literal
 from collections.abc import Collection, ValuesView
 from itertools import chain, combinations
 import logging
@@ -41,7 +41,7 @@ class FBASGraph:
     _graph: nx.DiGraph
     _validators: set[str]  # set of validator vertex IDs
     # maps (threshold, members) to qset vertex ID
-    _qsets: Dict[Tuple[int, frozenset[str]], str]
+    _qsets: dict[tuple[int, frozenset[str]], str]
 
     def __init__(self) -> None:
         self._graph = nx.DiGraph()
@@ -59,7 +59,7 @@ class FBASGraph:
     def vertices(self, data: bool = False) -> NodeView:
         return self._graph.nodes(data=data)
 
-    def vertice_attrs(self, n: str) -> Dict[str, Any]:
+    def vertice_attrs(self, n: str) -> dict[str, Any]:
         # TODO should we return a copy?
         return self._graph.nodes[n]
 
@@ -231,7 +231,7 @@ class FBASGraph:
             self,
             v: str,
             *,
-            qset: Optional[str] = None,
+            qset: str | None = None,
             **attrs) -> None:
         """Add a validator to the graph."""
         if v in self._validators:
@@ -242,7 +242,7 @@ class FBASGraph:
             self,
             v: str,
             *,
-            qset: Optional[str] = None,
+            qset: str | None = None,
             **attrs) -> None:
         self._graph.add_node(v, **attrs)
         self._validators.add(v)
@@ -258,7 +258,7 @@ class FBASGraph:
             self._graph.add_edge(v, qset)
 
     def add_qset(self, threshold: int, components: Collection[str],
-                 qset_id: Optional[str] = None) -> str:
+                 qset_id: str | None = None) -> str:
         """
         Add a quorum set vertex to the graph. If a qset with the same threshold
         and components already exists, returns the existing qset's ID instead of
@@ -333,7 +333,7 @@ class FBASGraph:
         res = {v: info(v) for v in self.vertices()}
         return pformat(res)
 
-    def threshold(self, n: str) -> Optional[int]:
+    def threshold(self, n: str) -> int | None:
         """
         Returns the threshold of the given vertex.
         For validators, returns None since they don't have thresholds.
@@ -342,7 +342,7 @@ class FBASGraph:
             return None
         return self.vertice_attrs(n).get('threshold')
 
-    def qset_vertex_of(self, n: str) -> Optional[str]:
+    def qset_vertex_of(self, n: str) -> str | None:
         assert n in self._validators
         return next(self._graph.successors(n), None)
 
@@ -397,7 +397,7 @@ class FBASGraph:
         # TODO
         pass
 
-    def find_disjoint_quorums(self) -> Optional[tuple[set[str], set[str]]]:
+    def find_disjoint_quorums(self) -> tuple[set[str], set[str]] | None:
         """
         Naive, brute-force search for disjoint quorums.
         Warning: use only for very small fbas graphs.
