@@ -6,7 +6,8 @@ TODO: threshold() does not work as expected anymore
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional, Collection, Callable, Set
+from typing import Any, Callable
+from collections.abc import Collection
 from itertools import combinations
 from functools import partial
 import networkx as nx
@@ -59,7 +60,6 @@ class Tagger:
 
     def atom(self, base_variable: Any) -> Atom:
         """Creates a new Atom with a tagged identifier."""
-        # The identifier is a tuple for robustness, e.g., ('in_quorum', 'NodeA')
         return Atom((self._tag, base_variable))
 
     def is_tagged(self, identifier: Any) -> bool:
@@ -82,7 +82,7 @@ class Tagger:
 
 
 def extract_true_tagged_variables(model: list[int],
-                                  tagger: Tagger) -> Set[Any]:
+                                  tagger: Tagger) -> set[Any]:
     """
     Given a pysat model (a list of ints), it decodes the model, filters for
     true variables with a specific tag, and returns a set of their base
@@ -110,9 +110,7 @@ def quorum_constraints(fbas: FBASGraph,
             constraints.append(
                 Implies(
                     make_atom(q),
-                    Card(
-                        fbas.threshold(q),
-                        *vs)))
+                    Card(fbas.threshold(q), *vs)))
     for v in fbas.get_validators():
         qset = fbas.qset_vertex_of(v)
         if qset:
@@ -177,7 +175,7 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
 
 
 def find_disjoint_quorums(
-        fbas: FBASGraph) -> Optional[DisjointQuorumsResult]:
+        fbas: FBASGraph) -> DisjointQuorumsResult | None:
     """
     Find two disjoint quorums in the FBAS graph, or prove there are none.  To do
     this, we build a propositional formula that is satsifiable if and only if
@@ -248,7 +246,7 @@ def find_disjoint_quorums(
 
 
 def find_minimal_splitting_set(
-        fbas: FBASGraph) -> Optional[SplittingSetResult]:
+        fbas: FBASGraph) -> SplittingSetResult | None:
     """
     Find a minimal-cardinality splitting set in the FBAS graph, or prove there
     is none.  Uses one of pysat's MaxSAT procedures (LSU or RC2).  If found,
@@ -393,7 +391,7 @@ def max_scc(fbas: FBASGraph) -> Collection[str]:
         return {}
 
 
-def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
+def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
     """
     Find a minimal-cardinality blocking set in the FBAS graph, or prove there is
     none.
@@ -458,7 +456,8 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Optional[Collection[str]]:
             else:
                 assert fbas.threshold(q) > 0
                 vs = set(fbas.graph_view().successors(q)) & fbas.get_validators()
-                qs = set(fbas.graph_view().successors(q)) & fbas.get_qset_vertices()
+                qs = {q for q in fbas.graph_view().successors(q)
+                      if q in fbas.get_qset_vertices()}
                 may_block = [And(Or(is_blocked(n), is_faulty(n)),
                                  lt(n, q))
                              for n in vs]
@@ -625,7 +624,7 @@ def min_history_loss_critical_set(
 def find_min_quorum(
         fbas: FBASGraph,
         *,
-        not_subset_of: Optional[Collection[str]] = None,
+        not_subset_of: Collection[str] | None = None,
         project_on_scc: bool = True) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
@@ -649,7 +648,7 @@ def find_min_quorum(
             return []
         if len(sccs) == 1:
             scc = set(sccs[0])
-            fbas = fbas.project(scc & fbas.get_validators())
+            fbas = fbas.project_on_reachable_from(scc & fbas.get_validators())
 
     if not fbas.get_validators():
         logging.info("The FBAS has no validators!")
@@ -717,7 +716,7 @@ def find_min_quorum(
         return []
 
 
-def top_tier(fbas: FBASGraph, *, from_validator: Optional[str] = None) -> Collection[str]:
+def top_tier(fbas: FBASGraph, *, from_validator: str | None = None) -> Collection[str]:
     """
     Compute the top tier of the FBAS graph.  This is supposed to be the union of
     all minimal quorums, but for now we just return a maximal strongly-connected

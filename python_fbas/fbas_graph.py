@@ -6,7 +6,7 @@ which has a threshold attribute.
 
 from copy import copy
 from typing import Any, Literal, Optional, Dict, Tuple
-from collections.abc import Collection
+from collections.abc import Collection, ValuesView
 from itertools import chain, combinations
 import logging
 from pprint import pformat
@@ -63,6 +63,27 @@ class FBASGraph:
         # TODO should we return a copy?
         return self._graph.nodes[n]
 
+    def get_validators(self) -> frozenset[str]:
+        """Returns a read-only view of validators"""
+        return frozenset(self._validators)
+
+    def is_validator(self, v: str) -> bool:
+        """Check if a vertex is a validator"""
+        return v in self._validators
+
+    def get_qset_vertices(self) -> ValuesView[str]:
+        """Get all qset vertices"""
+        return self._qsets.values()
+
+    def graph_view(self) -> nx.DiGraph:
+        """Returns a read-only view of the underlying graph.
+
+        This allows NetworkX algorithms to be used on the graph while
+        preventing accidental modifications.
+        """
+        import networkx.classes.graphviews as gv
+        return gv.generic_graph_view(self._graph)
+
     def check_integrity(self) -> None:
         """Basic integrity checks; raises ValueError"""
 
@@ -71,7 +92,7 @@ class FBASGraph:
         # _validators and _qset must be disjoint:
         if self._validators & qset_vertices:
             raise ValueError(
-                "Validators and qset vertices must be disjoint, but "
+                "Validators and qset vertices must be disjoint, but " +
                 f"{self._validators & qset_vertices} are in both")
 
         # the set of vertices in the graph is the union of validators and qset
@@ -331,21 +352,17 @@ class FBASGraph:
     def is_qset_sat(self, q: str, s: Collection[str]) -> bool:
         """
         Returns True if and only if q's agreement requirements are satisfied by s.
+
         NOTE: this is a recursive function and it could blow the stack if the
         qset graph is very deep.
         """
         assert set(s) <= self._validators
         assert q in self._qsets.values()
         assert 'threshold' in self.vertice_attrs(q)
-        if all(c in self._validators for c in self._graph.successors(q)):
-            assert q not in self._validators
-            return self.threshold(q) <= sum(
-                1 for c in self._graph.successors(q) if c in s)
-        else:
-            return self.threshold(q) <= \
-                sum(1 for c in self._graph.successors(q) if
-                    c not in self._validators and self.is_qset_sat(c, s)
-                    or c in self._validators and c in s)
+        return self.threshold(q) <= \
+            sum(1 for c in self._graph.successors(q) if
+                c not in self._validators and self.is_qset_sat(c, s)
+                or c in self._validators and c in s)
 
     def is_sat(
             self,
@@ -376,24 +393,28 @@ class FBASGraph:
         assert set(vs) <= self._validators
         return all(self.is_sat(v, vs, over_approximate) for v in vs)
 
+    def v_blocking(self, vs: Collection[str], v: str) -> bool:
+        # TODO
+        pass
+
     def find_disjoint_quorums(self) -> Optional[tuple[set[str], set[str]]]:
         """
         Naive, brute-force search for disjoint quorums.
         Warning: use only for very small fbas graphs.
+
+        TODO move to separate module
         """
         assert len(self._validators) < 10
-        quorums = [
-            q for q in powerset(
-                list(
-                    self._validators)) if self.is_quorum(
-                q,
-                over_approximate=True)]
+        quorums = [q for q in powerset(list(self._validators))
+                   if self.is_quorum(q, over_approximate=True)]
         return next(((q1, q2)
                     for q1 in quorums for q2 in quorums if not (q1 & q2)), None)
 
     def blocks(self, s: Collection[str], v: str) -> bool:
         """
-        Returns True if and only if s blocks qset.
+        Returns True if and only if  |s∩successors(v)| > |sucessors(v)|-threshold(v).
+        Not recursive.
+
         TODO: should there be an `overapproximate` parameter?
         """
         if v in self._qsets.values() and self.threshold(v) == 0:
@@ -410,21 +431,18 @@ class FBASGraph:
         assert set(vs) <= self._validators
         closure = set(vs)
         while True:
-            new = {
-                n for n in self.vertices() -
-                closure if self.blocks(
-                    closure,
-                    n)}
+            new = {n for n in self.vertices() - closure
+                   if self.blocks(closure, n)}
             if not new:
                 return frozenset([v for v in closure if v in self._validators])
             closure |= new
 
-    def project(self, vs: Collection[str]) -> 'FBASGraph':
+    def project_on_reachable_from(self, vs: Collection[str]) -> 'FBASGraph':
         """
         Returns a new fbas that only contains the validators reachable from the set vs.
         """
         assert set(vs) <= self._validators
-        reachable = set.union(
+        reachable: set[str] = set.union(
             *[set(nx.descendants(self._graph, v)) | {v} for v in vs])
         fbas = copy(self)
         fbas._graph = nx.subgraph(self._graph, reachable)
@@ -457,7 +475,7 @@ class FBASGraph:
         """
         Returns a new fbas that only contains what's reachable from v.
         """
-        return self.project({v})
+        return self.project_on_reachable_from({v})
 
     # Fast heuristic checks:
 
@@ -475,6 +493,8 @@ class FBASGraph:
         """
         If n1 and n2's children are self-intersecting,
         then return the mininum number of children in common in two sets that satisfy n1 and n2.
+
+        TODO move to separate module
         """
         assert n1 in self._graph and n2 in self._graph
         assert n1 not in self._validators and n2 not in self._validators
@@ -507,6 +527,8 @@ class FBASGraph:
         Thus our strategy is to try to find a small intertwined set whose closure covers all validators.
 
         To find such a set, we look inside the maximal strongly-connected component (the mscc) of the FBAS graph. First, we build a new graph over the validators in the mscc where there is an edge between v1 and v2 when v1 and v2 are intertwined, as computed by a sound but incomplete heuristic. Since the heuristic is sound, we know that any clique in this new graph is an intertwined set.
+
+        TODO: move to separate module
         """
         # first obtain a max scc:
         mscc = max(nx.strongly_connected_components(self._graph), key=len)
@@ -549,6 +571,8 @@ class FBASGraph:
     def splitting_set_bound(self) -> int:
         """
         Computes a lower bound on the mimimum splitting-set size. We just take the minimum of the intersection bound over all pairs of validators.
+
+        TODO move to separate module
         """
         return min(
             self.intersection_bound_heuristic(
@@ -557,26 +581,3 @@ class FBASGraph:
             v2 in combinations(
                 self._validators,
                 2) if v1 != v2)
-
-    # Public API methods for read-only access to private members
-
-    def get_validators(self) -> frozenset[str]:
-        """Returns a read-only view of validators"""
-        return frozenset(self._validators)
-
-    def is_validator(self, v: str) -> bool:
-        """Check if a vertex is a validator"""
-        return v in self._validators
-
-    def get_qset_vertices(self) -> frozenset[str]:
-        """Get all qset vertices"""
-        return frozenset(self._qsets.values())
-
-    def graph_view(self):
-        """Returns a read-only view of the underlying graph.
-
-        This allows NetworkX algorithms to be used on the graph while
-        preventing accidental modifications.
-        """
-        import networkx.classes.graphviews as gv
-        return gv.generic_graph_view(self._graph)
