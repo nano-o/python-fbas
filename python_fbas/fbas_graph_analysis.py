@@ -635,8 +635,7 @@ def find_min_quorum(
     then run the tests.
     """
 
-    # raise an error because there is a known bug:
-    raise NotImplementedError("This function is currently not working correctly.")
+    logging.warning("find_min_quorum IS KNOW TO BE BUGGY")
 
     if not HAS_QBF:
         raise ImportError(
@@ -676,6 +675,7 @@ def find_min_quorum(
     qb_subset_qa_constraints = \
         [Implies(in_quorum_b(n),
                  in_quorum_a(n)) for n in fbas.get_validators()]
+    # strict inclusion:
     qb_subset_qa_constraints += \
         [Or(*[And(in_quorum_a(n), Not(in_quorum_b(n)))
               for n in fbas.get_validators()])]

@@ -120,7 +120,6 @@ def test_min_blocking_set_4():
             find_minimal_blocking_set(fbas_graph)
 
 
-@pytest.mark.skip(reason="Buggy")
 def test_min_quorum():
     fbas1 = FBASGraph()
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
@@ -128,10 +127,33 @@ def test_min_quorum():
     qset1_id = fbas1.add_qset(threshold=3, components=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
     for v in ['PK1', 'PK2', 'PK3', 'PK4']:
         fbas1.update_validator(v, qset=qset1_id)
-    assert len(find_min_quorum(fbas1)) == 3
+
+    with config.temporary_config(card_encoding='totalizer'):
+        assert len(find_min_quorum(fbas1)) == 3
+        assert len(find_min_quorum(fbas1, not_subset_of=['PK1', 'PK2', 'PK3'])) == 3
+    with config.temporary_config(card_encoding='naive'):
+        assert len(find_min_quorum(fbas1)) == 3
+
+@pytest.mark.xfail(reason="This test is currently expected to fail due to a stubborn bug in find_min_quorum")
+def test_min_quorum_3():
+    fbas1 = FBASGraph()
+    vs = ['PK1', 'PK2', 'PK3', 'PK4']
+    t1 = ['PK1', 'PK2', 'PK3']
+    for v in vs:
+        fbas1.add_validator(v)
+    qset1_id = fbas1.add_qset(threshold=2, components=t1, qset_id='qset1')
+    for v in vs:
+        fbas1.update_validator(v, qset=qset1_id)
+
+    with config.temporary_config(card_encoding='naive'):
+        assert len(find_min_quorum(fbas1, project_on_scc=False)) == 2
+        assert not find_min_quorum(fbas1, project_on_scc=False, not_subset_of=t1)
+
+    with config.temporary_config(card_encoding='totalizer'):
+        assert len(find_min_quorum(fbas1, project_on_scc=False)) == 2
+        assert not find_min_quorum(fbas1, project_on_scc=False, not_subset_of=t1)
 
 
-@pytest.mark.skip(reason="Buggy")
 def test_min_quorum_2():
     data = get_test_data_list()
     for f, d in data.items():
@@ -166,13 +188,14 @@ def test_contains_quorum():
 
 def test_top_tier():
     if HAS_QBF:
-        fbas1 = FBASGraph()
-        for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
-            fbas1.add_validator(v)
-        qset1_id = fbas1.add_qset(threshold=3, components=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
-        for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
-            fbas1.update_validator(v, qset=qset1_id)
-        assert top_tier(fbas1) == {'PK1', 'PK2', 'PK3', 'PK4'}
+        with config.temporary_config(card_encoding='totalizer'):
+            fbas1 = FBASGraph()
+            for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
+                fbas1.add_validator(v)
+            qset1_id = fbas1.add_qset(threshold=3, components=['PK1', 'PK2', 'PK3', 'PK4'], qset_id='qset1')
+            for v in ['PK1', 'PK2', 'PK3', 'PK4', 'PK5']:
+                fbas1.update_validator(v, qset=qset1_id)
+            assert top_tier(fbas1) == {'PK1', 'PK2', 'PK3', 'PK4'}
 
 
 def test_top_tier_2():
