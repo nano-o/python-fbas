@@ -249,9 +249,7 @@ class TestCNFConversion:
         cnf = to_cnf(empty_or)
 
         # Empty Or should be unsatisfiable
-        assert len(cnf) == 2
-        v = cnf[1][0]
-        assert cnf == [[-v], [v]]
+        assert cnf == [[]]
 
     def test_list_of_formulas_to_cnf(self):
         """Test converting list of formulas to CNF."""

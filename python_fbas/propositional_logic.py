@@ -154,7 +154,7 @@ def anonymous_var() -> int:
     return next_int - 1
 
 
-def to_cnf(arg: list[Formula] | Formula) -> Clauses:
+def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
     """
     Recursive method to convert the formula (or list of clauses) to CNF.
 
@@ -183,15 +183,15 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
                 if all(isinstance(op, Atom) for op in ops):
                     return [[var(cast(Atom, a).identifier) for a in ops]]
                 else:
-                    return to_cnf(fmla)
+                    return to_cnf(fmla, 1)
             case Implies([And(ops), c]):
                 if all(isinstance(op, Atom) for op in ops) and isinstance(c, Atom):
                     return [[-var(cast(Atom, a).identifier) for a in ops]
                             + [var(c.identifier)]]
                 else:
-                    return to_cnf(fmla)
+                    return to_cnf(fmla, 1)
             case _:
-                return to_cnf(fmla)
+                return to_cnf(fmla, 1)
 
     def and_gate(atoms: list[int]) -> Clauses:
         v = anonymous_var()
@@ -205,7 +205,11 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
 
     match arg:
         case list(fmlas):
-            return [c for f in fmlas for c in to_cnf_top(f)]
+            try:
+                clauses = [c for f in fmlas for c in to_cnf_top(f)]
+            except ValueError as e:
+                raise RuntimeError(f"CNF conversion failed") from e
+            return clauses
         case Atom() as a:
             return [[var(a.identifier)]]
         case Not(f):
@@ -214,16 +218,17 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
                     return [[-var(v)]]
                 case _:
                     v = anonymous_var()
-                    op_clauses = to_cnf(f)
+                    op_clauses = to_cnf(f, -polarity)
                     assert len(op_clauses[-1]) == 1
                     op_atom = op_clauses[-1][0]  # that's the variable corresponding to the operand
+                    assert op_atom > 0  # does it work otherwise?
                     new_clauses = [[-v, -op_atom], [v, op_atom]]
                     return op_clauses[:-1] + new_clauses + [[v]]
         case And(ops):
             if not ops:
                 v = anonymous_var()
                 return [[v]]  # trivially satisfiable
-            ops_clauses = [to_cnf(op) for op in ops]
+            ops_clauses = [to_cnf(op, polarity) for op in ops]
             assert all(len(c[-1]) == 1 for c in ops_clauses)
             ops_atoms = [c[-1][0] for c in ops_clauses]
             inner_clauses = [c for cs in ops_clauses for c in cs[:-1]]
@@ -231,23 +236,25 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
         case Or(ops):
             if not ops:
                 v = anonymous_var()
-                return [[-v], [v]]  # unsatisfiable
-            ops_clauses = [to_cnf(op) for op in ops]
+                return [[]]  # unsat
+            ops_clauses = [to_cnf(op, polarity) for op in ops]
             assert all(len(c[-1]) == 1 for c in ops_clauses)
             ops_atoms = [c[-1][0] for c in ops_clauses]
             inner_clauses = [c for cs in ops_clauses for c in cs[:-1]]
             return inner_clauses + or_gate(ops_atoms)
         case Implies(ops):
-            return to_cnf(Or(Not(And(*ops[:-1])), ops[-1]))
+            return to_cnf(Or(Not(And(*ops[:-1])), ops[-1]), polarity=polarity)
         case AtLeast(threshold, ops):
             encoding = get().card_encoding
             match encoding:
                 case 'naive':
                     # NOTE possibly lots of sub-formula sharing here: will be innefficient
                     fmla = Or(*[And(*c) for c in combinations(ops, threshold)])
-                    return to_cnf(fmla)
+                    return to_cnf(fmla, polarity)
                 case 'totalizer':
-                    ops_clauses = [to_cnf(op) for op in ops]
+                    if polarity < 0:
+                        raise ValueError('Totalizer encoding cannot be negated')
+                    ops_clauses = [to_cnf(op, polarity) for op in ops]
                     assert all(len(c[-1]) == 1 for c in ops_clauses)
                     ops_atoms = [c[-1][0] for c in ops_clauses]
                     inner_clauses = [c for cs in ops_clauses for c in cs[:-1]]
@@ -289,3 +296,57 @@ def decode_model(model: Sequence[int],
         if predicate is None or predicate(ident):
             ids.append(ident)
     return ids
+
+
+def simplify_cnf_with_literal(cnf: Clauses, literal: int) -> Clauses:
+    """
+    Simplify a CNF formula by assuming a literal is true.
+    
+    Args:
+        cnf: The CNF formula (list of clauses, where each clause is a list of literals)
+        literal: The literal to assume true. Positive means the atom is true,
+                negative means the atom is false.
+    
+    Returns:
+        Simplified CNF formula after unit propagation of the literal.
+        
+    The simplification rules are:
+    - Remove all clauses containing the literal (they become true)
+    - Remove the negation of the literal from all remaining clauses
+    - Empty clauses indicate unsatisfiability
+    """
+    if literal == 0:
+        raise ValueError("Literal cannot be 0")
+    
+    simplified = []
+    neg_literal = -literal
+    
+    for clause in cnf:
+        # If the clause contains the literal, it's satisfied, so skip it
+        if literal in clause:
+            continue
+            
+        # Remove the negation of the literal from the clause
+        new_clause = [lit for lit in clause if lit != neg_literal]
+        
+        # Add the simplified clause (could be empty if it only contained neg_literal)
+        simplified.append(new_clause)
+    
+    return simplified
+
+
+def simplify_cnf_with_literals(cnf: Clauses, literals: Sequence[int]) -> Clauses:
+    """
+    Simplify a CNF formula by assuming multiple literals are true.
+    
+    Args:
+        cnf: The CNF formula
+        literals: Sequence of literals to assume true
+        
+    Returns:
+        Simplified CNF formula after propagating all literals
+    """
+    result = cnf
+    for literal in literals:
+        result = simplify_cnf_with_literal(result, literal)
+    return result

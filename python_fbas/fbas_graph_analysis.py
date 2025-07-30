@@ -16,7 +16,7 @@ from python_fbas import solver as slv
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.propositional_logic import (
     And, Or, Implies, Atom, Formula, AtLeast, Not, equiv, variables, to_cnf,
-    atoms_of_clauses, decode_model, variables_inv, simplify_cnf_with_literals
+    atoms_of_clauses, decode_model
 )
 import python_fbas.config as config
 from python_fbas.utils import timed
@@ -485,9 +485,10 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
                              for n in vs]
                 may_block += [And(is_blocked(n), lt(n, q)) for n in qs]
                 constraints.append(
-                    equiv(
-                        AtLeast(blocking_threshold(q), *may_block),
-                        is_blocked(q)))
+                    # one direction should be sufficient since we'll be minimizing
+                    Implies(
+                        is_blocked(q),
+                        AtLeast(blocking_threshold(q), *may_block)))
 
         # The lt relation must be a partial order (anti-symmetric and
         # transitive).  For performance, lt only relates vertices that are in

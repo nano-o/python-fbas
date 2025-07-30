@@ -117,7 +117,6 @@ def test_history_loss():
     assert "Minimal history-loss critical set cardinality is" in output
 
 
-@pytest.mark.skip(reason="Buggy")
 def test_min_quorum():
     """Test the min-quorum command."""
     command = [
