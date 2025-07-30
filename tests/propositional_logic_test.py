@@ -1,7 +1,7 @@
 import pytest
 from python_fbas.config import update, get
 from python_fbas.propositional_logic import (
-    Formula, Atom, Not, And, Or, Implies, Card, equiv,
+    Formula, Atom, Not, And, Or, Implies, AtLeast, equiv,
     to_cnf, var, anonymous_var, decode_model, atoms_of_clauses
 )
 import python_fbas.propositional_logic as pl
@@ -85,13 +85,13 @@ class TestFormulaClasses:
         atom2 = Atom('y')
         atom3 = Atom('z')
 
-        card_formula = Card(2, atom1, atom2, atom3)
+        card_formula = AtLeast(2, atom1, atom2, atom3)
 
         assert card_formula.threshold == 2
         assert len(card_formula.operands) == 3
         assert card_formula.operands == [atom1, atom2, atom3]
         assert isinstance(card_formula, Formula)
-        assert isinstance(card_formula, Card)
+        assert isinstance(card_formula, AtLeast)
 
     def test_card_creation_validation(self):
         """Test Card formula validation."""
@@ -99,16 +99,16 @@ class TestFormulaClasses:
         atom2 = Atom('y')
 
         # Valid card constraint
-        card_formula = Card(1, atom1, atom2)
+        card_formula = AtLeast(1, atom1, atom2)
         assert card_formula.threshold == 1
 
         # Invalid: threshold must be positive
         with pytest.raises(AssertionError):
-            Card(0, atom1, atom2)
+            AtLeast(0, atom1, atom2)
 
         # Invalid: threshold must be <= number of operands
         with pytest.raises(AssertionError):
-            Card(3, atom1, atom2)
+            AtLeast(3, atom1, atom2)
 
     def test_equiv_function(self):
         """Test the equiv helper function."""
@@ -288,7 +288,7 @@ class TestCardinalityConstraints:
         atom2 = Atom('y')
         atom3 = Atom('z')
 
-        card_formula = Card(2, atom1, atom2, atom3)
+        card_formula = AtLeast(2, atom1, atom2, atom3)
         cnf = to_cnf(card_formula)
 
         # TODO: Should generate combinations: (x ∧ y) ∨ (x ∧ z) ∨ (y ∧ z)
@@ -316,7 +316,7 @@ class TestCardinalityConstraints:
         atom1 = Atom('x')
         atom2 = Atom('y')
 
-        card_formula = Card(1, atom1, atom2)
+        card_formula = AtLeast(1, atom1, atom2)
 
         with pytest.raises(ValueError, match="Unknown cardinality encoding"):
             to_cnf(card_formula)

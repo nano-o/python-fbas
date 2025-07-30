@@ -72,10 +72,12 @@ class Implies(Formula):
 
 
 @dataclass(init=False, slots=True)
-class Card(Formula):
+class AtLeast(Formula):
     """
     A cardinality constraint expressing that at least `threshold` number of
     operands are true.
+
+    TODO: totalizer encoding cannot be negated; how to deal with this?
     """
     threshold: int
     operands: list[Formula]
@@ -96,7 +98,7 @@ def atoms_of_formula(fmla: Formula) -> set[Any]:
             return {identifier}
         case Not(operand):
             return atoms_of_formula(operand)
-        case And(operands) | Or(operands) | Implies(operands) | Card(_, operands):
+        case And(operands) | Or(operands) | Implies(operands) | AtLeast(_, operands):
             return {atom for op in operands for atom in atoms_of_formula(op)}
         case _:
             raise TypeError
@@ -237,7 +239,7 @@ def to_cnf(arg: list[Formula] | Formula) -> Clauses:
             return inner_clauses + or_gate(ops_atoms)
         case Implies(ops):
             return to_cnf(Or(Not(And(*ops[:-1])), ops[-1]))
-        case Card(threshold, ops):
+        case AtLeast(threshold, ops):
             encoding = get().card_encoding
             match encoding:
                 case 'naive':

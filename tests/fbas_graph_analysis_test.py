@@ -134,7 +134,6 @@ def test_min_quorum():
     with config.temporary_config(card_encoding='naive'):
         assert len(find_min_quorum(fbas1)) == 3
 
-@pytest.mark.xfail(reason="This test is currently expected to fail due to a stubborn bug in find_min_quorum")
 def test_min_quorum_3():
     fbas1 = FBASGraph()
     vs = ['PK1', 'PK2', 'PK3', 'PK4']
@@ -163,7 +162,7 @@ def test_min_quorum_2():
         else:
             logging.info("loading graph of %s", f)
             fbas_graph = deserialize(json.dumps(d))
-            find_min_quorum(fbas_graph)
+            find_min_quorum(fbas_graph, project_on_scc=True)
 
 
 def test_contains_quorum():
