@@ -553,7 +553,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
         vs = set(s) - groups
         no_qset = {v for v in fbas.get_validators() if fbas.graph_view().out_degree(v) == 0}
         assert fbas.closure(vs | no_qset) == fbas.get_validators()
-        if not fbas.closure(vs) == fbas.get_validators():
+        if not fbas.closure(vs) | no_qset == fbas.get_validators():
             logging.warning(f"The validators {no_qset} have no known qset and this affects the blocking-set analysis results")
         if cost > 0:
             for vs2 in combinations(vs, cost - 1):
