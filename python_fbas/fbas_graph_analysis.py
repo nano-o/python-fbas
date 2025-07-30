@@ -1,7 +1,5 @@
 """
 SAT-based analysis of FBAS graphs
-
-TODO: threshold() does not work as expected anymore
 """
 
 import logging
@@ -555,9 +553,9 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
         assert fbas.closure(vs | no_qset) == fbas.get_validators()
         if not fbas.closure(vs) | no_qset == fbas.get_validators():
             logging.warning(f"The validators {no_qset} have no known qset and this affects the blocking-set analysis results")
-        if cost > 0:
+        # run some checks if it's cheap enough:
+        if cost > 0 and len(list(vs)) < 4 and not config.get().group_by:
             for vs2 in combinations(vs, cost - 1):
-                # TODO isn't this going to fail with groups?
                 assert fbas.closure(vs2) != fbas.get_validators()
         if not config.get().group_by:
             return s
