@@ -171,27 +171,26 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
     is too deep (which we do not expect for our application).
     """
 
+
     def to_cnf_top(fmla: Formula) -> Clauses:
         """
         Only called at the top level (not recursively). Thus we do not need to
         ensure that the last clause is a unit clause corresponding to the
         formula (which is normally used by the caller), and use this to optimize
-        some cases.
+        some cases. We observe a large performance impact.
         """
         match fmla:
-            case Or(ops):
-                if all(isinstance(op, Atom) for op in ops):
-                    return [[var(cast(Atom, a).identifier) for a in ops]]
-                else:
-                    return to_cnf(fmla, 1)
-            case Implies([And(ops), c]):
-                if all(isinstance(op, Atom) for op in ops) and isinstance(c, Atom):
-                    return [[-var(cast(Atom, a).identifier) for a in ops]
-                            + [var(c.identifier)]]
-                else:
-                    return to_cnf(fmla, 1)
+            case Or(ops) if all(isinstance(op, Atom) for op in ops):
+                return [[var(cast(Atom, a).identifier) for a in ops]]
+            case Implies([And(ops), c]) if (
+                    all(isinstance(op, Atom) for op in ops) and isinstance(c, Atom)):
+                return [[-var(cast(Atom, a).identifier) for a in ops]
+                        + [var(c.identifier)]]
+            case Implies(operands=atoms) if all(isinstance(a, Atom) for a in atoms):
+                    return [[-var(cast(Atom, a).identifier) for a in atoms[:-1]]
+                            + [var(cast(Atom, atoms[-1]).identifier)]]
             case _:
-                return to_cnf(fmla, 1)
+                return to_cnf(fmla)
 
     def and_gate(atoms: list[int]) -> Clauses:
         v = anonymous_var()
