@@ -1,32 +1,22 @@
-{
-  "validators": [
-    {
-      "id": "PK1",
-      "qset": "_q934dc1d86a184257a0e4aa992af2f8c9",
-      "attrs": {
-        "publicKey": "PK1"
-      }
-    },
-    {
-      "id": "PK2",
-      "qset": "_q9b3a17bbdb47459785d50b87c6fa5212",
-      "attrs": {
-        "publicKey": "PK2"
-      }
-    }
-  ],
-  "qsets": {
-    "_q934dc1d86a184257a0e4aa992af2f8c9": {
+[
+  {
+    "publicKey": "PK1",
+    "quorumSet": {
       "threshold": 1,
-      "members": [
+      "validators": [
         "PK2"
-      ]
-    },
-    "_q9b3a17bbdb47459785d50b87c6fa5212": {
+      ],
+      "innerQuorumSets": []
+    }
+  },
+  {
+    "publicKey": "PK2",
+    "quorumSet": {
       "threshold": 1,
-      "members": [
+      "validators": [
         "PK1"
-      ]
+      ],
+      "innerQuorumSets": []
     }
   }
-}
+]

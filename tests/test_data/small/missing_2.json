@@ -1,42 +1,28 @@
-{
-  "validators": [
-    {
-      "id": "PK1",
-      "qset": "_q5c2054bd106e4fd29ec96e87060480f0",
-      "attrs": {
-        "publicKey": "PK1"
-      }
-    },
-    {
-      "id": "PK2",
-      "qset": "_q563ac9bb474d45a3bea8d145df02dde2",
-      "attrs": {
-        "publicKey": "PK2"
-      }
-    },
-    {
-      "id": "PK3",
-      "qset": null,
-      "attrs": {}
-    },
-    {
-      "id": "PK4",
-      "qset": null,
-      "attrs": {}
-    }
-  ],
-  "qsets": {
-    "_q5c2054bd106e4fd29ec96e87060480f0": {
+[
+  {
+    "publicKey": "PK1",
+    "quorumSet": {
       "threshold": 1,
-      "members": [
+      "validators": [
         "PK3"
-      ]
-    },
-    "_q563ac9bb474d45a3bea8d145df02dde2": {
-      "threshold": 1,
-      "members": [
-        "PK4"
-      ]
+      ],
+      "innerQuorumSets": []
     }
+  },
+  {
+    "publicKey": "PK2",
+    "quorumSet": {
+      "threshold": 1,
+      "validators": [
+        "PK4"
+      ],
+      "innerQuorumSets": []
+    }
+  },
+  {
+    "publicKey": "PK3"
+  },
+  {
+    "publicKey": "PK4"
   }
-}
+]

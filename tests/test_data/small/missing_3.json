@@ -1,70 +1,50 @@
-{
-  "validators": [
-    {
-      "id": "PKX",
-      "qset": null,
-      "attrs": {}
-    },
-    {
-      "id": "PK3",
-      "qset": "_q1888203482e34ec0a2d5e084c8bf0e76",
-      "attrs": {
-        "publicKey": "PK3"
-      }
-    },
-    {
-      "id": "PKY",
-      "qset": null,
-      "attrs": {}
-    },
-    {
-      "id": "PK1",
-      "qset": "_q9cfa33126c894f49a7e8a17aa5fbd80d",
-      "attrs": {
-        "publicKey": "PK1"
-      }
-    },
-    {
-      "id": "PK2",
-      "qset": "_q203fc888c8b7442ea0c53441aac11771",
-      "attrs": {
-        "publicKey": "PK2"
-      }
-    },
-    {
-      "id": "PK4",
-      "qset": "_q0d038640cc6342478ef4afa65147aff7",
-      "attrs": {
-        "publicKey": "PK4"
-      }
+[
+  {
+    "publicKey": "PK1",
+    "quorumSet": {
+      "threshold": 2,
+      "validators": [
+        "PKX",
+        "PK2"
+      ],
+      "innerQuorumSets": []
     }
-  ],
-  "qsets": {
-    "_q9cfa33126c894f49a7e8a17aa5fbd80d": {
-      "threshold": 2,
-      "members": [
-        "PK2",
-        "PKX"
-      ]
-    },
-    "_q203fc888c8b7442ea0c53441aac11771": {
+  },
+  {
+    "publicKey": "PK2",
+    "quorumSet": {
       "threshold": 1,
-      "members": [
+      "validators": [
         "PK1"
-      ]
-    },
-    "_q1888203482e34ec0a2d5e084c8bf0e76": {
+      ],
+      "innerQuorumSets": []
+    }
+  },
+  {
+    "publicKey": "PK3",
+    "quorumSet": {
       "threshold": 2,
-      "members": [
+      "validators": [
         "PKY",
         "PK4"
-      ]
-    },
-    "_q0d038640cc6342478ef4afa65147aff7": {
-      "threshold": 1,
-      "members": [
-        "PK3"
-      ]
+      ],
+      "innerQuorumSets": []
     }
+  },
+  {
+    "publicKey": "PK4",
+    "quorumSet": {
+      "threshold": 1,
+      "validators": [
+        "PK3"
+      ],
+      "innerQuorumSets": []
+    }
+  },
+  {
+    "publicKey": "PKX"
+  },
+  {
+    "publicKey": "PKY"
   }
-}
+]
