@@ -378,7 +378,8 @@ def main() -> None:
         if args.fbas and (args.fbas.startswith('http://')
                           or args.fbas.startswith('https://')):
             using_url = True
-        elif not args.fbas and cfg.stellar_data_url.startswith('http'):
+        elif not args.fbas and (cfg.stellar_data_url.startswith('http://')
+                                or cfg.stellar_data_url.startswith('https://')):
             using_url = True
 
         if not using_url:

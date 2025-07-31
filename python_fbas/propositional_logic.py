@@ -221,7 +221,6 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     op_clauses = to_cnf(f, -polarity)
                     assert len(op_clauses[-1]) == 1
                     op_atom = op_clauses[-1][0]  # that's the variable corresponding to the operand
-                    assert op_atom > 0  # does it work otherwise?
                     new_clauses = [[-v, -op_atom], [v, op_atom]]
                     return op_clauses[:-1] + new_clauses + [[v]]
         case And(ops):
@@ -252,8 +251,9 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     fmla = Or(*[And(*c) for c in combinations(ops, threshold)])
                     return to_cnf(fmla, polarity)
                 case 'totalizer':
+                    # It's possible to get a model where cnfp.clauses[-1] is false but the cardinality constraint is satisfied, so negation cannot work. For the other transformations, I think equisatisfiability is preserved.
                     if polarity < 0:
-                        raise ValueError('Totalizer encoding cannot be negated')
+                        raise ValueError('Totalizer encoding does not support negation')
                     ops_clauses = [to_cnf(op, polarity) for op in ops]
                     assert all(len(c[-1]) == 1 for c in ops_clauses)
                     ops_atoms = [c[-1][0] for c in ops_clauses]
@@ -263,7 +263,6 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     if threshold == 1:
                         return inner_clauses + or_gate(ops_atoms)
                     global next_int
-                    # TODO: figure out if there is sharing of sub-formulas here that would interfer with QBF
                     cnfp = CardEnc.atleast(lits=list(ops_atoms), bound=threshold, top_id=next_int, encoding=EncType.totalizer)
                     next_int = cnfp.nv+1
                     return inner_clauses + cnfp.clauses

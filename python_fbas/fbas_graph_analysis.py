@@ -304,8 +304,8 @@ def find_minimal_splitting_set(
                 if fbas.is_validator(v) and fbas.has_qset(v):
                     # non-faulty validators must have their requirements met:
                     constraints.append(
-                        Implies(And(in_quorum(q, v), Not(is_faulty(v))),
-                                in_quorum(q, fbas.qset_vertex_of(v))))
+                        Implies(*[in_quorum(q, v), Not(is_faulty(v)),
+                                  in_quorum(q, fbas.qset_vertex_of(v))]))
                 elif not fbas.is_validator(v) and fbas.threshold(v) > 0:
                     member_atoms = [in_quorum(q, n)
                                     for n in fbas.graph_view().successors(v)]
@@ -500,7 +500,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
                 for v2 in scc - {v1}:
                     for v3 in scc - {v2}:
                         constraints.append(
-                            Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
+                            Implies(*[lt(v1, v2), lt(v2, v3), lt(v1, v3)]))
         # for v1 in fbas.vertices():
         #     constraints.append(Not(lt(v1, v1)))
         #     for v2 in fbas.vertice():
@@ -605,8 +605,7 @@ def min_history_loss_critical_set(
         constraints.append(
             Implies(
                 in_crit_no_error(v),
-                And(in_critical_quorum(v),
-                    Not(has_hist_error(v)))))
+                And(in_critical_quorum(v), Not(has_hist_error(v)))))
 
     # the critical contains at least one validator for which we have a qset:
     constraints += [Or(*[in_critical_quorum(v)
@@ -687,15 +686,15 @@ def find_min_quorum(
     # If 'B' is a non-empty strict subset of 'A', then 'B' is not a quorum:
     qb_not_quorum = not_quorum_constraint(fbas, in_quorum_b)
     qb_subset_qa_constraints = \
-        [Implies(in_quorum_b(n),
-                 in_quorum_a(n)) for n in fbas.get_validators()]
+        [Implies(in_quorum_b(n), in_quorum_a(n))
+         for n in fbas.get_validators()]
     # strict inclusion:
     qb_subset_qa_constraints += \
         [Or(*[And(in_quorum_a(n), Not(in_quorum_b(n)))
               for n in fbas.get_validators()])]
     # not empty:
     qb_subset_qa_constraints += [Or(*[in_quorum_b(n) for n in fbas.get_validators()])]
-    qb_constraints = Implies(And(*qb_subset_qa_constraints), qb_not_quorum)
+    qb_constraints = Implies(*qb_subset_qa_constraints, qb_not_quorum)
 
     qa_clauses = to_cnf(qa_constraints)
     qb_clauses = to_cnf(qb_constraints)
@@ -786,18 +785,14 @@ def is_overlay_resilient(fbas: FBASGraph, overlay: nx.Graph) -> bool:
                                 in_quorum(v))
                        for v in fbas.get_validators()]))
     # nodes outside the quorum are not reachable:
-    constraints += [Implies(is_reachable(v),
-                            in_quorum(v)) for v in fbas.get_validators()]
+    constraints += [Implies(is_reachable(v), in_quorum(v))
+                    for v in fbas.get_validators()]
     # for every two nodes in the quorum and with an edge between each other,
     # one is reachable iff the other is:
     constraints += [
-        Implies(
-            And(in_quorum(v1),
-                in_quorum(v2)),
-            equiv(is_reachable(v1),
-                  is_reachable(v2)))
-        for v1,
-        v2 in overlay.edges() if v1 != v2]
+        Implies(*[in_quorum(v1), in_quorum(v2),
+                  equiv(is_reachable(v1), is_reachable(v2))])
+        for v1, v2 in overlay.edges() if v1 != v2]
     # some node in the quorum is unreachable:
     constraints.append(
         Or(*[And(Not(is_reachable(v)),
