@@ -114,7 +114,12 @@ def get_pubnet_config(update=False, url: str = None) -> list[dict]:
         logging.info("Reading Stellar network data from %s", path)
         with open(path, 'r', encoding='utf-8') as f:
             cache_data = json.load(f)
-        
+
+        if (not isinstance(cache_data, dict)
+                or 'validators' not in cache_data
+                or not isinstance(cache_data['validators'], list)):
+            raise ValueError("Cache data missing 'validators' list")
+
         # Use cached data
         cached_at = cache_data.get('cached_at', 'unknown time')
         if cached_at != 'unknown time':
@@ -129,6 +134,13 @@ def get_pubnet_config(update=False, url: str = None) -> list[dict]:
         
     except FileNotFoundError:
         print(f"Cache: No cache found for {current_url}, fetching fresh data...")
+        _validators = _fetch_from_url(current_url)
+        update_cache_file(_validators)
+        print(f"Cache: Saved fresh data to cache for {current_url}")
+        return _validators
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        logging.warning("Ignoring invalid cache file %s: %s", path, e)
+        print(f"Cache: Invalid cache for {current_url}, fetching fresh data...")
         _validators = _fetch_from_url(current_url)
         update_cache_file(_validators)
         print(f"Cache: Saved fresh data to cache for {current_url}")
