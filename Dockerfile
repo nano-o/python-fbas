@@ -1,9 +1,11 @@
-FROM python:3.11
+FROM python:3.13-slim
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
-    cmake g++ libzmq3-dev zlib1g-dev \
+    git \
+    libzmq3-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user and group
@@ -15,21 +17,13 @@ USER appuser
 # Set working directory
 WORKDIR /app
 
-# Copy only dependency files first (helps with caching)
-COPY --chown=appuser:appuser pyproject.toml ./
-
-# Install Python dependencies before copying the entire project
-ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
-RUN pip install --no-cache-dir --user .[qbf]
-
-# Copy the entire project (triggers rebuild only if source changes)
+# Copy the entire project
 COPY --chown=appuser:appuser . .
 
-RUN pip install --no-cache-dir --user --no-deps .
-
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 # Ensure the user-installed binaries are accessible
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 
-ENTRYPOINT ["/bin/bash", "-c", "exec \"$@\"", "--"]
-CMD ["bash"]
+RUN pip install --no-cache-dir --user .[qbf]
 
+CMD ["python-fbas", "--help"]

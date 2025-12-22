@@ -1,14 +1,14 @@
 build/
-
-# Ignore large data files
-**/tmp/
-**/random/
+dist/
 
 # Ignore compiled Python files and cache directories
 **/__pycache__/
 **/*.pyc
 **/*.pyo
 **/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.egg-info/
 
 # virtual envs
 .venv
@@ -18,3 +18,8 @@ venv
 .git/
 .vscode/
 .idea/
+.devcontainer/
+.claude/
+.aider*
+.tmux.conf
+pip-failure.log
