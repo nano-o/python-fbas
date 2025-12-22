@@ -129,7 +129,11 @@ def get_network_info(file_path):
     return 0
 
 
-def run_benchmark_on_file(original_file, timeout, python_fbas_cmd):
+def run_benchmark_on_file(
+        original_file,
+        timeout,
+        python_fbas_cmd,
+        rust_tool_path):
     """Run all benchmark tests on a single file pair."""
     print(f"  Testing {original_file.name}...", end="", flush=True)
 
@@ -162,13 +166,13 @@ def run_benchmark_on_file(original_file, timeout, python_fbas_cmd):
         # Define test cases - use original file for python, temp file for rust
         test_cases = [{'name': 'intersection',
                        'python_cmd': f'{python_fbas_cmd} --fbas={original_file} check-intersection',
-                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} --alternative-quorum-intersection-check --results-only'},
+                       'rust_cmd': f'{rust_tool_path} {temp_file} --alternative-quorum-intersection-check --results-only'},
                       {'name': 'blocking',
                        'python_cmd': f'{python_fbas_cmd} --fbas={original_file} min-blocking-set',
-                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -b --results-only'},
+                       'rust_cmd': f'{rust_tool_path} {temp_file} -b --results-only'},
                       {'name': 'splitting',
                        'python_cmd': f'{python_fbas_cmd} --fbas={original_file} min-splitting-set',
-                       'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -s --results-only'}]
+                       'rust_cmd': f'{rust_tool_path} {temp_file} -s --results-only'}]
 
         results = []
 
@@ -470,8 +474,11 @@ def main():
     args = parser.parse_args()
 
     # Setup paths
-    test_data_dir = Path("tests/test_data/random")
+    repo_root = Path(__file__).resolve().parent.parent
+    test_data_dir = repo_root / "tests/test_data/random"
     output_dir = Path(args.output_dir)
+    if not output_dir.is_absolute():
+        output_dir = repo_root / "benchmark" / output_dir
 
     # Create output directories
     output_dir.mkdir(exist_ok=True)
@@ -481,11 +488,13 @@ def main():
     print(f"📁 Output directory: {output_dir}")
 
     # Check if tools are available
-    if not Path("fbas_analyzer/target/release/fbas_analyzer").exists():
+    rust_tool = repo_root / "fbas_analyzer/target/release/fbas_analyzer"
+    if not rust_tool.exists():
         print("❌ Error: Rust fbas_analyzer not found. Please build it first:")
         print("   git clone https://github.com/trudi-group/fbas_analyzer.git")
         print("   cd fbas_analyzer && cargo build --release")
         sys.exit(1)
+    rust_tool_path = shlex.quote(str(rust_tool))
 
     # Get all test files, excluding unwanted ones
     all_test_files = list(test_data_dir.glob("*.json"))
@@ -511,7 +520,10 @@ def main():
             # Run benchmarks directly on original files
             print(f"[{i}/{len(test_files)}]", end=" ")
             file_results = run_benchmark_on_file(
-                original_file, args.timeout, python_fbas_cmd)
+                original_file,
+                args.timeout,
+                python_fbas_cmd,
+                rust_tool_path)
             all_results.extend(file_results)
 
         except Exception as e:

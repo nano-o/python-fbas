@@ -20,23 +20,25 @@ This directory contains a benchmark script for comparing the performance of `pyt
 Run benchmarks on all available test files with default 10-second timeout:
 
 ```bash
-python3 benchmark_fbas_tools.py
+python3 benchmark/benchmark_fbas_tools.py
 ```
+
+Results are written to `benchmark/benchmark_results/` by default.
 
 ### Custom Options
 
 ```bash
 # Custom timeout (20 seconds)
-python3 benchmark_fbas_tools.py --timeout 20
+python3 benchmark/benchmark_fbas_tools.py --timeout 20
 
 # Limit number of test files (useful for quick testing)
-python3 benchmark_fbas_tools.py --max-files 10
+python3 benchmark/benchmark_fbas_tools.py --max-files 10
 
-# Custom output directory
-python3 benchmark_fbas_tools.py --output-dir my_benchmark_results
+# Custom output directory (relative to benchmark/)
+python3 benchmark/benchmark_fbas_tools.py --output-dir my_benchmark_results
 
 # Combination of options
-python3 benchmark_fbas_tools.py --timeout 30 --max-files 5 --output-dir quick_test
+python3 benchmark/benchmark_fbas_tools.py --timeout 30 --max-files 5 --output-dir quick_test
 ```
 
 
