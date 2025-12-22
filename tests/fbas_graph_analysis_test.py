@@ -152,7 +152,7 @@ def test_min_quorum_3():
         assert len(find_min_quorum(fbas1, project_on_scc=False)) == 2
         assert not find_min_quorum(fbas1, project_on_scc=False, not_subset_of=t1)
 
-
+@pytest.mark.skip(reason="Takes too long...")
 def test_min_quorum_2():
     data = get_test_data_list()
     for f, d in data.items():

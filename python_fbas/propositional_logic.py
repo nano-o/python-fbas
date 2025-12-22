@@ -1,4 +1,5 @@
 from abc import ABC
+import logging
 from dataclasses import dataclass
 from itertools import combinations
 from typing import Any, cast, Callable, Sequence
@@ -178,6 +179,8 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
         ensure that the last clause is a unit clause corresponding to the
         formula (which is normally used by the caller), and use this to optimize
         some cases. We observe a large performance impact.
+
+        TODO this "optimization" (3rd case) is causing issues in test_min_quorum_2; figure out why.
         """
         match fmla:
             case Or(ops) if all(isinstance(op, Atom) for op in ops):
@@ -187,8 +190,10 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                 return [[-var(cast(Atom, a).identifier) for a in ops]
                         + [var(c.identifier)]]
             case Implies(operands=atoms) if all(isinstance(a, Atom) for a in atoms):
-                    return [[-var(cast(Atom, a).identifier) for a in atoms[:-1]]
-                            + [var(cast(Atom, atoms[-1]).identifier)]]
+                logging.info(f"to_cnf_top: {fmla}")
+                # return to_cnf(Or(Not(And(*atoms[:-1])), atoms[-1]), polarity=1)
+                return [[-var(cast(Atom, a).identifier) for a in atoms[:-1]]
+                        + [var(cast(Atom, atoms[-1]).identifier)]]
             case _:
                 return to_cnf(fmla)
 
@@ -226,6 +231,8 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
             if not ops:
                 v = anonymous_var()
                 return [[v]]  # trivially satisfiable
+            if len(ops) == 1:
+                return to_cnf(ops[0])
             ops_clauses = [to_cnf(op, polarity) for op in ops]
             assert all(len(c[-1]) == 1 for c in ops_clauses)
             ops_atoms = [c[-1][0] for c in ops_clauses]
@@ -235,6 +242,8 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
             if not ops:
                 v = anonymous_var()
                 return [[]]  # unsat
+            if len(ops) == 1:
+                return to_cnf(ops[0])
             ops_clauses = [to_cnf(op, polarity) for op in ops]
             assert all(len(c[-1]) == 1 for c in ops_clauses)
             ops_atoms = [c[-1][0] for c in ops_clauses]
@@ -250,7 +259,10 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     fmla = Or(*[And(*c) for c in combinations(ops, threshold)])
                     return to_cnf(fmla, polarity)
                 case 'totalizer':
-                    # It's possible to get a model where cnfp.clauses[-1] is false but the cardinality constraint is satisfied, so negation cannot work. For the other transformations, I think equisatisfiability is preserved.
+                    # It's possible to get a model where cnfp.clauses[-1] is
+                    # false but the cardinality constraint is satisfied, so
+                    # negation cannot work. For the other transformations, I
+                    # think equisatisfiability is preserved.
                     if polarity < 0:
                         raise ValueError('Totalizer encoding does not support negation')
                     ops_clauses = [to_cnf(op, polarity) for op in ops]

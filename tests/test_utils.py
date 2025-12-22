@@ -38,12 +38,12 @@ def load_fbas_from_test_file(filename):
     return deserialize(json_data)
 
 
-def get_test_data_list() -> dict[str, list[dict]]:
+def get_test_data_list(dirs: list[str] = ['small', 'pubnet']) -> dict[str, list[dict]]:
     test_data_dir = Path(__file__).parent / 'test_data'
     data = {}
 
     # Search in all subdirectories
-    for subdir in ['small', 'pubnet']:
+    for subdir in dirs:
         subdir_path = test_data_dir / subdir
         if subdir_path.exists():
             for file in subdir_path.glob('*.json'):

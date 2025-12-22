@@ -128,7 +128,7 @@ def not_quorum_constraint(fbas: FBASGraph,
     """
     Returns constraints expressing that the set of true atoms is _not_ a quorum.
 
-    We need this because just negating totalizer-encoded cardinality constraints does not work.
+    We need this because we cannot negate totalizer-encoded cardinality constraints.
     """
     qset_not_sat: list[Formula] = []
     for q in fbas.get_qset_vertices():
@@ -142,7 +142,8 @@ def not_quorum_constraint(fbas: FBASGraph,
         qset = fbas.qset_vertex_of(v)
         if qset:
             validator_not_sat.append(And(make_atom(v), Not(make_atom(qset))))
-    disj = qset_not_sat + validator_not_sat
+    is_empty = [And(*[Not(make_atom(v)) for v in fbas.get_validators() if fbas.qset_vertex_of(v)])]
+    disj = qset_not_sat + validator_not_sat + is_empty
     return Or(*disj)
 
 def group_constraints(
@@ -683,7 +684,7 @@ def find_min_quorum(
         qa_constraints += [Or(*[in_quorum_a(n)
                               for n in fbas.get_validators() if n not in not_subset_of])]
 
-    # If 'B' is a non-empty strict subset of 'A', then 'B' is not a quorum:
+    # If 'B' is a strict subset of 'A', then 'B' is not a quorum:
     qb_not_quorum = not_quorum_constraint(fbas, in_quorum_b)
     qb_subset_qa_constraints = \
         [Implies(in_quorum_b(n), in_quorum_a(n))
@@ -692,8 +693,6 @@ def find_min_quorum(
     qb_subset_qa_constraints += \
         [Or(*[And(in_quorum_a(n), Not(in_quorum_b(n)))
               for n in fbas.get_validators()])]
-    # not empty:
-    qb_subset_qa_constraints += [Or(*[in_quorum_b(n) for n in fbas.get_validators()])]
     qb_constraints = Implies(*qb_subset_qa_constraints, qb_not_quorum)
 
     qa_clauses = to_cnf(qa_constraints)
@@ -713,6 +712,7 @@ def find_min_quorum(
         *list(qa_vertex_atoms)).forall(
             *list(qb_vertex_atoms)).exists(*list(tseitin_atoms))
 
+    # exit(-1)
     qbf_res = slv.solve_qbf(pcnf)  # type: ignore
     res = qbf_res.sat
     if res:
