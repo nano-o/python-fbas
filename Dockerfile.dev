@@ -1,0 +1,61 @@
+FROM debian:stable
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    g++ libzmq3-dev zlib1g-dev \
+    curl git \
+    python3-pip \
+    python3-venv \
+    ncurses-term \
+    locales \
+    tmux \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
+    locale-gen
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+
+RUN curl -fsSL https://deb.nodesource.com/setup_23.x -o nodesource_setup.sh
+RUN bash nodesource_setup.sh
+
+RUN apt-get update && apt-get install -y nodejs
+
+ARG USERNAME=developer
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+RUN groupadd --gid ${USER_GID} ${USERNAME} && \
+    useradd -m -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} ${USERNAME}
+USER ${USERNAME}
+ENV USERNAME=${USERNAME}
+
+RUN mkdir /home/developer/.npm-global
+RUN npm config set prefix '/home/developer/.npm-global'
+ENV PATH="/home/developer/.npm-global/bin:$PATH"
+
+RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @openai/codex
+
+ENV VENV_DIR=/home/${USERNAME}/.venv
+RUN python3 -m venv ${VENV_DIR}
+ENV PATH="${VENV_DIR}/bin:/home/${USERNAME}/.local/bin:$PATH"
+
+WORKDIR /home/${USERNAME}
+COPY .tmux.conf /home/${USERNAME}/.tmux.conf
+
+COPY --chmod=755 scripts/container-entrypoint.sh /usr/local/bin/container-entrypoint
+WORKDIR /workspaces/python-fbas
+
+# make sure that TRAMP picks up the right PATH (it uses "sh -l"):
+RUN echo "export PATH=\"$PATH\"" >> ~/.profile && \
+    echo "[ -f ~/.profile ] && . ~/.profile" >> ~/.bash_profile
+
+ENTRYPOINT ["/usr/local/bin/container-entrypoint"]
+CMD ["sleep", "infinity"]
