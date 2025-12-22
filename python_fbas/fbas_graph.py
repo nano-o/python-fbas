@@ -445,7 +445,7 @@ class FBASGraph:
         reachable: set[str] = set.union(
             *[set(nx.descendants(self._graph, v)) | {v} for v in vs])
         fbas = copy(self)
-        fbas._graph = nx.subgraph(self._graph, reachable)
+        fbas._graph = self._graph.subgraph(reachable).copy()
         fbas._validators = reachable & self._validators
 
         # Rebuild _qsets to only include qsets in the reachable set
