@@ -1,2 +1,40 @@
 *.dimacs
+
+# Aider
 .aider*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Test / lint / type check
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+pip-failure.log
+
+# Editor / OS
+.vscode/
+.DS_Store
