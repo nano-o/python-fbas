@@ -4,7 +4,7 @@ This directory contains a benchmark script for comparing the performance of `pyt
 
 ## Prerequisites
 
-1. **Python-fbas**: Ensure `python-fbas` is installed and available in PATH
+1. **Python-fbas**: Ensure `python-fbas` is installed and available in PATH (the script falls back to `python -m python_fbas.main` if needed)
 2. **Rust fbas_analyzer**: Clone and build the Rust tool:
    ```bash
    git clone https://github.com/trudi-group/fbas_analyzer.git
@@ -54,6 +54,9 @@ Uses all JSON files from `tests/test_data/random/` directory, which includes:
 - Networks of various sizes (6-72 nodes)
 - Different organizational structures
 - Multiple network degradation scenarios
+
+The benchmark script auto-detects the input format (stellarbeat or python-fbas)
+and converts to stellarbeat format for the Rust `fbas_analyzer` tool when needed.
 
 ## Output
 

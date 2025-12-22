@@ -17,7 +17,9 @@ from datetime import datetime
 import sys
 import os
 import tempfile
-from python_fbas.fbas_graph import FBASGraph
+import shlex
+import shutil
+from python_fbas.serialization import deserialize, serialize, detect_format
 
 
 class TimeoutError(Exception):
@@ -127,7 +129,7 @@ def get_network_info(file_path):
     return 0
 
 
-def run_benchmark_on_file(original_file, timeout):
+def run_benchmark_on_file(original_file, timeout, python_fbas_cmd):
     """Run all benchmark tests on a single file pair."""
     print(f"  Testing {original_file.name}...", end="", flush=True)
 
@@ -140,14 +142,17 @@ def run_benchmark_on_file(original_file, timeout):
         with open(original_file, 'r') as f:
             original_data = json.load(f)
         
-        # Check if it's already in array format (what fbas_analyzer expects)
-        if isinstance(original_data, list):
+        format_type = detect_format(original_data)
+        if format_type == 'stellarbeat':
             # Already in array format, use as-is
             stellarbeat_json = json.dumps(original_data, indent=2)
+        elif format_type == 'python-fbas':
+            # Convert python-fbas format to stellarbeat for fbas_analyzer
+            graph = deserialize(json.dumps(original_data))
+            stellarbeat_json = serialize(graph, format='stellarbeat')
         else:
-            # It's in API format (dict with validators), need to convert
-            graph = FBASGraph.from_json(json.dumps(original_data))
-            stellarbeat_json = graph.to_json_stellarbeat()
+            raise ValueError(
+                f"Unknown FBAS JSON format in {original_file.name}")
         
         # Create temporary file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
@@ -156,13 +161,13 @@ def run_benchmark_on_file(original_file, timeout):
 
         # Define test cases - use original file for python, temp file for rust
         test_cases = [{'name': 'intersection',
-                       'python_cmd': f'python-fbas --fbas={original_file} check-intersection',
+                       'python_cmd': f'{python_fbas_cmd} --fbas={original_file} check-intersection',
                        'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} --alternative-quorum-intersection-check --results-only'},
                       {'name': 'blocking',
-                       'python_cmd': f'python-fbas --fbas={original_file} min-blocking-set',
+                       'python_cmd': f'{python_fbas_cmd} --fbas={original_file} min-blocking-set',
                        'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -b --results-only'},
                       {'name': 'splitting',
-                       'python_cmd': f'python-fbas --fbas={original_file} min-splitting-set',
+                       'python_cmd': f'{python_fbas_cmd} --fbas={original_file} min-splitting-set',
                        'rust_cmd': f'./fbas_analyzer/target/release/fbas_analyzer {temp_file} -s --results-only'}]
 
         results = []
@@ -491,6 +496,13 @@ def main():
 
     print(f"📊 Testing {len(test_files)} files...")
 
+    # Resolve python-fbas command
+    python_fbas_path = shutil.which("python-fbas")
+    if python_fbas_path:
+        python_fbas_cmd = shlex.quote(python_fbas_path)
+    else:
+        python_fbas_cmd = f"{shlex.quote(sys.executable)} -m python_fbas.main"
+
     # Run benchmarks
     all_results = []
 
@@ -498,7 +510,8 @@ def main():
         try:
             # Run benchmarks directly on original files
             print(f"[{i}/{len(test_files)}]", end=" ")
-            file_results = run_benchmark_on_file(original_file, args.timeout)
+            file_results = run_benchmark_on_file(
+                original_file, args.timeout, python_fbas_cmd)
             all_results.extend(file_results)
 
         except Exception as e:
