@@ -114,6 +114,10 @@ python-fbas show-config
 ```bash
 docker run --rm -it giulianolosa/python-fbas:latest show-config
 ```
+*Note: You only need to mount the project directory when you reference local files (e.g., `--fbas=tests/...` or `--config-file=...`). For those cases, use:*
+```bash
+docker run --rm -v "$PWD:/work" -w /work giulianolosa/python-fbas:latest <args>
+```
 
 ### Analysis commands
 
@@ -248,6 +252,10 @@ python-fbas --fbas=https://api.stellaratlas.io/v1/node check-intersection
 **Use a local JSON file:**
 ```bash
 python-fbas --fbas=tests/test_data/small/circular_1.json check-intersection
+```
+**Using Docker (with local file):**
+```bash
+docker run --rm -v "$PWD:/work" -w /work giulianolosa/python-fbas:latest --fbas=tests/test_data/small/circular_1.json check-intersection
 ```
 
 **Update cache:**
