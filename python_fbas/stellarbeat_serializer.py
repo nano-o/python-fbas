@@ -135,6 +135,7 @@ def deserialize(
                 continue
             else:
                 raise ValueError(f"Duplicate validator publicKey: {pk}")
+        keys.add(pk)
         validators.append(v)
 
     # now create the graph:
