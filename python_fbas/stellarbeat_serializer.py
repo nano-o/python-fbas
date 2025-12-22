@@ -1,8 +1,31 @@
 """
 Stellarbeat.io format serialization utilities for FBAS graphs.
 
-This module provides the StellarBeatSerializer class to handle conversion
-between FBASGraph objects and the stellarbeat.io JSON format.
+Stellarbeat format:
+- A JSON array of validator objects.
+- Each validator includes a "publicKey" and optional metadata.
+- The quorum set is under "quorumSet" with:
+  - "threshold": int
+  - "validators": list of validator public keys
+  - "innerQuorumSets": list of nested quorum sets in the same format
+- Quorum sets are fully inlined per validator (no shared references), which
+  can lead to substantial duplication when many validators share the same
+  structure.
+
+Deserialization:
+- Each validator becomes a vertex with an edge to its qset.
+- Each quorum set becomes a separate qset vertex with edges to its
+  validators and inner qset vertices.
+- Qset IDs are generated via FBASGraph.add_qset (or reused when an
+  identical threshold+components qset already exists).
+- Qsets are deduplicated: any quorum sets with the same threshold and
+  component members (validators and inner qsets) map to a single qset
+  vertex ID.
+
+Serialization:
+- Validators are emitted as objects with their attributes and "publicKey".
+- The validator's associated qset vertex is traversed to rebuild the
+  inline, nested "quorumSet" structure.
 """
 
 import json
