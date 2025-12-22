@@ -737,6 +737,28 @@ class TestEdgeCases:
         assert qset_of(fbas, 'v1') is None
         assert qset_of(fbas, 'v2') is None
 
+    def test_duplicate_qsets_preserve_validator_links(self):
+        """Test that duplicate qsets do not drop validator qset links."""
+        json_data = {
+            "validators": [
+                {"id": "v1", "qset": "q1", "attrs": {}},
+                {"id": "v2", "qset": "q2", "attrs": {}}
+            ],
+            "qsets": {
+                "q1": {"threshold": 1, "members": ["v1"]},
+                "q2": {"threshold": 1, "members": ["v1"]}
+            }
+        }
+
+        fbas = deserialize(json.dumps(json_data))
+
+        qset_v1 = qset_of(fbas, 'v1')
+        qset_v2 = qset_of(fbas, 'v2')
+
+        assert qset_v1 is not None
+        assert qset_v2 is not None
+        assert qset_v1 == qset_v2
+
     def test_complex_inner_quorum_sets(self):
         """Test complex nested inner quorum sets."""
         fbas = FBASGraph()

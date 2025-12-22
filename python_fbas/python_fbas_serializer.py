@@ -109,23 +109,35 @@ def deserialize(json_str: str) -> FBASGraph:
         fbas.add_validator(validator_id, qset=None, **attrs)
 
     # add the qsets
+    qset_id_map: dict[str, str] = {}
+
     def _add_qset(qid, qset, stack):
+        # assuming all validators have been added already...
+        if qid in qset_id_map:
+            return qset_id_map[qid]
         if qid in stack:
             raise ValueError(f"Detected qset cycle involving: {qid}")
         if qid in fbas.vertices():
             if fbas.is_validator(qid):
                 raise ValueError(f"QSet ID {qid} collides with a validator ID")
-            return
+            qset_id_map[qid] = qid
+            return qid
 
         stack.add(qid)
         threshold = qset["threshold"]
         members = qset["members"]
-        # assuming all validators have been added already...
+        remapped_members = []
         for member in members:
-            if (not fbas.is_validator(member)) and member not in fbas.vertices():
+            if fbas.is_validator(member):
+                remapped_members.append(member)
+                continue
+            if member not in fbas.vertices():
                 _add_qset(member, data['qsets'][member], stack)
-        fbas.add_qset(threshold, members, qset_id=qid)
+            remapped_members.append(qset_id_map.get(member, member))
+        actual_id = fbas.add_qset(threshold, remapped_members, qset_id=qid)
+        qset_id_map[qid] = actual_id
         stack.remove(qid)
+        return actual_id
 
     for qset_id, qset in data["qsets"].items():
         _add_qset(qset_id, qset, set())
@@ -138,6 +150,8 @@ def deserialize(json_str: str) -> FBASGraph:
         validator_id = v_data["id"]
         qset_id = v_data.get("qset")
 
+        if qset_id:
+            qset_id = qset_id_map.get(qset_id, qset_id)
         if qset_id and qset_id in fbas.graph_view():
             fbas.update_validator(validator_id, qset=qset_id)
 
