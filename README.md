@@ -112,7 +112,7 @@ python-fbas show-config
 
 **Using Docker:**
 ```bash
-docker run --rm -it giulianolosa/python-fbas:latest python-fbas show-config
+docker run --rm -it giulianolosa/python-fbas:latest show-config
 ```
 
 ### Analysis commands
@@ -247,7 +247,7 @@ python-fbas --fbas=https://api.stellaratlas.io/v1/node check-intersection
 
 **Use a local JSON file:**
 ```bash
-python-fbas --fbas=tests/test_data/circular_1.json check-intersection
+python-fbas --fbas=tests/test_data/small/circular_1.json check-intersection
 ```
 
 **Update cache:**

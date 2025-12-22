@@ -26,4 +26,5 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 RUN pip install --no-cache-dir --user .[qbf]
 
-CMD ["python-fbas", "--help"]
+ENTRYPOINT ["python-fbas"]
+CMD ["--help"]
