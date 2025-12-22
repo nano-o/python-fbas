@@ -672,8 +672,23 @@ class TestEdgeCases:
             }
         }
 
-        # An assert should fail here because self-referencing qsets are not allowed
-        with pytest.raises(Exception):
+        # Cyclic qsets should raise a targeted error, not recurse.
+        with pytest.raises(ValueError, match="cycle"):
+            deserialize(json.dumps(json_data))
+
+    def test_two_qset_cycle_rejected(self):
+        """Test that a 2-cycle between qsets causes an error."""
+        json_data = {
+            "validators": [
+                {"id": "v1", "qset": "q1", "attrs": {}},
+            ],
+            "qsets": {
+                "q1": {"threshold": 1, "members": ["q2"]},
+                "q2": {"threshold": 1, "members": ["q1"]},
+            }
+        }
+
+        with pytest.raises(ValueError, match="cycle"):
             deserialize(json.dumps(json_data))
 
     def test_empty_fbas_serialization(self):

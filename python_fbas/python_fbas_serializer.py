@@ -1,10 +1,21 @@
 """
 Python-FBAS format serialization utilities for FBAS graphs.
 
+Format overview:
+- Top-level JSON object with two keys: "validators" (list) and "qsets" (dict).
+- Each validator entry is {"id": <validator_id>, "qset": <qset_id|None>,
+  "attrs": <dict>}. No duplicate IDs are allowed.
+- "qsets" maps qset IDs to {"threshold": <int>, "members":
+  [<validator_id|qset_id>, ...]}.
+- Members can reference validators or other qsets by ID.
+- QSets that have the same threshold and same set of members are considered the
+  same. While such duplicates are not an error, only one will be kept when
+  deserializing.
+- Qset references must not form cycles.
+- Validator ids and QSet ids must be disjoint.
+
 This module provides the PythonFBASSerializer class to handle conversion
 between FBASGraph objects and the compact python-fbas JSON format.
-
-TODO: this is quick and dirty, needs to be cleaned up and tested properly.
 """
 
 import json
@@ -67,7 +78,8 @@ def deserialize(json_str: str) -> FBASGraph:
     Args:
         json_str: JSON string in python-fbas format
 
-    TODO: merge qsets with same threshold and successors
+    If the input data contains duplicate qsets (same members and threshold but
+    different keys), only the first one will be kept.
     """
     data = json.loads(json_str)
 
@@ -81,7 +93,7 @@ def deserialize(json_str: str) -> FBASGraph:
 
     fbas = FBASGraph()
 
-    # First pass: add all validators
+    # add all validators
     for v_data in data["validators"]:
         if not isinstance(v_data, dict):
             logging.warning("Skipping invalid validator data: %s", v_data)
@@ -96,22 +108,29 @@ def deserialize(json_str: str) -> FBASGraph:
 
         fbas.add_validator(validator_id, qset=None, **attrs)
 
-    # TODO check for cycles...
+    # add the qsets
+    def _add_qset(qid, qset, stack):
+        if qid in stack:
+            raise ValueError(f"Detected qset cycle involving: {qid}")
+        if qid in fbas.vertices():
+            if fbas.is_validator(qid):
+                raise ValueError(f"QSet ID {qid} collides with a validator ID")
+            return
 
-    # Third pass: add qsets
-    def _add_qset(qid, qset):
+        stack.add(qid)
         threshold = qset["threshold"]
         members = qset["members"]
-        # assumin all validators have been added already...
+        # assuming all validators have been added already...
         for member in members:
             if (not fbas.is_validator(member)) and member not in fbas.vertices():
-                _add_qset(member, data['qsets'][member])
+                _add_qset(member, data['qsets'][member], stack)
         fbas.add_qset(threshold, members, qset_id=qid)
+        stack.remove(qid)
 
     for qset_id, qset in data["qsets"].items():
-        _add_qset(qset_id, qset)
+        _add_qset(qset_id, qset, set())
 
-    # Fourth pass: connect validators to their qsets
+    # connect validators to their qsets
     for v_data in data["validators"]:
         if "id" not in v_data:
             continue
