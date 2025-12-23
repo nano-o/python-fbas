@@ -461,15 +461,38 @@ class FBASGraph:
         """
         Computes a dict mapping group names to sets of member validators.
         Groups are determined by the `group_by` attribute of validator nodes.
-        Validators without a value for the `group_by` attribute are skipped.
+        Validators without a value for the `group_by` attribute are grouped
+        under a generated "UNKNOWN" label that does not collide with existing
+        group names.
         """
         groups: dict[str, set[str]] = {}
+        unknown_label = self.group_unknown_label(group_by)
         for v in self._validators:
             attrs = self.vertice_attrs(v)
-            if group_by in attrs and attrs[group_by]:
-                group_name = attrs[group_by]
-                groups.setdefault(group_name, set()).add(v)
+            group_name = attrs.get(group_by)
+            if not group_name:
+                group_name = unknown_label
+            groups.setdefault(group_name, set()).add(v)
         return groups
+
+    def group_unknown_label(self, group_by: str = 'homeDomain') -> str:
+        """
+        Returns a group label for missing values that avoids collisions with
+        existing group names.
+        """
+        existing: set[str] = set()
+        for v in self._validators:
+            attrs = self.vertice_attrs(v)
+            value = attrs.get(group_by)
+            if value:
+                existing.add(value)
+        base = "UNKNOWN"
+        if base not in existing:
+            return base
+        idx = 1
+        while f"{base}_{idx}" in existing:
+            idx += 1
+        return f"{base}_{idx}"
 
     def restrict_to_reachable(self, v: str) -> 'FBASGraph':
         """

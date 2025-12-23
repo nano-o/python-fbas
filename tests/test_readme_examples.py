@@ -62,7 +62,7 @@ def _line_needs_network(line):
     if fbas_value:
         return fbas_value.startswith("http://") or fbas_value.startswith("https://")
     for cmd in NETWORK_COMMANDS:
-        if re.search(rf"\\b{re.escape(cmd)}\\b", line):
+        if re.search(rf"\b{re.escape(cmd)}\b", line):
             return True
     return False
 
@@ -159,13 +159,15 @@ def _load_readme_blocks():
 
 
 def _should_skip_block(block):
-    if os.environ.get("README_ALLOW_NETWORK", "0") != "1" and _block_needs_network(block):
-        return "README_ALLOW_NETWORK not enabled"
+    if "<args>" in block:
+        return "placeholder example"
+    if os.environ.get("README_SKIP_NETWORK", "0") == "1" and _block_needs_network(block):
+        return "README_SKIP_NETWORK enabled"
     return None
 
 
 def _mode():
-    mode = os.environ.get("README_MODE", "docker").lower()
+    mode = os.environ.get("README_MODE", "local").lower()
     if mode not in {"docker", "local"}:
         raise ValueError("README_MODE must be 'docker' or 'local'")
     return mode
@@ -174,6 +176,7 @@ def _mode():
 def _run_block(block, mode, tmpdir):
     needs_mount = _block_needs_mount(block)
     rewritten = _rewrite_block(block, mode, tmpdir, needs_mount)
+    print(f"\nREADME command (mode={mode}):\n{rewritten}\n", flush=True)
     script = "set -e\nset -o pipefail\n" + rewritten
     timeout = int(os.environ.get("README_CMD_TIMEOUT", "300"))
     result = subprocess.run(

@@ -264,7 +264,7 @@ docker run --rm -v "$PWD:/work" -w /work giulianolosa/python-fbas:latest --fbas=
 python-fbas update-cache
 
 # Update cache for specific URL
-python-fbas --fbas=https://api.stellaratlas.io/v1/node update-cache
+python-fbas --fbas=https://radar.withobsrvr.com/api/v1/node update-cache
 ```
 *Updates cached Stellar network data. Useful when you want fresh data without waiting for automatic cache invalidation.*
 

@@ -387,10 +387,18 @@ def main() -> None:
             sys.exit(1)
 
     fbas = _load_fbas_graph(args)
-    if cfg.group_by is not None and not all(
-            cfg.group_by in fbas.vertice_attrs(v) for v in fbas.get_validators()):
-        raise ValueError(
-            f"Some validators do not have the \"{cfg.group_by}\" attribute")
+    if cfg.group_by is not None:
+        missing = [
+            v for v in fbas.get_validators()
+            if not fbas.vertice_attrs(v).get(cfg.group_by)
+        ]
+        if missing:
+            unknown_label = fbas.group_unknown_label(cfg.group_by)
+            logging.warning(
+                "Some validators do not have the \"%s\" attribute; treating as \"%s\"",
+                cfg.group_by,
+                unknown_label,
+            )
     if args.reachable_from:
         fbas = fbas.restrict_to_reachable(args.reachable_from)
 
