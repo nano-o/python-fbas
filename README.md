@@ -118,6 +118,12 @@ python-fbas to-json
 ```
 *Converts the loaded FBAS to JSON format (see [Export to JSON](#export-to-json) for format options).*
 
+**Show validator metadata:**
+```bash
+python-fbas validator-metadata GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH
+```
+*Prints the metadata fields associated with the validator (as JSON).*
+
 ### Options
 
 **Group validators by attribute:**

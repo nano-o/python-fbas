@@ -193,6 +193,23 @@ def _command_to_json(args: Any, fbas: FBASGraph) -> None:
         sys.exit(1)
 
 
+def _command_validator_metadata(args: Any, fbas: FBASGraph) -> None:
+    from python_fbas.stellarbeat_serializer import qset_of
+
+    validator_id = args.validator
+    if validator_id not in fbas.get_validators():
+        logging.error(f"Error: Unknown validator: {validator_id}")
+        sys.exit(1)
+
+    attrs = fbas.vertice_attrs(validator_id).copy()
+    if 'publicKey' not in attrs:
+        attrs['publicKey'] = validator_id
+    qset = qset_of(fbas, validator_id)
+    if qset is not None:
+        attrs['quorumSet'] = qset.to_json()
+    print(json.dumps(attrs, indent=2, sort_keys=True))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="FBAS analysis CLI")
     # specify log level with --log-level, with default WARNING:
@@ -310,6 +327,14 @@ def main() -> None:
         choices=['python-fbas', 'stellarbeat'],
         help="Output format: 'python-fbas' (default) or 'stellarbeat'")
     parser_to_json.set_defaults(func=_command_to_json)
+
+    parser_validator_metadata = subparsers.add_parser(
+        'validator-metadata',
+        help="Return the metadata for a validator")
+    parser_validator_metadata.add_argument(
+        'validator',
+        help="Validator public key")
+    parser_validator_metadata.set_defaults(func=_command_validator_metadata)
 
     args = parser.parse_args()
 
