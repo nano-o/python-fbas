@@ -15,7 +15,7 @@ python-fbas can find:
 
 [fbas_analyzer](https://github.com/trudi-group/fbas_analyzer) is another FBAS analysis tool; as of July 2025, explorers like https://radar.withobsrvr.com/ and https://stellaratlas.io/ use it in their analysis backend.
 In comparison, python-fbas aims for higher scalability.
-See [benchmark/BENCHMARK_README.md](benchmark/BENCHMARK_README.md) and [sample results](benchmark/benchmark_results/benchmark_results_20250716_051256.md).
+See [benchmark/BENCHMARK_README.md](benchmark/BENCHMARK_README.md) and [sample results](benchmark/benchmark_results/benchmark_results_20251222_172738.md).
 Another related project is [Stellar Observatory](https://github.com/andrenarchy/stellar-observatory).
 
 ## Technical approach
