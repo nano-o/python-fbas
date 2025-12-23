@@ -24,15 +24,8 @@ ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 # Ensure the user-installed binaries are accessible
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 
-RUN python - <<'PY'
-import tomllib
-from pathlib import Path
-
-data = tomllib.loads(Path("pyproject.toml").read_text())
-deps = list(data.get("project", {}).get("dependencies", []))
-extras = data.get("project", {}).get("optional-dependencies", {}).get("qbf", [])
-Path("/tmp/requirements.txt").write_text("\n".join(deps + extras) + "\n")
-PY
+RUN pip install --no-cache-dir --user pip-tools
+RUN pip-compile --extra qbf --output-file /tmp/requirements.txt pyproject.toml
 RUN pip install --no-cache-dir --user -r /tmp/requirements.txt
 
 # Copy the entire project last
