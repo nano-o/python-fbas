@@ -45,7 +45,12 @@ def _parse_fenced_blocks(text):
 
 
 def _is_relevant_block(block):
-    return "python-fbas" in block or "giulianolosa/python-fbas" in block
+    for line in block.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        return re.match(r"^\s*python-fbas\b", line) is not None
+    return False
 
 
 def _extract_fbas_value(line):
