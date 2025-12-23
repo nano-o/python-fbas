@@ -258,6 +258,7 @@ python-fbas --fbas=tests/test_data/small/circular_1.json to-json --format=stella
 python-fbas to-json --format=stellarbeat
 ```
 *Converts the loaded FBAS to JSON format and prints to stdout. Useful for format conversion or creating snapshots of network data.*
+*Note: log messages are printed to stderr; use `--log-level=ERROR` or redirect stderr (e.g. `2>/dev/null`) to suppress them if you are piping to a file that should be valid JSON.*
 
 ## Development
 
