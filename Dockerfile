@@ -17,14 +17,27 @@ USER appuser
 # Set working directory
 WORKDIR /app
 
-# Copy the entire project
-COPY --chown=appuser:appuser . .
+# Copy only dependency metadata first for better layer caching
+COPY --chown=appuser:appuser pyproject.toml /app/pyproject.toml
 
 ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 # Ensure the user-installed binaries are accessible
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 
-RUN pip install --no-cache-dir --user .[qbf]
+RUN python - <<'PY'
+import tomllib
+from pathlib import Path
+
+data = tomllib.loads(Path("pyproject.toml").read_text())
+deps = list(data.get("project", {}).get("dependencies", []))
+extras = data.get("project", {}).get("optional-dependencies", {}).get("qbf", [])
+Path("/tmp/requirements.txt").write_text("\n".join(deps + extras) + "\n")
+PY
+RUN pip install --no-cache-dir --user -r /tmp/requirements.txt
+
+# Copy the entire project last
+COPY --chown=appuser:appuser . .
+RUN pip install --no-cache-dir --user --no-deps .
 
 ENTRYPOINT ["python-fbas"]
 CMD ["--help"]
