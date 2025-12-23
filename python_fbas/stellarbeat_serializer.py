@@ -120,6 +120,8 @@ def deserialize(
     validators = []
     keys = set()
     config = get_config()
+    validator_home_domains: dict[str, str] = {}
+    home_domain_counts: dict[str, int] = {}
     for v in data:
         if not isinstance(v, dict) or 'publicKey' not in v:
             if config.deserialization_mode == "indulgent":
@@ -137,9 +139,34 @@ def deserialize(
                 raise ValueError(f"Duplicate validator publicKey: {pk}")
         keys.add(pk)
         validators.append(v)
+        home_domain = v.get('homeDomain')
+        if home_domain:
+            validator_home_domains[pk] = home_domain
+            home_domain_counts[home_domain] = home_domain_counts.get(
+                home_domain, 0) + 1
 
     # now create the graph:
     fbas = FBASGraph()
+
+    def _qset_id_for(qset: QSet) -> str | None:
+        if qset.inner_quorum_sets or not qset.validators:
+            return None
+        # Use the homeDomain as the qset ID only when every member has one,
+        # all members share the same homeDomain, and no other validator uses it.
+        for pk in qset.validators:
+            if pk not in validator_home_domains:
+                return None
+        qset_home_domains = {
+            validator_home_domains[pk] for pk in qset.validators
+        }
+        if len(qset_home_domains) != 1:
+            return None
+        home_domain = next(iter(qset_home_domains))
+        if home_domain_counts.get(home_domain) != len(qset.validators):
+            return None
+        if home_domain in fbas.graph_view():
+            return None
+        return home_domain
 
     def _process_qset(qset: QSet) -> str:
         # we need to add the inner qsets bottom up:
@@ -151,7 +178,11 @@ def deserialize(
         for pk in qset.validators:
             if not fbas.is_validator(pk):
                 fbas.add_validator(pk)
-        return fbas.add_qset(qset.threshold, qset.validators | iqss)
+        qset_id = _qset_id_for(qset)
+        return fbas.add_qset(
+            qset.threshold,
+            qset.validators | iqss,
+            qset_id=qset_id)
 
     for v in validators:
         attrs = v.copy()

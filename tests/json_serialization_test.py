@@ -436,6 +436,90 @@ class TestStellarBeatSerialization:
         v2_data = next(v for v in data if v['publicKey'] == 'V2')
         assert 'quorumSet' not in v2_data
 
+    def test_stellarbeat_deserialize_home_domain_qset_id(self):
+        """Use a shared homeDomain as qset ID when it is unique to the qset."""
+        stellarbeat_data = [
+            {
+                "publicKey": "PK1",
+                "quorumSet": {
+                    "threshold": 2,
+                    "validators": ["PK2", "PK3"],
+                    "innerQuorumSets": []
+                }
+            },
+            {
+                "publicKey": "PK2",
+                "homeDomain": "example.org"
+            },
+            {
+                "publicKey": "PK3",
+                "homeDomain": "example.org"
+            },
+            {
+                "publicKey": "PK4",
+                "homeDomain": "other.org"
+            }
+        ]
+
+        fbas = deserialize(json.dumps(stellarbeat_data))
+
+        assert fbas.qset_vertex_of("PK1") == "example.org"
+
+    def test_stellarbeat_deserialize_home_domain_mismatch(self):
+        """Do not use homeDomain as qset ID when members have mixed domains."""
+        stellarbeat_data = [
+            {
+                "publicKey": "PK1",
+                "quorumSet": {
+                    "threshold": 2,
+                    "validators": ["PK2", "PK3"],
+                    "innerQuorumSets": []
+                }
+            },
+            {
+                "publicKey": "PK2",
+                "homeDomain": "example.org"
+            },
+            {
+                "publicKey": "PK3",
+                "homeDomain": "other.org"
+            }
+        ]
+
+        fbas = deserialize(json.dumps(stellarbeat_data))
+
+        assert fbas.qset_vertex_of("PK1") != "example.org"
+        assert fbas.qset_vertex_of("PK1") != "other.org"
+
+    def test_stellarbeat_deserialize_home_domain_not_unique(self):
+        """Do not use homeDomain as qset ID when other validators share it."""
+        stellarbeat_data = [
+            {
+                "publicKey": "PK1",
+                "quorumSet": {
+                    "threshold": 2,
+                    "validators": ["PK2", "PK3"],
+                    "innerQuorumSets": []
+                }
+            },
+            {
+                "publicKey": "PK2",
+                "homeDomain": "example.org"
+            },
+            {
+                "publicKey": "PK3",
+                "homeDomain": "example.org"
+            },
+            {
+                "publicKey": "PK4",
+                "homeDomain": "example.org"
+            }
+        ]
+
+        fbas = deserialize(json.dumps(stellarbeat_data))
+
+        assert fbas.qset_vertex_of("PK1") != "example.org"
+
     def test_stellarbeat_round_trip(self):
         """Test round-trip: stellarbeat -> FBASGraph -> stellarbeat."""
         original_data = [
