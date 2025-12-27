@@ -106,6 +106,12 @@ python-fbas top-tier
 ```
 *Note: Only meaningful if the FBAS has quorum intersection*
 
+**Sample a random quorum (requires UniGen):**
+```bash
+python-fbas random-quorum
+```
+*Requires `pyunigen` (install with `pip install .[unigen]`).*
+
 **Find history-critical set:**
 ```bash
 python-fbas history-loss
