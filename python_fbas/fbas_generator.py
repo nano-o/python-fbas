@@ -5,6 +5,7 @@ import random
 import networkx as nx
 
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.fbas_graph_analysis import find_disjoint_quorums
 
 
 def gen_random_top_tier_org_graph(
@@ -88,3 +89,38 @@ def top_tier_org_graph_to_fbas_graph(top_tier: nx.DiGraph) -> FBASGraph:
         fbas.update_validator(org, qset=qset_id)
 
     return fbas
+
+
+def gen_random_top_tier_org_fbas(
+    num_orgs: int,
+    *,
+    min_out_degree: int = 1,
+    max_out_degree: int | None = None,
+    rng: random.Random | None = None,
+    max_attempts: int = 100,
+) -> FBASGraph:
+    """
+    Generate a random top-tier org FBASGraph with intersecting quorums.
+
+    Uses rejection sampling based on find_disjoint_quorums.
+    """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+
+    if rng is None:
+        rng = random.Random()
+
+    for _ in range(max_attempts):
+        top_tier = gen_random_top_tier_org_graph(
+            num_orgs,
+            min_out_degree=min_out_degree,
+            max_out_degree=max_out_degree,
+            rng=rng,
+        )
+        fbas = top_tier_org_graph_to_fbas_graph(top_tier)
+        if find_disjoint_quorums(fbas) is None:
+            return fbas
+
+    raise ValueError(
+        "Failed to generate an FBAS with intersecting quorums after "
+        f"{max_attempts} attempts")
