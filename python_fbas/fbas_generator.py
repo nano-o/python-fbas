@@ -5,50 +5,45 @@ import random
 import networkx as nx
 
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.fbas_graph_analysis import find_disjoint_quorums
+from python_fbas.fbas_graph_analysis import find_disjoint_quorums, random_quorum
 
 
 def gen_random_top_tier_org_graph(
     num_orgs: int,
     *,
-    min_out_degree: int = 1,
-    max_out_degree: int | None = None,
+    edge_probability: float = 0.66,
     rng: random.Random | None = None,
+    org_prefix: str = "org",
 ) -> nx.DiGraph:
     """
     Generate a random top-tier org graph.
 
     The result is a directed graph whose vertices are organizations labeled
-    with a "threshold" attribute between 1 and their out-degree.
+    with a "threshold" attribute between 1 and their out-degree. Each
+    potential edge is added with the given probability, with a fallback to
+    ensure at least one outgoing edge per org.
     """
     if num_orgs < 2:
         raise ValueError("num_orgs must be at least 2 to form a top-tier org graph")
 
-    if max_out_degree is None:
-        max_out_degree = num_orgs - 1
-
-    if min_out_degree < 1:
-        raise ValueError("min_out_degree must be at least 1")
-
-    if max_out_degree > num_orgs - 1:
-        raise ValueError("max_out_degree cannot exceed num_orgs - 1")
-
-    if min_out_degree > max_out_degree:
-        raise ValueError("min_out_degree cannot exceed max_out_degree")
+    if not 0 <= edge_probability <= 1:
+        raise ValueError("edge_probability must be between 0 and 1")
 
     if rng is None:
         rng = random.Random()
 
-    org_ids = [f"org-{i}" for i in range(num_orgs)]
+    org_ids = [f"{org_prefix}-{i}" for i in range(num_orgs)]
     graph = nx.DiGraph()
     graph.add_nodes_from(org_ids)
 
     for org in org_ids:
-        out_degree = rng.randint(min_out_degree, max_out_degree)
         candidates = [candidate for candidate in org_ids if candidate != org]
-        targets = rng.sample(candidates, out_degree)
+        targets = [candidate for candidate in candidates
+                   if rng.random() < edge_probability]
+        if not targets:
+            targets = [rng.choice(candidates)]
         graph.add_edges_from((org, target) for target in targets)
-        graph.nodes[org]["threshold"] = rng.randint(1, out_degree)
+        graph.nodes[org]["threshold"] = rng.randint(1, len(targets))
 
     return graph
 
@@ -94,8 +89,7 @@ def top_tier_org_graph_to_fbas_graph(top_tier: nx.DiGraph) -> FBASGraph:
 def gen_random_top_tier_org_fbas(
     num_orgs: int,
     *,
-    min_out_degree: int = 1,
-    max_out_degree: int | None = None,
+    edge_probability: float = 0.66,
     rng: random.Random | None = None,
     max_attempts: int = 100,
 ) -> FBASGraph:
@@ -113,8 +107,7 @@ def gen_random_top_tier_org_fbas(
     for _ in range(max_attempts):
         top_tier = gen_random_top_tier_org_graph(
             num_orgs,
-            min_out_degree=min_out_degree,
-            max_out_degree=max_out_degree,
+            edge_probability=edge_probability,
             rng=rng,
         )
         fbas = top_tier_org_graph_to_fbas_graph(top_tier)
@@ -123,4 +116,149 @@ def gen_random_top_tier_org_fbas(
 
     raise ValueError(
         "Failed to generate an FBAS with intersecting quorums after "
+        f"{max_attempts} attempts")
+
+
+def gen_random_sybil_attack_fbas(
+    num_orgs: int,
+    num_sybil_orgs: int,
+    *,
+    edge_probability: float = 0.66,
+    sybil_edge_probability: float = 0.66,
+    attacker_to_sybil_edge_probability: float = 0.66,
+    attacker_to_attacker_edge_probability: float = 0.66,
+    attacker_to_honest_edge_probability: float = 0.66,
+    sybil_to_honest_edge_probability: float = 0.66,
+    sybil_to_attacker_edge_probability: float = 0.66,
+    connect_attackers: bool = False,
+    connect_honest: bool = False,
+    connect_sybils_to_honest: bool = False,
+    connect_sybils_to_attackers: bool = False,
+    rng: random.Random | None = None,
+    max_attempts: int = 100,
+) -> FBASGraph:
+    """
+    Generate an FBASGraph that simulates a Sybil attack.
+
+    The procedure:
+    - Build an original top-tier org graph and a separate Sybil org graph.
+    - Sample a random quorum in the original graph; its complement are attackers.
+    - Remove attacker edges to non-attacker orgs.
+    - For each attacker, add edges to Sybil orgs based on probability and
+      randomize its threshold.
+    - Optionally add probabilistic edges between attackers, to honest orgs,
+      and from Sybil orgs to honest orgs and/or attackers.
+    """
+    if num_orgs < 2:
+        raise ValueError("num_orgs must be at least 2")
+
+    if num_sybil_orgs < 2:
+        raise ValueError("num_sybil_orgs must be at least 2")
+
+    for name, value in (
+        ("edge_probability", edge_probability),
+        ("sybil_edge_probability", sybil_edge_probability),
+        ("attacker_to_sybil_edge_probability", attacker_to_sybil_edge_probability),
+        ("attacker_to_attacker_edge_probability",
+         attacker_to_attacker_edge_probability),
+        ("attacker_to_honest_edge_probability", attacker_to_honest_edge_probability),
+        ("sybil_to_honest_edge_probability", sybil_to_honest_edge_probability),
+        ("sybil_to_attacker_edge_probability", sybil_to_attacker_edge_probability),
+    ):
+        if not 0 <= value <= 1:
+            raise ValueError(f"{name} must be between 0 and 1")
+
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+
+    if rng is None:
+        rng = random.Random()
+
+    for _ in range(max_attempts):
+        original = gen_random_top_tier_org_graph(
+            num_orgs,
+            edge_probability=edge_probability,
+            rng=rng,
+            org_prefix="org",
+        )
+        original_fbas = top_tier_org_graph_to_fbas_graph(original)
+        if find_disjoint_quorums(original_fbas) is not None:
+            continue
+        sybil = gen_random_top_tier_org_graph(
+            num_sybil_orgs,
+            edge_probability=sybil_edge_probability,
+            rng=rng,
+            org_prefix="sybil",
+        )
+        quorum = random_quorum(
+            original_fbas,
+            seed=rng.randrange(1 << 63),
+        )
+        if quorum is None:
+            continue
+
+        attackers = set(original.nodes) - set(quorum)
+        if not attackers:
+            continue
+
+        for attacker in attackers:
+            for target in list(original.successors(attacker)):
+                if target in quorum:
+                    original.remove_edge(attacker, target)
+
+        combined = nx.DiGraph()
+        combined.add_nodes_from(original.nodes(data=True))
+        combined.add_edges_from(original.edges())
+        combined.add_nodes_from(sybil.nodes(data=True))
+        combined.add_edges_from(sybil.edges())
+
+        sybil_nodes = list(sybil.nodes)
+        honest_orgs = list(quorum)
+        for attacker in attackers:
+            sybil_targets = [target for target in sybil_nodes
+                             if rng.random() < attacker_to_sybil_edge_probability]
+            if not sybil_targets:
+                sybil_targets = [rng.choice(sybil_nodes)]
+            combined.add_edges_from((attacker, target) for target in sybil_targets)
+
+            if connect_attackers:
+                for other_attacker in attackers:
+                    if other_attacker != attacker:
+                        if rng.random() < attacker_to_attacker_edge_probability:
+                            combined.add_edge(attacker, other_attacker)
+
+            if connect_honest and honest_orgs:
+                for target in honest_orgs:
+                    if rng.random() < attacker_to_honest_edge_probability:
+                        combined.add_edge(attacker, target)
+
+        for attacker in attackers:
+            out_degree = combined.out_degree(attacker)
+            if out_degree == 0:
+                fallback = rng.choice(sybil_nodes)
+                combined.add_edge(attacker, fallback)
+                out_degree = 1
+            combined.nodes[attacker]["threshold"] = rng.randint(1, out_degree)
+
+        if connect_sybils_to_honest or connect_sybils_to_attackers:
+            honest_targets = list(quorum) if connect_sybils_to_honest else []
+            attacker_targets = list(attackers) if connect_sybils_to_attackers else []
+            original_targets = honest_targets + attacker_targets
+            if original_targets:
+                for sybil_org in sybil_nodes:
+                    for target in original_targets:
+                        edge_probability = (
+                            sybil_to_honest_edge_probability
+                            if target in honest_targets
+                            else sybil_to_attacker_edge_probability
+                        )
+                        if rng.random() < edge_probability:
+                            combined.add_edge(sybil_org, target)
+                    out_degree = combined.out_degree(sybil_org)
+                    combined.nodes[sybil_org]["threshold"] = rng.randint(1, out_degree)
+
+        return top_tier_org_graph_to_fbas_graph(combined)
+
+    raise ValueError(
+        "Failed to generate a Sybil-attack FBAS after "
         f"{max_attempts} attempts")
