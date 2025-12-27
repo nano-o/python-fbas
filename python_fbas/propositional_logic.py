@@ -11,6 +11,9 @@ This module provides a simple implementation of propositional logic formulas,
 extended with cardinality constraints. The goal is to avoid most of the
 bookkeeping done by pysat, which makes things too slow. The main functionality
 is conversion to CNF.
+
+NOTE: using pysat's cardinality encodings makes for much smaller formulas that
+pysat can easily handle and it's not clear that this whole module is really needed.
 """
 
 
