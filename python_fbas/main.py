@@ -12,7 +12,8 @@ from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
     find_minimal_splitting_set, find_minimal_blocking_set,
-    min_history_loss_critical_set, find_min_quorum, top_tier, max_scc
+    min_history_loss_critical_set, find_min_quorum, top_tier, max_scc,
+    random_quorum
 )
 from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
@@ -182,6 +183,24 @@ def _command_max_scc(_args: Any, fbas: FBASGraph) -> None:
     print(f"Maximal SCC with a quorum: {_format_validators(fbas, result)}")
 
 
+def _command_random_quorum(args: Any, fbas: FBASGraph) -> None:
+    try:
+        result = random_quorum(
+            fbas,
+            seed=args.seed,
+            epsilon=args.epsilon,
+            delta=args.delta,
+            kappa=args.kappa)
+    except ImportError as exc:
+        logging.error(str(exc))
+        sys.exit(1)
+
+    if not result:
+        print("No quorum found")
+        return
+    print(f"Random quorum:\n{_format_validators(fbas, result)}")
+
+
 def _command_to_json(args: Any, fbas: FBASGraph) -> None:
     """Convert the loaded FBAS to JSON format and print to stdout."""
     if args.format == 'python-fbas':
@@ -318,6 +337,31 @@ def main() -> None:
     parser_max_scc = subparsers.add_parser(
         'max-scc', help="Find a maximal strongly-connected component of the FBAS that contains a quorum")
     parser_max_scc.set_defaults(func=_command_max_scc)
+
+    parser_random_quorum = subparsers.add_parser(
+        'random-quorum',
+        help="Sample a random quorum using UniGen")
+    parser_random_quorum.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help="Seed for UniGen (default: random)")
+    parser_random_quorum.add_argument(
+        '--epsilon',
+        type=float,
+        default=0.8,
+        help="UniGen tolerance factor (epsilon)")
+    parser_random_quorum.add_argument(
+        '--delta',
+        type=float,
+        default=0.2,
+        help="UniGen confidence parameter (delta)")
+    parser_random_quorum.add_argument(
+        '--kappa',
+        type=float,
+        default=0.638,
+        help="UniGen uniformity parameter (kappa)")
+    parser_random_quorum.set_defaults(func=_command_random_quorum)
 
     parser_to_json = subparsers.add_parser(
         'to-json', help="Convert the loaded FBAS to JSON format and print to stdout")

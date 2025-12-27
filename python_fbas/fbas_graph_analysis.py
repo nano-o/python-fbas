@@ -3,6 +3,7 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
+import random
 from dataclasses import dataclass
 from typing import Any, Callable
 from collections.abc import Collection
@@ -23,6 +24,10 @@ try:
     HAS_QBF = True
 except ImportError:
     HAS_QBF = False
+try:
+    from pysat.allies.unigen import Sampler as UniGenSampler
+except ImportError:
+    UniGenSampler = None
 
 @dataclass
 class DisjointQuorumsResult:
@@ -193,6 +198,61 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     else:
         logging.info("No quorum found in %s", s)
     return sat_res.sat
+
+
+def random_quorum(
+        fbas: FBASGraph,
+        *,
+        seed: int | None = None,
+        epsilon: float = 0.8,
+        delta: float = 0.2,
+        kappa: float = 0.638) -> Collection[str] | None:
+    """
+    Return a random quorum using UniGen's sampler, or None if no quorum exists.
+    """
+    if UniGenSampler is None:
+        raise ImportError(
+            "UniGen support not available. Install pysat with UniGen dependencies.")
+
+    if not fbas.get_validators():
+        logging.info("The FBAS has no validators!")
+        return None
+
+    constraints = quorum_constraints(fbas, Atom)
+    clauses = to_cnf(constraints)
+    sat_res = slv.solve_sat(clauses, label="Quorum SAT check")
+    if not sat_res.sat:
+        logging.info("No quorum found in the FBAS graph.")
+        return None
+
+    sample_over = [
+        abs(variables[Atom(v).identifier])
+        for v in fbas.get_validators()
+        if Atom(v).identifier in variables
+    ]
+    if not sample_over:
+        logging.info("No validators with qsets available for sampling.")
+        return None
+
+    if seed is None:
+        seed = random.SystemRandom().randint(1, 2**31 - 1)
+
+    cnf = CNF(from_clauses=clauses)
+    try:
+        with UniGenSampler(formula=cnf, seed=seed, epsilon=epsilon,
+                           delta=delta, kappa=kappa) as sampler:
+            samples = sampler.sample(nof_samples=1, sample_over=sample_over)
+    except AssertionError as exc:
+        raise ImportError(
+            "UniGen support not available. Install pyunigen.") from exc
+
+    if not samples:
+        logging.info("UniGen returned no samples.")
+        return None
+
+    sample = samples[0]
+    quorum = {v for v in decode_model(sample, predicate=fbas.is_validator)}
+    return quorum
 
 
 def find_disjoint_quorums(
