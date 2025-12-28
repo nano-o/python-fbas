@@ -117,7 +117,7 @@ python-fbas random-quorum
 python-fbas random-sybil-attack-fbas --orgs 5 --sybils 3
 python-fbas random-sybil-attack-fbas --generator-config python-fbas.generator.cfg.example
 ```
-*Use `python-fbas show-generator-config` to print generator defaults. Add `--plot` to visualize the generated org graph (not the full FBAS).*
+*Use `python-fbas show-generator-config` to print generator defaults. Add `--plot` to visualize the generated org graph (not the full FBAS), or `--plot-with-trust` to shade nodes by trust from a random honest org. You can pass `--sybil-detection-config` or `--sybil-detection-steps`/`--sybil-detection-capacity` to tune the trust heuristic.*
 
 **Find history-critical set:**
 ```bash

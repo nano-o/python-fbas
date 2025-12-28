@@ -35,6 +35,7 @@ from python_fbas.fbas_generator import (
     gen_random_top_tier_org_graph,
     top_tier_org_graph_to_fbas_graph,
 )
+from python_fbas.sybil_detection import compute_trust_scores
 
 GENERATOR_DEFAULTS: dict[str, Any] = {
     "orgs": 5,
@@ -53,6 +54,11 @@ GENERATOR_DEFAULTS: dict[str, Any] = {
     "seed": None,
 }
 
+SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
+    "steps": 5,
+    "capacity": 1.0,
+}
+
 
 def _generator_defaults_yaml() -> str:
     yaml_lines = [
@@ -67,6 +73,19 @@ def _generator_defaults_yaml() -> str:
         yaml_lines.append(f"{key}: {value_yaml}")
     return "\n".join(yaml_lines)
 
+
+def _sybil_detection_defaults_yaml() -> str:
+    yaml_lines = [
+        "# python-fbas sybil-detection configuration file",
+        "# Use with: python-fbas show-sybil-detection-config",
+        "",
+    ]
+    for key, value in SYBIL_DETECTION_DEFAULTS.items():
+        value_yaml = yaml.safe_dump(value, default_flow_style=False).strip()
+        if value_yaml.endswith("..."):
+            value_yaml = value_yaml[:-3].strip()
+        yaml_lines.append(f"{key}: {value_yaml}")
+    return "\n".join(yaml_lines)
 
 def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
     with open(validators_file, 'r', encoding='utf-8') as f:
@@ -160,6 +179,11 @@ def _command_show_config(args: Any) -> None:
 def _command_show_generator_config(_args: Any) -> None:
     """Display generator defaults as YAML."""
     print(_generator_defaults_yaml())
+
+
+def _command_show_sybil_detection_config(_args: Any) -> None:
+    """Display sybil-detection defaults as YAML."""
+    print(_sybil_detection_defaults_yaml())
 
 
 def _command_check_intersection(args: Any, fbas: FBASGraph) -> None:
@@ -281,9 +305,16 @@ def _command_validator_metadata(args: Any, fbas: FBASGraph) -> None:
     print(json.dumps(attrs, indent=2, sort_keys=True))
 
 
-def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
+def _plot_random_org_graph(
+    graph: nx.DiGraph,
+    *,
+    seed: int | None,
+    trust_scores: dict[str, float] | None = None,
+    trust_seed: str | None = None,
+) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
+    from matplotlib.patches import Circle
 
     has_roles = any("role" in graph.nodes[node] for node in graph.nodes)
     if not has_roles:
@@ -373,22 +404,57 @@ def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
     sybil_nodes = [node for node in graph.nodes
                    if graph.nodes[node].get("role") == "sybil"]
     if original_nodes:
+        node_colors = None
+        linewidths = 1.2
+        edgecolors = []
+        if trust_scores:
+            max_score = max(trust_scores.values(), default=0.0)
+            node_colors = []
+            linewidths = []
+        for node in original_nodes:
+            if trust_scores:
+                score = trust_scores.get(node, 0.0)
+                if max_score > 0:
+                    intensity = 0.3 + 0.7 * (score / max_score)
+                else:
+                    intensity = 0.3
+                node_colors.append(plt.cm.Blues(intensity))
+                linewidths.append(2.4 if node == trust_seed else 1.2)
+            role = graph.nodes[node].get("role")
+            edgecolors.append("#c62828" if role == "attacker" else "#111111")
         nx.draw_networkx_nodes(
             graph,
             pos,
             nodelist=original_nodes,
             node_size=900,
-            node_color="#cfe8ff",
-            edgecolors="#111111",
-            linewidths=1.2,
+            node_color=node_colors if node_colors else "#cfe8ff",
+            edgecolors=edgecolors,
+            linewidths=linewidths,
         )
     if sybil_nodes:
+        node_colors = None
+        linewidths = 0.0
+        edgecolors = "none"
+        if trust_scores:
+            max_score = max(trust_scores.values(), default=0.0)
+            node_colors = []
+            linewidths = []
+            for node in sybil_nodes:
+                score = trust_scores.get(node, 0.0)
+                if max_score > 0:
+                    intensity = 0.3 + 0.7 * (score / max_score)
+                else:
+                    intensity = 0.3
+                node_colors.append(plt.cm.Blues(intensity))
+                linewidths.append(0.0)
         nx.draw_networkx_nodes(
             graph,
             pos,
             nodelist=sybil_nodes,
             node_size=900,
-            node_color="#cfe8ff",
+            node_color=node_colors if node_colors else "#cfe8ff",
+            edgecolors=edgecolors,
+            linewidths=linewidths,
         )
     if honest_edges:
         nx.draw_networkx_edges(
@@ -459,7 +525,24 @@ def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
             edge_color="#444444",
             style="dotted",
         )
-    nx.draw_networkx_labels(graph, pos, labels=labels, font_size=9)
+    nx.draw_networkx_labels(
+        graph,
+        pos,
+        labels=labels,
+        font_size=9,
+        font_color="#f7f7f7",
+    )
+    if trust_seed and trust_seed in pos:
+        ax = plt.gca()
+        ax.scatter(
+            [pos[trust_seed][0]],
+            [pos[trust_seed][1]],
+            s=1200,
+            facecolors="none",
+            edgecolors="#111111",
+            linewidths=2.4,
+            linestyle="dotted",
+        )
     legend_items = [
         Line2D(
             [0],
@@ -469,7 +552,17 @@ def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
             markerfacecolor="#cfe8ff",
             markeredgecolor="#111111",
             markersize=10,
-            label="Original org",
+            label="Honest org",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#cfe8ff",
+            markeredgecolor="#c62828",
+            markersize=10,
+            label="Attacker org",
         ),
         Line2D(
             [0],
@@ -480,6 +573,14 @@ def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
             markeredgecolor="#cfe8ff",
             markersize=10,
             label="Sybil org",
+        ),
+        Circle(
+            (0, 0),
+            radius=0.25,
+            facecolor="none",
+            edgecolor="#111111",
+            linestyle="dotted",
+            label="Trust seed",
         ),
         Line2D(
             [0],
@@ -599,7 +700,54 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         )
     fbas = top_tier_org_graph_to_fbas_graph(graph)
     print(serialize(fbas, format="stellarbeat"))
-    if args.plot:
+    sybil_defaults = SYBIL_DETECTION_DEFAULTS
+    sybil_allowed = set(SYBIL_DETECTION_DEFAULTS.keys())
+    sybil_params = sybil_defaults.copy()
+    if args.sybil_detection_config:
+        sybil_config = load_from_file(args.sybil_detection_config)
+        if not isinstance(sybil_config, dict):
+            raise ValueError(
+                "--sybil-detection-config must contain a YAML mapping of parameters")
+        invalid_keys = set(sybil_config.keys()) - sybil_allowed
+        if invalid_keys:
+            logging.warning(
+                "Ignoring unknown sybil-detection config keys: %s",
+                sorted(invalid_keys),
+            )
+            sybil_config = {
+                key: value
+                for key, value in sybil_config.items()
+                if key in sybil_allowed
+            }
+        sybil_params.update(sybil_config)
+    if args.sybil_detection_steps is not None:
+        sybil_params["steps"] = args.sybil_detection_steps
+    if args.sybil_detection_capacity is not None:
+        sybil_params["capacity"] = args.sybil_detection_capacity
+
+    if args.plot_with_trust:
+        roles = nx.get_node_attributes(graph, "role")
+        honest_nodes = [
+            node for node in graph.nodes
+            if roles.get(node, "honest") == "honest"
+        ]
+        if not honest_nodes:
+            honest_nodes = list(graph.nodes)
+        trust_rng = rng if rng is not None else random.Random()
+        trust_seed = trust_rng.choice(honest_nodes)
+        trust_scores = compute_trust_scores(
+            graph,
+            trust_seed,
+            steps=sybil_params["steps"],
+            capacity=sybil_params["capacity"],
+        )
+        _plot_random_org_graph(
+            graph,
+            seed=params["seed"],
+            trust_scores=trust_scores,
+            trust_seed=trust_seed,
+        )
+    elif args.plot:
         _plot_random_org_graph(graph, seed=params["seed"])
 
 
@@ -676,6 +824,12 @@ def main() -> None:
         'show-generator-config',
         help="Display generator defaults as YAML")
     parser_show_generator_config.set_defaults(func=_command_show_generator_config)
+
+    parser_show_sybil_detection_config = subparsers.add_parser(
+        'show-sybil-detection-config',
+        help="Display sybil-detection defaults as YAML")
+    parser_show_sybil_detection_config.set_defaults(
+        func=_command_show_sybil_detection_config)
 
     # Command for checking intersection
     parser_is_intertwined = subparsers.add_parser(
@@ -767,6 +921,16 @@ def main() -> None:
         default=None,
         help="Path to YAML config for generator parameters")
     parser_random_sybil_attack.add_argument(
+        "--sybil-detection-config",
+        default=None,
+        help="Path to YAML config for sybil-detection parameters")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-steps", type=int, default=None,
+        help="Trust-propagation steps for --plot-with-trust")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-capacity", type=float, default=None,
+        help="Trust-propagation capacity for --plot-with-trust")
+    parser_random_sybil_attack.add_argument(
         "--orgs", type=int, default=None,
         help="Number of original orgs")
     parser_random_sybil_attack.add_argument(
@@ -813,6 +977,9 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--plot", action="store_true",
         help="Plot the top-tier org graph")
+    parser_random_sybil_attack.add_argument(
+        "--plot-with-trust", action="store_true",
+        help="Plot the org graph with trust scores from a random honest org")
     parser_random_sybil_attack.add_argument(
         "--seed", type=int, default=None,
         help="Random seed (optional)")
@@ -864,6 +1031,7 @@ def main() -> None:
         'update-cache',
         'show-config',
         'show-generator-config',
+        'show-sybil-detection-config',
         'random-sybil-attack-fbas',
     ]:
         args.func(args)
