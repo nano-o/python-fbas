@@ -112,6 +112,13 @@ python-fbas random-quorum
 ```
 *Requires `pyunigen` (install with `pip install .[unigen]`).*
 
+**Generate a random Sybil-attack FBAS (or top-tier if sybils=0):**
+```bash
+python-fbas random-sybil-attack-fbas --orgs 5 --sybils 3
+python-fbas random-sybil-attack-fbas --generator-config python-fbas.generator.cfg.example
+```
+*Use `python-fbas show-generator-config` to print generator defaults. Add `--plot` to visualize the generated org graph (not the full FBAS).*
+
 **Find history-critical set:**
 ```bash
 python-fbas history-loss

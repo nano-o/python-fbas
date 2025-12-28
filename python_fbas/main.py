@@ -8,6 +8,10 @@ import argparse
 import logging
 import sys
 from typing import Any, Dict, List
+import random
+
+import networkx as nx
+import yaml
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
@@ -17,8 +21,51 @@ from python_fbas.fbas_graph_analysis import (
 )
 from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
-from python_fbas.config import update as update_config, get as get_config, load_config_file, to_yaml
+from python_fbas.config import (
+    update as update_config,
+    get as get_config,
+    load_config_file,
+    load_from_file,
+    to_yaml,
+)
 from python_fbas.serialization import deserialize, serialize
+from python_fbas.fbas_generator import (
+    SybilAttackConfig,
+    gen_random_sybil_attack_org_graph,
+    gen_random_top_tier_org_graph,
+    top_tier_org_graph_to_fbas_graph,
+)
+
+GENERATOR_DEFAULTS: dict[str, Any] = {
+    "orgs": 5,
+    "sybils": 3,
+    "original_edge_probability": 0.5,
+    "sybil_sybil_edge_probability": 0.5,
+    "attacker_to_sybil_edge_probability": 0.5,
+    "attacker_to_attacker_edge_probability": 0.5,
+    "attacker_to_honest_edge_probability": 0.5,
+    "sybil_to_honest_edge_probability": 0.5,
+    "sybil_to_attacker_edge_probability": 0.5,
+    "connect_attacker_to_attacker": False,
+    "connect_attacker_to_honest": False,
+    "connect_sybil_to_honest": False,
+    "connect_sybil_to_attacker": False,
+    "seed": None,
+}
+
+
+def _generator_defaults_yaml() -> str:
+    yaml_lines = [
+        "# python-fbas generator configuration file",
+        "# Use with: python-fbas random-sybil-attack-fbas --generator-config=FILE",
+        "",
+    ]
+    for key, value in GENERATOR_DEFAULTS.items():
+        value_yaml = yaml.safe_dump(value, default_flow_style=False).strip()
+        if value_yaml.endswith("..."):
+            value_yaml = value_yaml[:-3].strip()
+        yaml_lines.append(f"{key}: {value_yaml}")
+    return "\n".join(yaml_lines)
 
 
 def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
@@ -108,6 +155,11 @@ def _command_show_config(args: Any) -> None:
     """Display current effective configuration as YAML."""
     yaml_output = to_yaml()
     print(yaml_output)
+
+
+def _command_show_generator_config(_args: Any) -> None:
+    """Display generator defaults as YAML."""
+    print(_generator_defaults_yaml())
 
 
 def _command_check_intersection(args: Any, fbas: FBASGraph) -> None:
@@ -229,6 +281,328 @@ def _command_validator_metadata(args: Any, fbas: FBASGraph) -> None:
     print(json.dumps(attrs, indent=2, sort_keys=True))
 
 
+def _plot_random_org_graph(graph: nx.DiGraph, *, seed: int | None) -> None:
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    has_roles = any("role" in graph.nodes[node] for node in graph.nodes)
+    if not has_roles:
+        graph = graph.copy()
+        nx.set_node_attributes(graph, "honest", "role")
+
+    labels = {
+        node: f"{node}\nT={graph.nodes[node].get('threshold')}"
+        for node in graph.nodes
+    }
+    solid_edges = []
+    solid_edge_colors = []
+    honest_edges = []
+    attacker_sybil_edges = []
+    dashed_edges = []
+    dotted_edges = []
+    for source, target in graph.edges:
+        source_role = graph.nodes[source].get("role")
+        target_role = graph.nodes[target].get("role")
+        if (
+            (source_role == "attacker" and target_role == "sybil")
+            or (source_role == "honest" and target_role == "attacker")
+        ):
+            attacker_sybil_edges.append((source, target))
+        elif (
+            source_role == "sybil"
+            and target_role == "honest"
+        ):
+            dashed_edges.append((source, target))
+        elif (
+            source_role == "sybil"
+            and target_role == "sybil"
+        ):
+            dotted_edges.append((source, target))
+        elif source_role == "honest" and target_role == "honest":
+            honest_edges.append((source, target))
+        else:
+            solid_edges.append((source, target))
+            solid_edge_colors.append("#444444")
+    honest_nodes = [node for node in graph.nodes
+                    if graph.nodes[node].get("role") == "honest"]
+    attacker_nodes = [node for node in graph.nodes
+                      if graph.nodes[node].get("role") == "attacker"]
+    sybil_nodes = [node for node in graph.nodes
+                   if graph.nodes[node].get("role") == "sybil"]
+    pos = {}
+    if honest_nodes and not attacker_nodes and not sybil_nodes:
+        pos = nx.spring_layout(graph, seed=seed)
+    elif honest_nodes:
+        honest_graph = graph.subgraph(honest_nodes)
+        honest_k = 1.2 if honest_graph.number_of_nodes() > 1 else 0.1
+        pos_honest = nx.spring_layout(
+            honest_graph,
+            seed=seed,
+            k=honest_k,
+            iterations=200,
+        )
+        pos.update({node: (coord[0] * 1.2 - 2.2, coord[1] * 1.2)
+                    for node, coord in pos_honest.items()})
+    if attacker_nodes:
+        attacker_graph = graph.subgraph(attacker_nodes)
+        attacker_k = 1.2 if attacker_graph.number_of_nodes() > 1 else 0.1
+        pos_attackers = nx.spring_layout(
+            attacker_graph,
+            seed=seed,
+            k=attacker_k,
+            iterations=200,
+        )
+        pos.update({node: (coord[0] * 1.2 + 0.3, coord[1] * 1.2)
+                    for node, coord in pos_attackers.items()})
+    if sybil_nodes:
+        sybil_graph = graph.subgraph(sybil_nodes)
+        sybil_k = 1.2 if sybil_graph.number_of_nodes() > 1 else 0.1
+        pos_sybil = nx.spring_layout(
+            sybil_graph,
+            seed=seed,
+            k=sybil_k,
+            iterations=200,
+        )
+        pos.update({node: (coord[0] * 1.2 + 2.7, coord[1] * 1.2)
+                    for node, coord in pos_sybil.items()})
+    if not pos:
+        pos = nx.spring_layout(graph, seed=seed)
+    plt.figure(figsize=(10, 7))
+    original_nodes = [node for node in graph.nodes
+                      if graph.nodes[node].get("role") != "sybil"]
+    sybil_nodes = [node for node in graph.nodes
+                   if graph.nodes[node].get("role") == "sybil"]
+    if original_nodes:
+        nx.draw_networkx_nodes(
+            graph,
+            pos,
+            nodelist=original_nodes,
+            node_size=900,
+            node_color="#cfe8ff",
+            edgecolors="#111111",
+            linewidths=1.2,
+        )
+    if sybil_nodes:
+        nx.draw_networkx_nodes(
+            graph,
+            pos,
+            nodelist=sybil_nodes,
+            node_size=900,
+            node_color="#cfe8ff",
+        )
+    if honest_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            min_source_margin=16,
+            min_target_margin=18,
+            connectionstyle="arc3,rad=0.1",
+            edgelist=honest_edges,
+            edge_color="#444444",
+            width=2.0,
+        )
+    if attacker_sybil_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            min_source_margin=16,
+            min_target_margin=18,
+            connectionstyle="arc3,rad=0.1",
+            edgelist=attacker_sybil_edges,
+            edge_color="#c62828",
+            width=1.6,
+        )
+    if solid_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            min_source_margin=16,
+            min_target_margin=18,
+            connectionstyle="arc3,rad=0.1",
+            edgelist=solid_edges,
+            edge_color=solid_edge_colors,
+        )
+    if dashed_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            min_source_margin=16,
+            min_target_margin=18,
+            connectionstyle="arc3,rad=0.1",
+            edgelist=dashed_edges,
+            edge_color="#444444",
+            style=(0, (7, 5)),
+        )
+    if dotted_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            min_source_margin=16,
+            min_target_margin=18,
+            connectionstyle="arc3,rad=0.1",
+            edgelist=dotted_edges,
+            edge_color="#444444",
+            style="dotted",
+        )
+    nx.draw_networkx_labels(graph, pos, labels=labels, font_size=9)
+    legend_items = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#cfe8ff",
+            markeredgecolor="#111111",
+            markersize=10,
+            label="Original org",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#cfe8ff",
+            markeredgecolor="#cfe8ff",
+            markersize=10,
+            label="Sybil org",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color="#444444",
+            linewidth=2.0,
+            label="Honest -> honest",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color="#c62828",
+            linewidth=1.6,
+            label="Attacker -> sybil / honest -> attacker",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color="#444444",
+            linestyle=(0, (7, 5)),
+            label="Sybil -> honest",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color="#444444",
+            linestyle="dotted",
+            label="Sybil -> sybil",
+        ),
+    ]
+    plt.legend(
+        handles=legend_items,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=2,
+        frameon=False,
+    )
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+
+
+def _command_random_sybil_attack_fbas(args: Any) -> None:
+    default_params = GENERATOR_DEFAULTS
+    allowed_keys = set(GENERATOR_DEFAULTS.keys())
+    config_params = {}
+    if args.generator_config:
+        config_params = load_from_file(args.generator_config)
+        if not isinstance(config_params, dict):
+            raise ValueError(
+                "--generator-config must contain a YAML mapping of parameters")
+        invalid_keys = set(config_params.keys()) - allowed_keys
+        if invalid_keys:
+            logging.warning(
+                "Ignoring unknown generator config keys: %s",
+                sorted(invalid_keys),
+            )
+            config_params = {
+                key: value
+                for key, value in config_params.items()
+                if key in allowed_keys
+            }
+
+    params = default_params.copy()
+    params.update(config_params)
+    if args.original_edge_probability is not None:
+        params["original_edge_probability"] = args.original_edge_probability
+    if args.sybil_sybil_edge_probability is not None:
+        params["sybil_sybil_edge_probability"] = args.sybil_sybil_edge_probability
+    for key in allowed_keys:
+        value = getattr(args, key, None)
+        if value is not None:
+            params[key] = value
+
+    if params["orgs"] < 2:
+        raise ValueError("--orgs must be at least 2")
+
+    if params["sybils"] != 0 and params["sybils"] < 2:
+        raise ValueError("--sybils must be 0 or at least 2")
+
+    rng = random.Random(params["seed"]) if params["seed"] is not None else None
+    if params["sybils"] == 0:
+        graph = gen_random_top_tier_org_graph(
+            params["orgs"],
+            edge_probability=params["original_edge_probability"],
+            rng=rng,
+        )
+    else:
+        config = SybilAttackConfig(
+            original_edge_probability=params["original_edge_probability"],
+            sybil_sybil_edge_probability=params["sybil_sybil_edge_probability"],
+            attacker_to_sybil_edge_probability=(
+                params["attacker_to_sybil_edge_probability"]
+            ),
+            attacker_to_attacker_edge_probability=(
+                params["attacker_to_attacker_edge_probability"]
+            ),
+            attacker_to_honest_edge_probability=(
+                params["attacker_to_honest_edge_probability"]
+            ),
+            sybil_to_honest_edge_probability=(
+                params["sybil_to_honest_edge_probability"]
+            ),
+            sybil_to_attacker_edge_probability=(
+                params["sybil_to_attacker_edge_probability"]
+            ),
+            connect_attacker_to_attacker=params["connect_attacker_to_attacker"],
+            connect_attacker_to_honest=params["connect_attacker_to_honest"],
+            connect_sybil_to_honest=params["connect_sybil_to_honest"],
+            connect_sybil_to_attacker=params["connect_sybil_to_attacker"],
+        )
+        graph = gen_random_sybil_attack_org_graph(
+            num_orgs=params["orgs"],
+            num_sybil_orgs=params["sybils"],
+            config=config,
+            rng=rng,
+        )
+    fbas = top_tier_org_graph_to_fbas_graph(graph)
+    print(serialize(fbas, format="stellarbeat"))
+    if args.plot:
+        _plot_random_org_graph(graph, seed=params["seed"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="FBAS analysis CLI")
     # specify log level with --log-level, with default WARNING:
@@ -297,6 +671,11 @@ def main() -> None:
         'show-config',
         help="Display current effective configuration as YAML")
     parser_show_config.set_defaults(func=_command_show_config)
+
+    parser_show_generator_config = subparsers.add_parser(
+        'show-generator-config',
+        help="Display generator defaults as YAML")
+    parser_show_generator_config.set_defaults(func=_command_show_generator_config)
 
     # Command for checking intersection
     parser_is_intertwined = subparsers.add_parser(
@@ -380,6 +759,65 @@ def main() -> None:
         help="Validator public key")
     parser_validator_metadata.set_defaults(func=_command_validator_metadata)
 
+    parser_random_sybil_attack = subparsers.add_parser(
+        'random-sybil-attack-fbas',
+        help="Generate a random FBAS with a Sybil attack topology")
+    parser_random_sybil_attack.add_argument(
+        "--generator-config",
+        default=None,
+        help="Path to YAML config for generator parameters")
+    parser_random_sybil_attack.add_argument(
+        "--orgs", type=int, default=None,
+        help="Number of original orgs")
+    parser_random_sybil_attack.add_argument(
+        "--sybils", type=int, default=None,
+        help="Number of Sybil orgs (0 for no Sybil attack)")
+    parser_random_sybil_attack.add_argument(
+        "--original-edge-probability", type=float, default=None,
+        help="Probability of an original-org edge")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-sybil-edge-probability", type=float, default=None,
+        help="Probability of a Sybil-org edge")
+    parser_random_sybil_attack.add_argument(
+        "--attacker-to-sybil-edge-probability",
+        type=float, default=None,
+        help="Probability of attacker -> Sybil edges")
+    parser_random_sybil_attack.add_argument(
+        "--attacker-to-attacker-edge-probability",
+        type=float, default=None,
+        help="Probability of attacker -> attacker edges")
+    parser_random_sybil_attack.add_argument(
+        "--attacker-to-honest-edge-probability",
+        type=float, default=None,
+        help="Probability of attacker -> honest edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-to-honest-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil -> honest edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-to-attacker-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil -> attacker edges")
+    parser_random_sybil_attack.add_argument(
+        "--connect-attacker-to-attacker", action="store_true", default=None,
+        help="Connect attackers to each other")
+    parser_random_sybil_attack.add_argument(
+        "--connect-attacker-to-honest", action="store_true", default=None,
+        help="Connect attackers to honest orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil-to-honest", action="store_true", default=None,
+        help="Connect Sybil orgs to honest orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil-to-attacker", action="store_true", default=None,
+        help="Connect Sybil orgs to attacker orgs")
+    parser_random_sybil_attack.add_argument(
+        "--plot", action="store_true",
+        help="Plot the top-tier org graph")
+    parser_random_sybil_attack.add_argument(
+        "--seed", type=int, default=None,
+        help="Random seed (optional)")
+    parser_random_sybil_attack.set_defaults(func=_command_random_sybil_attack_fbas)
+
     args = parser.parse_args()
 
     # Set log level early
@@ -422,7 +860,12 @@ def main() -> None:
     cfg = get_config()
 
     # Run commands that don't need FBAS data:
-    if args.command in ['update-cache', 'show-config']:
+    if args.command in [
+        'update-cache',
+        'show-config',
+        'show-generator-config',
+        'random-sybil-attack-fbas',
+    ]:
         args.func(args)
         sys.exit(0)
 

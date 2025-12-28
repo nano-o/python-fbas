@@ -37,8 +37,8 @@ def test_trust_scores_capacity_limit():
 def test_sybil_attack_scores_honest_higher():
     rng = random.Random(0)
     config = SybilAttackConfig(
-        edge_probability=0.7,
-        sybil_edge_probability=0.7,
+        original_edge_probability=0.7,
+        sybil_sybil_edge_probability=0.7,
         attacker_to_sybil_edge_probability=0.9,
         connect_attacker_to_attacker=False,
         connect_attacker_to_honest=False,

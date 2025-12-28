@@ -11,8 +11,8 @@ from python_fbas.fbas_graph_analysis import find_disjoint_quorums, random_quorum
 
 @dataclass(frozen=True)
 class SybilAttackConfig:
-    edge_probability: float = 0.66
-    sybil_edge_probability: float = 0.66
+    original_edge_probability: float = 0.66
+    sybil_sybil_edge_probability: float = 0.66
     attacker_to_sybil_edge_probability: float = 0.66
     attacker_to_attacker_edge_probability: float = 0.66
     attacker_to_honest_edge_probability: float = 0.66
@@ -165,8 +165,8 @@ def gen_random_sybil_attack_org_graph(
         config = SybilAttackConfig()
 
     for name, value in (
-        ("edge_probability", config.edge_probability),
-        ("sybil_edge_probability", config.sybil_edge_probability),
+        ("original_edge_probability", config.original_edge_probability),
+        ("sybil_sybil_edge_probability", config.sybil_sybil_edge_probability),
         ("attacker_to_sybil_edge_probability",
          config.attacker_to_sybil_edge_probability),
         ("attacker_to_attacker_edge_probability",
@@ -189,7 +189,7 @@ def gen_random_sybil_attack_org_graph(
     for _ in range(config.max_attempts):
         original = gen_random_top_tier_org_graph(
             num_orgs,
-            edge_probability=config.edge_probability,
+            edge_probability=config.original_edge_probability,
             rng=rng,
             org_prefix="org",
         )
@@ -198,7 +198,7 @@ def gen_random_sybil_attack_org_graph(
             continue
         sybil = gen_random_top_tier_org_graph(
             num_sybil_orgs,
-            edge_probability=config.sybil_edge_probability,
+            edge_probability=config.sybil_sybil_edge_probability,
             rng=rng,
             org_prefix="sybil",
         )
