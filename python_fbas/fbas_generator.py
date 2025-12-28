@@ -1,11 +1,28 @@
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 
 import networkx as nx
 
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import find_disjoint_quorums, random_quorum
+
+
+@dataclass(frozen=True)
+class SybilAttackConfig:
+    edge_probability: float = 0.66
+    sybil_edge_probability: float = 0.66
+    attacker_to_sybil_edge_probability: float = 0.66
+    attacker_to_attacker_edge_probability: float = 0.66
+    attacker_to_honest_edge_probability: float = 0.66
+    sybil_to_honest_edge_probability: float = 0.66
+    sybil_to_attacker_edge_probability: float = 0.66
+    connect_attackers: bool = False
+    connect_honest: bool = False
+    connect_sybils_to_honest: bool = False
+    connect_sybils_to_attackers: bool = False
+    max_attempts: int = 100
 
 
 def gen_random_top_tier_org_graph(
@@ -119,26 +136,15 @@ def gen_random_top_tier_org_fbas(
         f"{max_attempts} attempts")
 
 
-def gen_random_sybil_attack_fbas(
+def gen_random_sybil_attack_org_graph(
     num_orgs: int,
     num_sybil_orgs: int,
     *,
-    edge_probability: float = 0.66,
-    sybil_edge_probability: float = 0.66,
-    attacker_to_sybil_edge_probability: float = 0.66,
-    attacker_to_attacker_edge_probability: float = 0.66,
-    attacker_to_honest_edge_probability: float = 0.66,
-    sybil_to_honest_edge_probability: float = 0.66,
-    sybil_to_attacker_edge_probability: float = 0.66,
-    connect_attackers: bool = False,
-    connect_honest: bool = False,
-    connect_sybils_to_honest: bool = False,
-    connect_sybils_to_attackers: bool = False,
+    config: SybilAttackConfig | None = None,
     rng: random.Random | None = None,
-    max_attempts: int = 100,
-) -> FBASGraph:
+) -> nx.DiGraph:
     """
-    Generate an FBASGraph that simulates a Sybil attack.
+    Generate a top-tier org graph that simulates a Sybil attack.
 
     The procedure:
     - Build an original top-tier org graph and a separate Sybil org graph.
@@ -155,29 +161,35 @@ def gen_random_sybil_attack_fbas(
     if num_sybil_orgs < 2:
         raise ValueError("num_sybil_orgs must be at least 2")
 
+    if config is None:
+        config = SybilAttackConfig()
+
     for name, value in (
-        ("edge_probability", edge_probability),
-        ("sybil_edge_probability", sybil_edge_probability),
-        ("attacker_to_sybil_edge_probability", attacker_to_sybil_edge_probability),
+        ("edge_probability", config.edge_probability),
+        ("sybil_edge_probability", config.sybil_edge_probability),
+        ("attacker_to_sybil_edge_probability",
+         config.attacker_to_sybil_edge_probability),
         ("attacker_to_attacker_edge_probability",
-         attacker_to_attacker_edge_probability),
-        ("attacker_to_honest_edge_probability", attacker_to_honest_edge_probability),
-        ("sybil_to_honest_edge_probability", sybil_to_honest_edge_probability),
-        ("sybil_to_attacker_edge_probability", sybil_to_attacker_edge_probability),
+         config.attacker_to_attacker_edge_probability),
+        ("attacker_to_honest_edge_probability",
+         config.attacker_to_honest_edge_probability),
+        ("sybil_to_honest_edge_probability", config.sybil_to_honest_edge_probability),
+        ("sybil_to_attacker_edge_probability",
+         config.sybil_to_attacker_edge_probability),
     ):
         if not 0 <= value <= 1:
             raise ValueError(f"{name} must be between 0 and 1")
 
-    if max_attempts < 1:
+    if config.max_attempts < 1:
         raise ValueError("max_attempts must be at least 1")
 
     if rng is None:
         rng = random.Random()
 
-    for _ in range(max_attempts):
+    for _ in range(config.max_attempts):
         original = gen_random_top_tier_org_graph(
             num_orgs,
-            edge_probability=edge_probability,
+            edge_probability=config.edge_probability,
             rng=rng,
             org_prefix="org",
         )
@@ -186,7 +198,7 @@ def gen_random_sybil_attack_fbas(
             continue
         sybil = gen_random_top_tier_org_graph(
             num_sybil_orgs,
-            edge_probability=sybil_edge_probability,
+            edge_probability=config.sybil_edge_probability,
             rng=rng,
             org_prefix="sybil",
         )
@@ -214,22 +226,28 @@ def gen_random_sybil_attack_fbas(
 
         sybil_nodes = list(sybil.nodes)
         honest_orgs = list(quorum)
+        for org in original.nodes:
+            role = "attacker" if org in attackers else "honest"
+            combined.nodes[org]["role"] = role
+        for sybil_org in sybil_nodes:
+            combined.nodes[sybil_org]["role"] = "sybil"
         for attacker in attackers:
             sybil_targets = [target for target in sybil_nodes
-                             if rng.random() < attacker_to_sybil_edge_probability]
+                             if rng.random()
+                             < config.attacker_to_sybil_edge_probability]
             if not sybil_targets:
                 sybil_targets = [rng.choice(sybil_nodes)]
             combined.add_edges_from((attacker, target) for target in sybil_targets)
 
-            if connect_attackers:
+            if config.connect_attackers:
                 for other_attacker in attackers:
                     if other_attacker != attacker:
-                        if rng.random() < attacker_to_attacker_edge_probability:
+                        if rng.random() < config.attacker_to_attacker_edge_probability:
                             combined.add_edge(attacker, other_attacker)
 
-            if connect_honest and honest_orgs:
+            if config.connect_honest and honest_orgs:
                 for target in honest_orgs:
-                    if rng.random() < attacker_to_honest_edge_probability:
+                    if rng.random() < config.attacker_to_honest_edge_probability:
                         combined.add_edge(attacker, target)
 
         for attacker in attackers:
@@ -240,25 +258,50 @@ def gen_random_sybil_attack_fbas(
                 out_degree = 1
             combined.nodes[attacker]["threshold"] = rng.randint(1, out_degree)
 
-        if connect_sybils_to_honest or connect_sybils_to_attackers:
-            honest_targets = list(quorum) if connect_sybils_to_honest else []
-            attacker_targets = list(attackers) if connect_sybils_to_attackers else []
+        if config.connect_sybils_to_honest or config.connect_sybils_to_attackers:
+            honest_targets = (
+                list(quorum) if config.connect_sybils_to_honest else []
+            )
+            attacker_targets = (
+                list(attackers) if config.connect_sybils_to_attackers else []
+            )
             original_targets = honest_targets + attacker_targets
             if original_targets:
                 for sybil_org in sybil_nodes:
                     for target in original_targets:
                         edge_probability = (
-                            sybil_to_honest_edge_probability
+                            config.sybil_to_honest_edge_probability
                             if target in honest_targets
-                            else sybil_to_attacker_edge_probability
+                            else config.sybil_to_attacker_edge_probability
                         )
                         if rng.random() < edge_probability:
                             combined.add_edge(sybil_org, target)
                     out_degree = combined.out_degree(sybil_org)
                     combined.nodes[sybil_org]["threshold"] = rng.randint(1, out_degree)
 
-        return top_tier_org_graph_to_fbas_graph(combined)
+        return combined
 
     raise ValueError(
         "Failed to generate a Sybil-attack FBAS after "
         f"{max_attempts} attempts")
+
+
+def gen_random_sybil_attack_fbas(
+    num_orgs: int,
+    num_sybil_orgs: int,
+    *,
+    config: SybilAttackConfig | None = None,
+    rng: random.Random | None = None,
+) -> FBASGraph:
+    """
+    Generate an FBASGraph that simulates a Sybil attack.
+
+    See gen_random_sybil_attack_org_graph for the generation procedure.
+    """
+    graph = gen_random_sybil_attack_org_graph(
+        num_orgs,
+        num_sybil_orgs,
+        config=config,
+        rng=rng,
+    )
+    return top_tier_org_graph_to_fbas_graph(graph)
