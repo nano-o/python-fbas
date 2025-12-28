@@ -18,10 +18,10 @@ class SybilAttackConfig:
     attacker_to_honest_edge_probability: float = 0.66
     sybil_to_honest_edge_probability: float = 0.66
     sybil_to_attacker_edge_probability: float = 0.66
-    connect_attackers: bool = False
-    connect_honest: bool = False
-    connect_sybils_to_honest: bool = False
-    connect_sybils_to_attackers: bool = False
+    connect_attacker_to_attacker: bool = False
+    connect_attacker_to_honest: bool = False
+    connect_sybil_to_honest: bool = False
+    connect_sybil_to_attacker: bool = False
     max_attempts: int = 100
 
 
@@ -239,13 +239,13 @@ def gen_random_sybil_attack_org_graph(
                 sybil_targets = [rng.choice(sybil_nodes)]
             combined.add_edges_from((attacker, target) for target in sybil_targets)
 
-            if config.connect_attackers:
-                for other_attacker in attackers:
-                    if other_attacker != attacker:
-                        if rng.random() < config.attacker_to_attacker_edge_probability:
-                            combined.add_edge(attacker, other_attacker)
+        if config.connect_attacker_to_attacker:
+            for other_attacker in attackers:
+                if other_attacker != attacker:
+                    if rng.random() < config.attacker_to_attacker_edge_probability:
+                        combined.add_edge(attacker, other_attacker)
 
-            if config.connect_honest and honest_orgs:
+            if config.connect_attacker_to_honest and honest_orgs:
                 for target in honest_orgs:
                     if rng.random() < config.attacker_to_honest_edge_probability:
                         combined.add_edge(attacker, target)
@@ -258,12 +258,12 @@ def gen_random_sybil_attack_org_graph(
                 out_degree = 1
             combined.nodes[attacker]["threshold"] = rng.randint(1, out_degree)
 
-        if config.connect_sybils_to_honest or config.connect_sybils_to_attackers:
+        if config.connect_sybil_to_honest or config.connect_sybil_to_attacker:
             honest_targets = (
-                list(quorum) if config.connect_sybils_to_honest else []
+                list(quorum) if config.connect_sybil_to_honest else []
             )
             attacker_targets = (
-                list(attackers) if config.connect_sybils_to_attackers else []
+                list(attackers) if config.connect_sybil_to_attacker else []
             )
             original_targets = honest_targets + attacker_targets
             if original_targets:

@@ -302,10 +302,10 @@ def main() -> None:
         attacker_to_honest_edge_probability=args.attacker_to_honest_edge_probability,
         sybil_to_honest_edge_probability=args.sybil_to_honest_edge_probability,
         sybil_to_attacker_edge_probability=args.sybil_to_attacker_edge_probability,
-        connect_attackers=args.connect_attacker_to_attacker,
-        connect_honest=args.connect_attacker_to_honest,
-        connect_sybils_to_honest=args.connect_sybil_to_honest,
-        connect_sybils_to_attackers=args.connect_sybil_to_attacker,
+        connect_attacker_to_attacker=args.connect_attacker_to_attacker,
+        connect_attacker_to_honest=args.connect_attacker_to_honest,
+        connect_sybil_to_honest=args.connect_sybil_to_honest,
+        connect_sybil_to_attacker=args.connect_sybil_to_attacker,
     )
     graph = gen_random_sybil_attack_org_graph(
         num_orgs=args.orgs,
