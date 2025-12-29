@@ -16,7 +16,7 @@ def test_trust_scores_simple_chain():
         ("seed", "a"),
         ("a", "b"),
     ])
-    scores = compute_trust_scores(graph, "seed", steps=2, capacity=1.0)
+    scores = compute_trust_scores(graph, ["seed"], steps=2, capacity=1.0)
     assert scores["seed"] == 1.0
     assert scores["a"] == 1.0
     assert scores["b"] == 1.0
@@ -28,7 +28,7 @@ def test_trust_scores_capacity_limit():
         ("seed", "a"),
         ("seed", "b"),
     ])
-    scores = compute_trust_scores(graph, "seed", steps=1, capacity=0.5)
+    scores = compute_trust_scores(graph, ["seed"], steps=1, capacity=0.5)
     assert scores["seed"] == 1.5
     assert scores["a"] == 0.25
     assert scores["b"] == 0.25
@@ -55,9 +55,9 @@ def test_sybil_attack_scores_honest_higher():
     roles = nx.get_node_attributes(graph, "role")
     honest_nodes = [n for n, role in roles.items() if role == "honest"]
     sybil_nodes = [n for n, role in roles.items() if role == "sybil"]
-    seed = honest_nodes[0]
+    seeds = honest_nodes[:2]
 
-    scores = compute_trust_scores(graph, seed, steps=5, capacity=1.0)
+    scores = compute_trust_scores(graph, seeds, steps=5, capacity=1.0)
     honest_mean = statistics.mean(scores[n] for n in honest_nodes)
     sybil_mean = statistics.mean(scores[n] for n in sybil_nodes)
     assert honest_mean > sybil_mean

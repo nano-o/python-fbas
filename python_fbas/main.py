@@ -58,6 +58,7 @@ GENERATOR_DEFAULTS: dict[str, Any] = {
 SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "steps": 5,
     "capacity": 1.0,
+    "seed_count": 3,
 }
 
 
@@ -311,7 +312,7 @@ def _plot_random_org_graph(
     *,
     seed: int | None,
     trust_scores: dict[str, float] | None = None,
-    trust_seed: str | None = None,
+    trust_seeds: list[str] | None = None,
 ) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
@@ -417,7 +418,7 @@ def _plot_random_org_graph(
                 else:
                     intensity = 0.3
                 node_colors.append(plt.cm.Blues(intensity))
-                linewidths.append(2.4 if node == trust_seed else 1.2)
+                linewidths.append(1.2)
             role = graph.nodes[node].get("role")
             edgecolors.append("#c62828" if role == "attacker" else "#111111")
         nx.draw_networkx_nodes(
@@ -590,13 +591,14 @@ def _plot_random_org_graph(
             label="Sybil -> sybil",
         ),
     ]
-    if trust_seed:
+    if trust_seeds:
+        trust_seed_label = ", ".join(trust_seeds)
         legend_items.append(
             Line2D(
                 [],
                 [],
                 color="none",
-                label=f"Trust seed: {trust_seed}",
+                label=f"Trust seeds: {trust_seed_label}",
             )
         )
     plt.legend(
@@ -722,6 +724,8 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["steps"] = args.sybil_detection_steps
     if args.sybil_detection_capacity is not None:
         sybil_params["capacity"] = args.sybil_detection_capacity
+    if args.sybil_detection_seed_count is not None:
+        sybil_params["seed_count"] = args.sybil_detection_seed_count
 
     if args.plot_with_trust:
         roles = nx.get_node_attributes(graph, "role")
@@ -732,10 +736,16 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         if not honest_nodes:
             honest_nodes = list(graph.nodes)
         trust_rng = rng if rng is not None else random.Random()
-        trust_seed = trust_rng.choice(honest_nodes)
+        seed_count = sybil_params["seed_count"]
+        if seed_count <= 0:
+            raise ValueError("sybil-detection seed_count must be positive")
+        if seed_count >= len(honest_nodes):
+            trust_seeds = list(honest_nodes)
+        else:
+            trust_seeds = trust_rng.sample(honest_nodes, seed_count)
         trust_scores = compute_trust_scores(
             graph,
-            trust_seed,
+            trust_seeds,
             steps=sybil_params["steps"],
             capacity=sybil_params["capacity"],
         )
@@ -743,7 +753,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             graph,
             seed=params["seed"],
             trust_scores=trust_scores,
-            trust_seed=trust_seed,
+            trust_seeds=trust_seeds,
         )
     elif args.plot:
         _plot_random_org_graph(graph, seed=params["seed"])
@@ -930,6 +940,9 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-capacity", type=float, default=None,
         help="Trust-propagation capacity for --plot-with-trust")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-seed-count", type=int, default=None,
+        help="Number of trusted seeds for --plot-with-trust")
     parser_random_sybil_attack.add_argument(
         "--orgs", type=int, default=None,
         help="Number of original orgs")
