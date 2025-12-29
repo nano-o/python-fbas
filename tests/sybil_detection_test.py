@@ -9,6 +9,7 @@ from python_fbas.fbas_generator import (
 )
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
+    compute_maxflow_scores_sweep,
     compute_trust_scores,
     compute_trustrank_scores,
 )
@@ -120,4 +121,23 @@ def test_maxflow_scores_converging_paths():
     assert scores["s1"] == 0.0
     assert scores["s2"] == 0.0
     assert scores["a"] == 2.0
+    assert scores["b"] == 1.0
+
+
+def test_maxflow_scores_sweep_stops():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+    ])
+    scores = compute_maxflow_scores_sweep(
+        graph,
+        ["seed"],
+        seed_capacity=0.25,
+        sweep_factor=2.0,
+        sweep_epsilon=1e-6,
+        sweep_max_steps=5,
+    )
+    assert scores["seed"] == 0.0
+    assert scores["a"] == 1.0
     assert scores["b"] == 1.0

@@ -38,6 +38,7 @@ from python_fbas.fbas_generator import (
 )
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
+    compute_maxflow_scores_sweep,
     compute_trust_scores,
     compute_trustrank_scores,
 )
@@ -66,6 +67,10 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "trustrank_alpha": 0.2,
     "trustrank_epsilon": 1e-8,
     "maxflow_seed_capacity": 1.0,
+    "maxflow_sweep": False,
+    "maxflow_sweep_factor": 2.0,
+    "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
+    "maxflow_sweep_max_steps": 8,
 }
 
 
@@ -744,6 +749,20 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["maxflow_seed_capacity"] = (
             args.sybil_detection_maxflow_seed_capacity
         )
+    if args.sybil_detection_maxflow_sweep is not None:
+        sybil_params["maxflow_sweep"] = args.sybil_detection_maxflow_sweep
+    if args.sybil_detection_maxflow_sweep_factor is not None:
+        sybil_params["maxflow_sweep_factor"] = (
+            args.sybil_detection_maxflow_sweep_factor
+        )
+    if args.sybil_detection_maxflow_sweep_bimodality_threshold is not None:
+        sybil_params["maxflow_sweep_bimodality_threshold"] = (
+            args.sybil_detection_maxflow_sweep_bimodality_threshold
+        )
+    if args.sybil_detection_maxflow_sweep_max_steps is not None:
+        sybil_params["maxflow_sweep_max_steps"] = (
+            args.sybil_detection_maxflow_sweep_max_steps
+        )
 
     if sum(
         1
@@ -804,17 +823,43 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         )
     elif args.plot_with_maxflow:
         trust_seeds = _choose_trust_seeds()
-        trust_scores = compute_maxflow_scores(
-            graph,
-            trust_seeds,
-            seed_capacity=sybil_params["maxflow_seed_capacity"],
-        )
+        if sybil_params["maxflow_sweep"]:
+            trust_scores, capacities, bcs = compute_maxflow_scores_sweep(
+                graph,
+                trust_seeds,
+                seed_capacity=sybil_params["maxflow_seed_capacity"],
+                sweep_factor=sybil_params["maxflow_sweep_factor"],
+                sweep_bimodality_threshold=(
+                    sybil_params["maxflow_sweep_bimodality_threshold"]
+                ),
+                sweep_max_steps=sybil_params["maxflow_sweep_max_steps"],
+            )
+            print("Max-flow sweep bimodality coefficients:")
+            for capacity, bc in zip(capacities, bcs):
+                print(f"  seed_capacity={capacity:.6g} bc={bc:.6f}")
+        else:
+            trust_scores = compute_maxflow_scores(
+                graph,
+                trust_seeds,
+                seed_capacity=sybil_params["maxflow_seed_capacity"],
+            )
         _plot_random_org_graph(
             graph,
             seed=params["seed"],
             trust_scores=trust_scores,
             trust_seeds=trust_seeds,
         )
+        if sybil_params["maxflow_sweep"]:
+            import matplotlib.pyplot as plt
+
+            plt.figure(figsize=(7, 4))
+            plt.plot(capacities, bcs, marker="o", color="#1f77b4")
+            plt.xlabel("Seed capacity")
+            plt.ylabel("Bimodality coefficient")
+            plt.title("Max-flow sweep bimodality")
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.show()
     elif args.plot:
         _plot_random_org_graph(graph, seed=params["seed"])
 
@@ -1012,6 +1057,22 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-seed-capacity", type=float, default=None,
         help="Seed node capacity for --plot-with-maxflow")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-sweep",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Sweep max-flow seed capacity until scores stabilize")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-sweep-factor", type=float, default=None,
+        help="Capacity multiplier per sweep step")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-sweep-bimodality-threshold",
+        type=float,
+        default=None,
+        help="Bimodality coefficient threshold to stop the sweep")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-sweep-max-steps", type=int, default=None,
+        help="Maximum number of sweep steps")
     parser_random_sybil_attack.add_argument(
         "--orgs", type=int, default=None,
         help="Number of original orgs")

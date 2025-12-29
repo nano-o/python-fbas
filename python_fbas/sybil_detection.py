@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import logging
 from typing import Final, Iterable
 
 import networkx as nx
@@ -10,6 +11,7 @@ DEFAULT_CAPACITY: Final[float] = 1.0
 DEFAULT_TRUSTRANK_ALPHA: Final[float] = 0.2
 DEFAULT_TRUSTRANK_EPSILON: Final[float] = 1e-8
 DEFAULT_MAXFLOW_SEED_CAPACITY: Final[float] = 1.0
+DEFAULT_BIMODALITY_THRESHOLD: Final[float] = 5 / 9
 
 
 def compute_trust_scores(
@@ -18,7 +20,7 @@ def compute_trust_scores(
     *,
     capacity: float = DEFAULT_CAPACITY,
     steps: int = DEFAULT_STEPS,
-) -> dict[str, float]:
+) -> tuple[dict[str, float], list[float], list[float]]:
     """
     Compute capacity-limited trust scores from a set of trusted orgs.
 
@@ -153,6 +155,23 @@ def compute_trustrank_scores(
     return {node: scores[index[node]] for node in nodes}
 
 
+def compute_bimodality_coefficient(values: Iterable[float]) -> float:
+    values_list = list(values)
+    n = len(values_list)
+    if n < 4:
+        return 0.0
+    mean = sum(values_list) / n
+    m2 = sum((value - mean) ** 2 for value in values_list) / n
+    if m2 <= 1e-12:
+        return 0.0
+    m3 = sum((value - mean) ** 3 for value in values_list) / n
+    m4 = sum((value - mean) ** 4 for value in values_list) / n
+    g1 = m3 / (m2 ** 1.5)
+    g2 = m4 / (m2 ** 2) - 3.0
+    correction = 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
+    return (g1 ** 2 + 1) / (g2 + correction)
+
+
 def compute_maxflow_scores(
     graph: nx.DiGraph,
     seeds: str | Iterable[str],
@@ -169,7 +188,6 @@ def compute_maxflow_scores(
     capacity. A super-source connects to each seed with infinite capacity. For
     every node, compute the maximum flow from the super-source to that node as
     a sink, temporarily giving that sink infinite capacity.
-
     TODO This works well as long as the total output capacity of seed nodes is larger
     than the attacker cut...
     """
@@ -246,3 +264,67 @@ def compute_maxflow_scores(
             )
 
     return scores
+
+
+def compute_maxflow_scores_sweep(
+    graph: nx.DiGraph,
+    seeds: str | Iterable[str],
+    *,
+    seed_capacity: float = DEFAULT_MAXFLOW_SEED_CAPACITY,
+    sweep_factor: float = 2.0,
+    sweep_bimodality_threshold: float = DEFAULT_BIMODALITY_THRESHOLD,
+    sweep_max_steps: int = 8,
+) -> tuple[dict[str, float], list[float], list[float]]:
+    """
+    Sweep max-flow seed capacity and return scores with sweep history.
+
+    Returns (final_scores, capacities, bimodality_coeffs).
+    """
+    if sweep_factor <= 1.0:
+        raise ValueError("sweep_factor must be > 1")
+    if sweep_bimodality_threshold <= 0:
+        raise ValueError("sweep_bimodality_threshold must be positive")
+    if sweep_max_steps <= 0:
+        raise ValueError("sweep_max_steps must be positive")
+
+    capacities = [seed_capacity]
+    scores = compute_maxflow_scores(
+        graph,
+        seeds,
+        seed_capacity=seed_capacity,
+    )
+    bcs = [compute_bimodality_coefficient(scores.values())]
+    current_capacity = seed_capacity
+
+    for step in range(sweep_max_steps):
+        current_capacity *= sweep_factor
+        scores = compute_maxflow_scores(
+            graph,
+            seeds,
+            seed_capacity=current_capacity,
+        )
+        capacities.append(current_capacity)
+        bc = compute_bimodality_coefficient(scores.values())
+        bcs.append(bc)
+        if bc >= sweep_bimodality_threshold:
+            next_capacity = current_capacity * sweep_factor
+            scores = compute_maxflow_scores(
+                graph,
+                seeds,
+                seed_capacity=next_capacity,
+            )
+            capacities.append(next_capacity)
+            bcs.append(compute_bimodality_coefficient(scores.values()))
+            logging.info(
+                "Max-flow sweep stopped after %d iterations; final seed_capacity=%.6g",
+                step + 2,
+                next_capacity,
+            )
+            return scores, capacities, bcs
+
+    logging.info(
+        "Max-flow sweep reached max steps (%d); final seed_capacity=%.6g",
+        sweep_max_steps,
+        current_capacity,
+    )
+    return scores, capacities, bcs
