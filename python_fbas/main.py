@@ -36,7 +36,11 @@ from python_fbas.fbas_generator import (
     gen_random_top_tier_org_graph,
     top_tier_org_graph_to_fbas_graph,
 )
-from python_fbas.sybil_detection import compute_trust_scores
+from python_fbas.sybil_detection import (
+    compute_maxflow_scores,
+    compute_trust_scores,
+    compute_trustrank_scores,
+)
 
 GENERATOR_DEFAULTS: dict[str, Any] = {
     "orgs": 5,
@@ -59,6 +63,9 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "steps": 5,
     "capacity": 1.0,
     "seed_count": 3,
+    "trustrank_alpha": 0.2,
+    "trustrank_epsilon": 1e-8,
+    "maxflow_seed_capacity": 1.0,
 }
 
 
@@ -323,10 +330,13 @@ def _plot_random_org_graph(
         graph = graph.copy()
         nx.set_node_attributes(graph, "honest", "role")
 
-    labels = {
-        node: f"{node}\nT={graph.nodes[node].get('threshold')}"
-        for node in graph.nodes
-    }
+    labels = {}
+    for node in graph.nodes:
+        if trust_scores is not None:
+            score = trust_scores.get(node, 0.0)
+            labels[node] = f"{node}\n{score:.3f}"
+        else:
+            labels[node] = f"{node}"
     solid_edges = []
     solid_edge_colors = []
     original_edges = []
@@ -726,8 +736,29 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["capacity"] = args.sybil_detection_capacity
     if args.sybil_detection_seed_count is not None:
         sybil_params["seed_count"] = args.sybil_detection_seed_count
+    if args.sybil_detection_trustrank_alpha is not None:
+        sybil_params["trustrank_alpha"] = args.sybil_detection_trustrank_alpha
+    if args.sybil_detection_trustrank_epsilon is not None:
+        sybil_params["trustrank_epsilon"] = args.sybil_detection_trustrank_epsilon
+    if args.sybil_detection_maxflow_seed_capacity is not None:
+        sybil_params["maxflow_seed_capacity"] = (
+            args.sybil_detection_maxflow_seed_capacity
+        )
 
-    if args.plot_with_trust:
+    if sum(
+        1
+        for enabled in (
+            args.plot_with_trust,
+            args.plot_with_trustrank,
+            args.plot_with_maxflow,
+        )
+        if enabled
+    ) > 1:
+        raise ValueError(
+            "Choose only one of --plot-with-trust, --plot-with-trustrank, or "
+            "--plot-with-maxflow")
+
+    def _choose_trust_seeds() -> list[str]:
         roles = nx.get_node_attributes(graph, "role")
         honest_nodes = [
             node for node in graph.nodes
@@ -740,14 +771,43 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         if seed_count <= 0:
             raise ValueError("sybil-detection seed_count must be positive")
         if seed_count >= len(honest_nodes):
-            trust_seeds = list(honest_nodes)
-        else:
-            trust_seeds = trust_rng.sample(honest_nodes, seed_count)
+            return list(honest_nodes)
+        return trust_rng.sample(honest_nodes, seed_count)
+
+    if args.plot_with_trust:
+        trust_seeds = _choose_trust_seeds()
         trust_scores = compute_trust_scores(
             graph,
             trust_seeds,
             steps=sybil_params["steps"],
             capacity=sybil_params["capacity"],
+        )
+        _plot_random_org_graph(
+            graph,
+            seed=params["seed"],
+            trust_scores=trust_scores,
+            trust_seeds=trust_seeds,
+        )
+    elif args.plot_with_trustrank:
+        trust_seeds = _choose_trust_seeds()
+        trust_scores = compute_trustrank_scores(
+            graph,
+            trust_seeds,
+            alpha=sybil_params["trustrank_alpha"],
+            epsilon=sybil_params["trustrank_epsilon"],
+        )
+        _plot_random_org_graph(
+            graph,
+            seed=params["seed"],
+            trust_scores=trust_scores,
+            trust_seeds=trust_seeds,
+        )
+    elif args.plot_with_maxflow:
+        trust_seeds = _choose_trust_seeds()
+        trust_scores = compute_maxflow_scores(
+            graph,
+            trust_seeds,
+            seed_capacity=sybil_params["maxflow_seed_capacity"],
         )
         _plot_random_org_graph(
             graph,
@@ -944,6 +1004,15 @@ def main() -> None:
         "--sybil-detection-seed-count", type=int, default=None,
         help="Number of trusted seeds for --plot-with-trust")
     parser_random_sybil_attack.add_argument(
+        "--sybil-detection-trustrank-alpha", type=float, default=None,
+        help="TrustRank restart probability for --plot-with-trustrank")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-trustrank-epsilon", type=float, default=None,
+        help="TrustRank convergence tolerance for --plot-with-trustrank")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-seed-capacity", type=float, default=None,
+        help="Seed node capacity for --plot-with-maxflow")
+    parser_random_sybil_attack.add_argument(
         "--orgs", type=int, default=None,
         help="Number of original orgs")
     parser_random_sybil_attack.add_argument(
@@ -989,10 +1058,16 @@ def main() -> None:
         help="Connect Sybil orgs to attacker orgs")
     parser_random_sybil_attack.add_argument(
         "--plot", action="store_true",
-        help="Plot the top-tier org graph")
+        help="Plot the org graph")
     parser_random_sybil_attack.add_argument(
         "--plot-with-trust", action="store_true",
         help="Plot the org graph with trust scores from a random honest org")
+    parser_random_sybil_attack.add_argument(
+        "--plot-with-trustrank", action="store_true",
+        help="Plot the org graph with TrustRank scores from random honest orgs")
+    parser_random_sybil_attack.add_argument(
+        "--plot-with-maxflow", action="store_true",
+        help="Plot the org graph with max-flow scores from random honest orgs")
     parser_random_sybil_attack.add_argument(
         "--seed", type=int, default=None,
         help="Random seed (optional)")

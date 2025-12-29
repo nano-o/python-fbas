@@ -7,7 +7,11 @@ from python_fbas.fbas_generator import (
     SybilAttackConfig,
     gen_random_sybil_attack_org_graph,
 )
-from python_fbas.sybil_detection import compute_trust_scores
+from python_fbas.sybil_detection import (
+    compute_maxflow_scores,
+    compute_trust_scores,
+    compute_trustrank_scores,
+)
 
 
 def test_trust_scores_simple_chain():
@@ -61,3 +65,59 @@ def test_sybil_attack_scores_honest_higher():
     honest_mean = statistics.mean(scores[n] for n in honest_nodes)
     sybil_mean = statistics.mean(scores[n] for n in sybil_nodes)
     assert honest_mean > sybil_mean
+
+
+def test_trustrank_seed_bias():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("seed", "b"),
+    ])
+    scores = compute_trustrank_scores(
+        graph,
+        ["seed"],
+        alpha=0.2,
+        epsilon=1e-10,
+        max_iters=1000,
+    )
+    assert scores["seed"] > scores["a"]
+    assert scores["seed"] > scores["b"]
+    assert abs(sum(scores.values()) - 1.0) < 1e-6
+
+
+def test_maxflow_scores_simple_chain():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+    ])
+    scores = compute_maxflow_scores(graph, ["seed"])
+    assert scores["seed"] == 0.0
+    assert scores["a"] == 1.0
+    assert scores["b"] == 1.0
+
+
+def test_maxflow_scores_multiple_seeds():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("s1", "a"),
+        ("s2", "a"),
+    ])
+    scores = compute_maxflow_scores(graph, ["s1", "s2"])
+    assert scores["s1"] == 0.0
+    assert scores["s2"] == 0.0
+    assert scores["a"] == 2.0
+
+
+def test_maxflow_scores_converging_paths():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("s1", "a"),
+        ("s2", "a"),
+        ("a", "b"),
+    ])
+    scores = compute_maxflow_scores(graph, ["s1", "s2"])
+    assert scores["s1"] == 0.0
+    assert scores["s2"] == 0.0
+    assert scores["a"] == 2.0
+    assert scores["b"] == 1.0
