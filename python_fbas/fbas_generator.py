@@ -36,7 +36,7 @@ def gen_random_top_tier_org_graph(
     Generate a random top-tier org graph.
 
     The result is a directed graph whose vertices are organizations labeled
-    with a "threshold" attribute between 1 and their out-degree. Each
+    with a "threshold" attribute between half and all of their out-degree. Each
     potential edge is added with the given probability, with a fallback to
     ensure at least one outgoing edge per org.
     """
@@ -60,7 +60,8 @@ def gen_random_top_tier_org_graph(
         if not targets:
             targets = [rng.choice(candidates)]
         graph.add_edges_from((org, target) for target in targets)
-        graph.nodes[org]["threshold"] = rng.randint(1, len(targets))
+        min_threshold = (len(targets) + 1) // 2
+        graph.nodes[org]["threshold"] = rng.randint(min_threshold, len(targets))
 
     return graph
 

@@ -328,17 +328,14 @@ def _plot_random_org_graph(
     }
     solid_edges = []
     solid_edge_colors = []
-    honest_edges = []
+    original_edges = []
     attacker_sybil_edges = []
     dashed_edges = []
     dotted_edges = []
     for source, target in graph.edges:
         source_role = graph.nodes[source].get("role")
         target_role = graph.nodes[target].get("role")
-        if (
-            (source_role == "attacker" and target_role == "sybil")
-            or (source_role == "honest" and target_role == "attacker")
-        ):
+        if source_role == "attacker" and target_role == "sybil":
             attacker_sybil_edges.append((source, target))
         elif (
             source_role == "sybil"
@@ -350,8 +347,8 @@ def _plot_random_org_graph(
             and target_role == "sybil"
         ):
             dotted_edges.append((source, target))
-        elif source_role == "honest" and target_role == "honest":
-            honest_edges.append((source, target))
+        elif source_role == "honest" and target_role in {"honest", "attacker"}:
+            original_edges.append((source, target))
         else:
             solid_edges.append((source, target))
             solid_edge_colors.append("#444444")
@@ -457,7 +454,7 @@ def _plot_random_org_graph(
             edgecolors=edgecolors,
             linewidths=linewidths,
         )
-    if honest_edges:
+    if original_edges:
         nx.draw_networkx_edges(
             graph,
             pos,
@@ -467,7 +464,7 @@ def _plot_random_org_graph(
             min_source_margin=16,
             min_target_margin=18,
             connectionstyle="arc3,rad=0.1",
-            edgelist=honest_edges,
+            edgelist=original_edges,
             edge_color="#444444",
             width=2.0,
         )
@@ -569,14 +566,14 @@ def _plot_random_org_graph(
             [0],
             color="#444444",
             linewidth=2.0,
-            label="Honest -> honest",
+            label="Original edge",
         ),
         Line2D(
             [0],
             [0],
             color="#c62828",
             linewidth=1.6,
-            label="Attacker -> sybil / honest -> attacker",
+            label="Attacker -> sybil",
         ),
         Line2D(
             [0],
