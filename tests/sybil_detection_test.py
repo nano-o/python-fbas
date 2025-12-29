@@ -130,14 +130,14 @@ def test_maxflow_scores_sweep_stops():
         ("seed", "a"),
         ("a", "b"),
     ])
-    scores = compute_maxflow_scores_sweep(
+    scores, _capacities, _bcs = compute_maxflow_scores_sweep(
         graph,
         ["seed"],
         seed_capacity=0.25,
         sweep_factor=2.0,
-        sweep_epsilon=1e-6,
-        sweep_max_steps=5,
+        sweep_bimodality_threshold=1e-6,
+        sweep_max_steps=0,
     )
     assert scores["seed"] == 0.0
-    assert scores["a"] == 1.0
-    assert scores["b"] == 1.0
+    assert scores["a"] == 0.25
+    assert scores["b"] == 0.25

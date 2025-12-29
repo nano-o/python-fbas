@@ -284,8 +284,8 @@ def compute_maxflow_scores_sweep(
         raise ValueError("sweep_factor must be > 1")
     if sweep_bimodality_threshold <= 0:
         raise ValueError("sweep_bimodality_threshold must be positive")
-    if sweep_max_steps <= 0:
-        raise ValueError("sweep_max_steps must be positive")
+    if sweep_max_steps < 0:
+        raise ValueError("sweep_max_steps must be non-negative")
 
     capacities = [seed_capacity]
     scores = compute_maxflow_scores(
@@ -295,6 +295,13 @@ def compute_maxflow_scores_sweep(
     )
     bcs = [compute_bimodality_coefficient(scores.values())]
     current_capacity = seed_capacity
+
+    if sweep_max_steps == 0:
+        logging.info(
+            "Max-flow sweep disabled; seed_capacity=%.6g",
+            seed_capacity,
+        )
+        return scores, capacities, bcs
 
     for step in range(sweep_max_steps):
         current_capacity *= sweep_factor
