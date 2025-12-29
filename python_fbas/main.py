@@ -9,6 +9,7 @@ import logging
 import sys
 from typing import Any, Dict, List
 import random
+import os
 
 import networkx as nx
 import yaml
@@ -532,17 +533,6 @@ def _plot_random_org_graph(
         font_size=9,
         font_color="#f7f7f7",
     )
-    if trust_seed and trust_seed in pos:
-        ax = plt.gca()
-        ax.scatter(
-            [pos[trust_seed][0]],
-            [pos[trust_seed][1]],
-            s=1200,
-            facecolors="none",
-            edgecolors="#111111",
-            linewidths=2.4,
-            linestyle="dotted",
-        )
     legend_items = [
         Line2D(
             [0],
@@ -574,14 +564,6 @@ def _plot_random_org_graph(
             markersize=10,
             label="Sybil org",
         ),
-        Circle(
-            (0, 0),
-            radius=0.25,
-            facecolor="none",
-            edgecolor="#111111",
-            linestyle="dotted",
-            label="Trust seed",
-        ),
         Line2D(
             [0],
             [0],
@@ -611,6 +593,15 @@ def _plot_random_org_graph(
             label="Sybil -> sybil",
         ),
     ]
+    if trust_seed:
+        legend_items.append(
+            Line2D(
+                [],
+                [],
+                color="none",
+                label=f"Trust seed: {trust_seed}",
+            )
+        )
     plt.legend(
         handles=legend_items,
         loc="lower center",
@@ -627,8 +618,13 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     default_params = GENERATOR_DEFAULTS
     allowed_keys = set(GENERATOR_DEFAULTS.keys())
     config_params = {}
-    if args.generator_config:
-        config_params = load_from_file(args.generator_config)
+    generator_config_path = args.generator_config
+    if generator_config_path is None:
+        default_generator_config = "python-fbas.generator.cfg"
+        if os.path.exists(default_generator_config):
+            generator_config_path = default_generator_config
+    if generator_config_path:
+        config_params = load_from_file(generator_config_path)
         if not isinstance(config_params, dict):
             raise ValueError(
                 "--generator-config must contain a YAML mapping of parameters")
@@ -703,8 +699,13 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     sybil_defaults = SYBIL_DETECTION_DEFAULTS
     sybil_allowed = set(SYBIL_DETECTION_DEFAULTS.keys())
     sybil_params = sybil_defaults.copy()
-    if args.sybil_detection_config:
-        sybil_config = load_from_file(args.sybil_detection_config)
+    sybil_detection_path = args.sybil_detection_config
+    if sybil_detection_path is None:
+        default_sybil_detection = "python-fbas.sybil-detection.cfg"
+        if os.path.exists(default_sybil_detection):
+            sybil_detection_path = default_sybil_detection
+    if sybil_detection_path:
+        sybil_config = load_from_file(sybil_detection_path)
         if not isinstance(sybil_config, dict):
             raise ValueError(
                 "--sybil-detection-config must contain a YAML mapping of parameters")
@@ -752,7 +753,9 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="FBAS analysis CLI")
+    parser = argparse.ArgumentParser(
+        description="FBAS analysis CLI. Use '<command> -h' for subcommand help.",
+    )
     # specify log level with --log-level, with default WARNING:
     parser.add_argument(
         '--log-level',
