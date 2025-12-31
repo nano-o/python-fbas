@@ -1,3 +1,4 @@
+import json
 import pytest
 import subprocess
 import sys
@@ -184,6 +185,68 @@ def test_validator_display_both():
     output = run_command(command)
     assert "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH" in output
     assert "SDF 1" in output
+
+
+def test_random_sybil_attack_two_clusters_smoke(tmp_path):
+    """Test random-sybil-attack-fbas with two Sybil clusters."""
+    generator_config = tmp_path / "generator.yaml"
+    generator_config.write_text(
+        "\n".join([
+            "orgs: 8",
+            "sybils: 4",
+            "sybils_cluster_2: 4",
+            "num_sybil_clusters: 2",
+            "sybil_bridge_orgs: 2",
+            "original_edge_probability: 0.6",
+            "sybil_sybil_edge_probability: 0.6",
+            "sybil2_sybil2_edge_probability: 0.6",
+            "attacker_to_sybil_edge_probability: 0.8",
+            "attacker_to_attacker_edge_probability: 0.2",
+            "attacker_to_honest_edge_probability: 0.2",
+            "sybil_to_honest_edge_probability: 0.1",
+            "sybil_to_attacker_edge_probability: 0.1",
+            "sybil_to_sybil_bridge_edge_probability: 0.8",
+            "sybil_bridge_to_sybil2_edge_probability: 0.8",
+            "sybil_bridge_to_sybil_bridge_edge_probability: 0.1",
+            "sybil2_to_honest_edge_probability: 0.1",
+            "sybil2_to_attacker_edge_probability: 0.1",
+            "sybil2_to_sybil1_edge_probability: 0.1",
+            "sybil2_to_sybil_bridge_edge_probability: 0.1",
+            "sybil1_to_sybil2_edge_probability: 0.1",
+            "connect_attacker_to_attacker: false",
+            "connect_attacker_to_honest: false",
+            "connect_sybil_to_honest: false",
+            "connect_sybil_to_attacker: false",
+            "connect_sybil_bridge_to_sybil_bridge: false",
+            "connect_sybil2_to_honest: false",
+            "connect_sybil2_to_attacker: false",
+            "connect_sybil2_to_sybil1: false",
+            "connect_sybil2_to_sybil_bridge: false",
+            "connect_sybil1_to_sybil2: false",
+            "seed: 1",
+        ]),
+        encoding="utf-8",
+    )
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        "random-sybil-attack-fbas",
+        "--print-fbas",
+        f"--generator-config={generator_config}",
+        f"--runs-dir={tmp_path / 'runs'}",
+    ]
+    output = run_command(command)
+    data = json.loads(output)
+    assert isinstance(data, list)
+    assert data
+    assert isinstance(data[0], dict)
+    run_root = tmp_path / "runs"
+    run_dirs = [path for path in run_root.iterdir() if path.is_dir()]
+    assert run_dirs
+    run_dir = run_dirs[0]
+    assert (run_dir / "python-fbas.generator.cfg").exists()
+    assert (run_dir / "python-fbas.sybil-detection.cfg").exists()
 
 
 if __name__ == '__main__':

@@ -1,0 +1,1 @@
+/home/nano/.local/bin/python-fbas --config-dir runs/20251230-205039/ random-sybil-attack-fbas --plot-with-maxflow

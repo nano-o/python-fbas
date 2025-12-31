@@ -8,6 +8,7 @@ import argparse
 import logging
 import sys
 from typing import Any, Dict, List
+from datetime import datetime
 import random
 import os
 
@@ -46,17 +47,38 @@ from python_fbas.sybil_detection import (
 GENERATOR_DEFAULTS: dict[str, Any] = {
     "orgs": 5,
     "sybils": 3,
+    "sybils_cluster_2": 3,
+    "num_sybil_clusters": 1,
+    "sybil_bridge_orgs": 2,
+    "quorum_selection": "random",
+    "record_run": True,
+    "runs_dir": "runs",
     "original_edge_probability": 0.5,
     "sybil_sybil_edge_probability": 0.5,
+    "sybil2_sybil2_edge_probability": 0.5,
     "attacker_to_sybil_edge_probability": 0.5,
     "attacker_to_attacker_edge_probability": 0.5,
     "attacker_to_honest_edge_probability": 0.5,
     "sybil_to_honest_edge_probability": 0.5,
     "sybil_to_attacker_edge_probability": 0.5,
+    "sybil_to_sybil_bridge_edge_probability": 0.5,
+    "sybil_bridge_to_sybil2_edge_probability": 0.5,
+    "sybil_bridge_to_sybil_bridge_edge_probability": 0.5,
+    "sybil2_to_honest_edge_probability": 0.5,
+    "sybil2_to_attacker_edge_probability": 0.5,
+    "sybil2_to_sybil1_edge_probability": 0.5,
+    "sybil2_to_sybil_bridge_edge_probability": 0.5,
+    "sybil1_to_sybil2_edge_probability": 0.5,
     "connect_attacker_to_attacker": False,
     "connect_attacker_to_honest": False,
     "connect_sybil_to_honest": False,
     "connect_sybil_to_attacker": False,
+    "connect_sybil_bridge_to_sybil_bridge": False,
+    "connect_sybil2_to_honest": False,
+    "connect_sybil2_to_attacker": False,
+    "connect_sybil2_to_sybil1": False,
+    "connect_sybil2_to_sybil_bridge": False,
+    "connect_sybil1_to_sybil2": False,
     "seed": None,
 }
 
@@ -78,6 +100,7 @@ def _generator_defaults_yaml() -> str:
     yaml_lines = [
         "# python-fbas generator configuration file",
         "# Use with: python-fbas random-sybil-attack-fbas --generator-config=FILE",
+        "# Add --print-fbas to output the generated FBAS JSON",
         "",
     ]
     for key, value in GENERATOR_DEFAULTS.items():
@@ -100,6 +123,30 @@ def _sybil_detection_defaults_yaml() -> str:
             value_yaml = value_yaml[:-3].strip()
         yaml_lines.append(f"{key}: {value_yaml}")
     return "\n".join(yaml_lines)
+
+
+def _create_run_dir(base_dir: str) -> str:
+    os.makedirs(base_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    candidate = os.path.join(base_dir, timestamp)
+    counter = 1
+    while os.path.exists(candidate):
+        candidate = os.path.join(base_dir, f"{timestamp}-{counter}")
+        counter += 1
+    os.makedirs(candidate)
+    return candidate
+
+
+def _write_yaml(path: str, data: dict[str, Any]) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        yaml.safe_dump(data, handle, sort_keys=True)
+
+
+def _is_subpath(path: str, parent: str) -> bool:
+    path_abs = os.path.abspath(path)
+    parent_abs = os.path.abspath(parent)
+    return os.path.commonpath([path_abs, parent_abs]) == parent_abs
+
 
 def _load_json_from_file(validators_file: str) -> List[Dict[str, Any]]:
     with open(validators_file, 'r', encoding='utf-8') as f:
@@ -330,6 +377,7 @@ def _plot_random_org_graph(
     from matplotlib.lines import Line2D
     from matplotlib.patches import Circle
 
+    layout_seed = None if seed is None else seed % (2**32)
     has_roles = any("role" in graph.nodes[node] for node in graph.nodes)
     if not has_roles:
         graph = graph.copy()
@@ -351,72 +399,82 @@ def _plot_random_org_graph(
     for source, target in graph.edges:
         source_role = graph.nodes[source].get("role")
         target_role = graph.nodes[target].get("role")
-        if source_role == "attacker" and target_role == "sybil":
+        sybil_roles = {"sybil", "sybil_sybil_bridge"}
+        if source_role == "attacker" and target_role in sybil_roles:
             attacker_sybil_edges.append((source, target))
-        elif (
-            source_role == "sybil"
-            and target_role == "honest"
-        ):
+        elif source_role in sybil_roles and target_role == "honest":
             dashed_edges.append((source, target))
-        elif (
-            source_role == "sybil"
-            and target_role == "sybil"
-        ):
+        elif source_role in sybil_roles and target_role in sybil_roles:
             dotted_edges.append((source, target))
         elif source_role == "honest" and target_role in {"honest", "attacker"}:
             original_edges.append((source, target))
         else:
             solid_edges.append((source, target))
             solid_edge_colors.append("#444444")
-    honest_nodes = [node for node in graph.nodes
-                    if graph.nodes[node].get("role") == "honest"]
-    attacker_nodes = [node for node in graph.nodes
-                      if graph.nodes[node].get("role") == "attacker"]
-    sybil_nodes = [node for node in graph.nodes
-                   if graph.nodes[node].get("role") == "sybil"]
+    honest_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "honest"
+    ]
+    attacker_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "attacker"
+    ]
+    sybil_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "sybil"
+    ]
+    bridge_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "sybil_sybil_bridge"
+    ]
+    sybil1_nodes = [
+        node for node in sybil_nodes
+        if graph.nodes[node].get("sybil_cluster", 1) == 1
+    ]
+    sybil2_nodes = [
+        node for node in sybil_nodes
+        if graph.nodes[node].get("sybil_cluster") == 2
+    ]
     pos = {}
-    if honest_nodes and not attacker_nodes and not sybil_nodes:
-        pos = nx.spring_layout(graph, seed=seed)
-    elif honest_nodes:
-        honest_graph = graph.subgraph(honest_nodes)
-        honest_k = 1.2 if honest_graph.number_of_nodes() > 1 else 0.1
-        pos_honest = nx.spring_layout(
-            honest_graph,
-            seed=seed,
-            k=honest_k,
-            iterations=200,
-        )
-        pos.update({node: (coord[0] * 1.2 - 2.2, coord[1] * 1.2)
-                    for node, coord in pos_honest.items()})
-    if attacker_nodes:
-        attacker_graph = graph.subgraph(attacker_nodes)
-        attacker_k = 1.2 if attacker_graph.number_of_nodes() > 1 else 0.1
-        pos_attackers = nx.spring_layout(
-            attacker_graph,
-            seed=seed,
-            k=attacker_k,
-            iterations=200,
-        )
-        pos.update({node: (coord[0] * 1.2 + 0.3, coord[1] * 1.2)
-                    for node, coord in pos_attackers.items()})
-    if sybil_nodes:
-        sybil_graph = graph.subgraph(sybil_nodes)
-        sybil_k = 1.2 if sybil_graph.number_of_nodes() > 1 else 0.1
-        pos_sybil = nx.spring_layout(
-            sybil_graph,
-            seed=seed,
-            k=sybil_k,
-            iterations=200,
-        )
-        pos.update({node: (coord[0] * 1.2 + 2.7, coord[1] * 1.2)
-                    for node, coord in pos_sybil.items()})
+    if honest_nodes and not attacker_nodes and not sybil_nodes and not bridge_nodes:
+        pos = nx.spring_layout(graph, seed=layout_seed)
+    else:
+        def _layout_group(nodes: list[str], x_offset: float) -> None:
+            if not nodes:
+                return
+            subgraph = graph.subgraph(nodes)
+            group_k = 1.2 if subgraph.number_of_nodes() > 1 else 0.1
+            group_pos = nx.spring_layout(
+                subgraph,
+                seed=layout_seed,
+                k=group_k,
+                iterations=200,
+            )
+            pos.update({
+                node: (coord[0] * 1.2 + x_offset, coord[1] * 1.2)
+                for node, coord in group_pos.items()
+            })
+
+        _layout_group(honest_nodes, -3.2)
+        _layout_group(attacker_nodes, -1.0)
+        _layout_group(sybil1_nodes, 1.2)
+        _layout_group(bridge_nodes, 3.4)
+        _layout_group(sybil2_nodes, 5.6)
     if not pos:
-        pos = nx.spring_layout(graph, seed=seed)
+        pos = nx.spring_layout(graph, seed=layout_seed)
     plt.figure(figsize=(10, 7))
-    original_nodes = [node for node in graph.nodes
-                      if graph.nodes[node].get("role") != "sybil"]
-    sybil_nodes = [node for node in graph.nodes
-                   if graph.nodes[node].get("role") == "sybil"]
+    original_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") in {"honest", "attacker"}
+    ]
+    sybil_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "sybil"
+    ]
+    bridge_nodes = [
+        node for node in graph.nodes
+        if graph.nodes[node].get("role") == "sybil_sybil_bridge"
+    ]
     if original_nodes:
         node_colors = None
         linewidths = 1.2
@@ -467,6 +525,31 @@ def _plot_random_org_graph(
             nodelist=sybil_nodes,
             node_size=900,
             node_color=node_colors if node_colors else "#cfe8ff",
+            edgecolors=edgecolors,
+            linewidths=linewidths,
+        )
+    if bridge_nodes:
+        node_colors = None
+        linewidths = 1.2
+        edgecolors = "#8d6e63"
+        if trust_scores:
+            max_score = max(trust_scores.values(), default=0.0)
+            node_colors = []
+            linewidths = []
+            for node in bridge_nodes:
+                score = trust_scores.get(node, 0.0)
+                if max_score > 0:
+                    intensity = 0.3 + 0.7 * (score / max_score)
+                else:
+                    intensity = 0.3
+                node_colors.append(plt.cm.Blues(intensity))
+                linewidths.append(1.2)
+        nx.draw_networkx_nodes(
+            graph,
+            pos,
+            nodelist=bridge_nodes,
+            node_size=900,
+            node_color=node_colors if node_colors else "#f4e0d6",
             edgecolors=edgecolors,
             linewidths=linewidths,
         )
@@ -580,6 +663,16 @@ def _plot_random_org_graph(
         Line2D(
             [0],
             [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#f4e0d6",
+            markeredgecolor="#8d6e63",
+            markersize=10,
+            label="Sybil-bridge org",
+        ),
+        Line2D(
+            [0],
+            [0],
             color="#444444",
             linewidth=2.0,
             label="Original edge",
@@ -634,9 +727,18 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     config_params = {}
     generator_config_path = args.generator_config
     if generator_config_path is None:
-        default_generator_config = "python-fbas.generator.cfg"
-        if os.path.exists(default_generator_config):
-            generator_config_path = default_generator_config
+        config_dirs = []
+        if args.config_dir:
+            config_dirs.append(args.config_dir)
+        config_dirs.append(".")
+        for config_dir in config_dirs:
+            default_generator_config = os.path.join(
+                config_dir,
+                "python-fbas.generator.cfg",
+            )
+            if os.path.exists(default_generator_config):
+                generator_config_path = default_generator_config
+                break
     if generator_config_path:
         config_params = load_from_file(generator_config_path)
         if not isinstance(config_params, dict):
@@ -668,11 +770,32 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     if params["orgs"] < 2:
         raise ValueError("--orgs must be at least 2")
 
-    if params["sybils"] != 0 and params["sybils"] < 2:
-        raise ValueError("--sybils must be 0 or at least 2")
+    num_sybil_clusters = params["num_sybil_clusters"]
+    if num_sybil_clusters not in {0, 1, 2}:
+        raise ValueError("--num-sybil-clusters must be 0, 1, or 2")
+    if num_sybil_clusters >= 1 and params["sybils"] < 2:
+        raise ValueError("--sybils must be at least 2 when Sybil clusters are enabled")
+    if num_sybil_clusters == 2:
+        if params["sybils_cluster_2"] < 2:
+            raise ValueError(
+                "--sybils-cluster-2 must be at least 2 when using two Sybil clusters"
+            )
+        if params["sybil_bridge_orgs"] < 1:
+            raise ValueError(
+                "--sybil-bridge-orgs must be at least 1 when using two Sybil clusters"
+            )
+    if params["quorum_selection"] not in {"random", "min"}:
+        raise ValueError("--quorum-selection must be 'random' or 'min'")
+    if params["record_run"] and not params["runs_dir"]:
+        raise ValueError("--runs-dir must be set when --record-run is enabled")
 
-    rng = random.Random(params["seed"]) if params["seed"] is not None else None
-    if params["sybils"] == 0:
+    seed = params["seed"]
+    if seed is None:
+        seed = random.SystemRandom().randint(1, 2**63 - 1)
+        print(f"Random seed: {seed}", file=sys.stderr)
+        params["seed"] = seed
+    rng = random.Random(seed)
+    if num_sybil_clusters == 0:
         graph = gen_random_top_tier_org_graph(
             params["orgs"],
             edge_probability=params["original_edge_probability"],
@@ -682,6 +805,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         config = SybilAttackConfig(
             original_edge_probability=params["original_edge_probability"],
             sybil_sybil_edge_probability=params["sybil_sybil_edge_probability"],
+            sybil2_sybil2_edge_probability=params["sybil2_sybil2_edge_probability"],
             attacker_to_sybil_edge_probability=(
                 params["attacker_to_sybil_edge_probability"]
             ),
@@ -697,27 +821,75 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             sybil_to_attacker_edge_probability=(
                 params["sybil_to_attacker_edge_probability"]
             ),
+            sybil_to_sybil_bridge_edge_probability=(
+                params["sybil_to_sybil_bridge_edge_probability"]
+            ),
+            sybil_bridge_to_sybil2_edge_probability=(
+                params["sybil_bridge_to_sybil2_edge_probability"]
+            ),
+            sybil_bridge_to_sybil_bridge_edge_probability=(
+                params["sybil_bridge_to_sybil_bridge_edge_probability"]
+            ),
+            sybil2_to_honest_edge_probability=(
+                params["sybil2_to_honest_edge_probability"]
+            ),
+            sybil2_to_attacker_edge_probability=(
+                params["sybil2_to_attacker_edge_probability"]
+            ),
+            sybil2_to_sybil1_edge_probability=(
+                params["sybil2_to_sybil1_edge_probability"]
+            ),
+            sybil2_to_sybil_bridge_edge_probability=(
+                params["sybil2_to_sybil_bridge_edge_probability"]
+            ),
+            sybil1_to_sybil2_edge_probability=(
+                params["sybil1_to_sybil2_edge_probability"]
+            ),
             connect_attacker_to_attacker=params["connect_attacker_to_attacker"],
             connect_attacker_to_honest=params["connect_attacker_to_honest"],
             connect_sybil_to_honest=params["connect_sybil_to_honest"],
             connect_sybil_to_attacker=params["connect_sybil_to_attacker"],
+            connect_sybil_bridge_to_sybil_bridge=(
+                params["connect_sybil_bridge_to_sybil_bridge"]
+            ),
+            connect_sybil2_to_honest=params["connect_sybil2_to_honest"],
+            connect_sybil2_to_attacker=params["connect_sybil2_to_attacker"],
+            connect_sybil2_to_sybil1=params["connect_sybil2_to_sybil1"],
+            connect_sybil2_to_sybil_bridge=(
+                params["connect_sybil2_to_sybil_bridge"]
+            ),
+            connect_sybil1_to_sybil2=params["connect_sybil1_to_sybil2"],
         )
         graph = gen_random_sybil_attack_org_graph(
             num_orgs=params["orgs"],
             num_sybil_orgs=params["sybils"],
+            num_sybil_clusters=num_sybil_clusters,
+            num_sybil_orgs_2=params["sybils_cluster_2"],
+            num_sybil_bridge_orgs=params["sybil_bridge_orgs"],
+            quorum_selection=params["quorum_selection"],
             config=config,
             rng=rng,
         )
     fbas = top_tier_org_graph_to_fbas_graph(graph)
-    print(serialize(fbas, format="stellarbeat"))
+    if args.print_fbas:
+        print(serialize(fbas, format="stellarbeat"))
     sybil_defaults = SYBIL_DETECTION_DEFAULTS
     sybil_allowed = set(SYBIL_DETECTION_DEFAULTS.keys())
     sybil_params = sybil_defaults.copy()
     sybil_detection_path = args.sybil_detection_config
     if sybil_detection_path is None:
-        default_sybil_detection = "python-fbas.sybil-detection.cfg"
-        if os.path.exists(default_sybil_detection):
-            sybil_detection_path = default_sybil_detection
+        config_dirs = []
+        if args.config_dir:
+            config_dirs.append(args.config_dir)
+        config_dirs.append(".")
+        for config_dir in config_dirs:
+            default_sybil_detection = os.path.join(
+                config_dir,
+                "python-fbas.sybil-detection.cfg",
+            )
+            if os.path.exists(default_sybil_detection):
+                sybil_detection_path = default_sybil_detection
+                break
     if sybil_detection_path:
         sybil_config = load_from_file(sybil_detection_path)
         if not isinstance(sybil_config, dict):
@@ -763,6 +935,24 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["maxflow_sweep_max_steps"] = (
             args.sybil_detection_maxflow_sweep_max_steps
         )
+
+    record_run = params["record_run"]
+    if record_run and args.config_dir:
+        if _is_subpath(args.config_dir, params["runs_dir"]):
+            record_run = False
+            logging.info(
+                "Config dir is inside runs dir; skipping run recording.")
+
+    if record_run:
+        run_dir = _create_run_dir(params["runs_dir"])
+        _write_yaml(os.path.join(run_dir, "python-fbas.generator.cfg"), params)
+        _write_yaml(
+            os.path.join(run_dir, "python-fbas.sybil-detection.cfg"),
+            sybil_params,
+        )
+        with open(os.path.join(run_dir, "command.txt"), "w", encoding="utf-8") as handle:
+            handle.write(" ".join(sys.argv))
+            handle.write("\n")
 
     if sum(
         1
@@ -899,6 +1089,10 @@ def main() -> None:
         '--config-file',
         default=None,
         help="Path to YAML configuration file. If not specified, python-fbas.cfg in current directory will be used if it exists.")
+    parser.add_argument(
+        '--config-dir',
+        default=None,
+        help="Directory containing python-fbas config files")
 
     parser.add_argument(
         '--cardinality-encoding',
@@ -1078,13 +1272,39 @@ def main() -> None:
         help="Number of original orgs")
     parser_random_sybil_attack.add_argument(
         "--sybils", type=int, default=None,
-        help="Number of Sybil orgs (0 for no Sybil attack)")
+        help="Number of Sybil orgs in cluster 1")
+    parser_random_sybil_attack.add_argument(
+        "--sybils-cluster-2", type=int, default=None,
+        help="Number of Sybil orgs in cluster 2")
+    parser_random_sybil_attack.add_argument(
+        "--num-sybil-clusters", type=int, default=None,
+        help="Number of Sybil clusters (0, 1, or 2)")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-bridge-orgs", type=int, default=None,
+        help="Number of Sybil-bridge orgs between Sybil clusters")
+    parser_random_sybil_attack.add_argument(
+        "--quorum-selection",
+        choices=["random", "min"],
+        default=None,
+        help="Quorum selection strategy: random (UniGen) or min (QBF)")
+    parser_random_sybil_attack.add_argument(
+        "--record-run",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Record run configs for reproducibility")
+    parser_random_sybil_attack.add_argument(
+        "--runs-dir",
+        default=None,
+        help="Directory to store reproducible run configs")
     parser_random_sybil_attack.add_argument(
         "--original-edge-probability", type=float, default=None,
         help="Probability of an original-org edge")
     parser_random_sybil_attack.add_argument(
         "--sybil-sybil-edge-probability", type=float, default=None,
         help="Probability of a Sybil-org edge")
+    parser_random_sybil_attack.add_argument(
+        "--sybil2-sybil2-edge-probability", type=float, default=None,
+        help="Probability of a Sybil2-org edge")
     parser_random_sybil_attack.add_argument(
         "--attacker-to-sybil-edge-probability",
         type=float, default=None,
@@ -1106,6 +1326,38 @@ def main() -> None:
         type=float, default=None,
         help="Probability of Sybil -> attacker edges")
     parser_random_sybil_attack.add_argument(
+        "--sybil-to-sybil-bridge-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil -> Sybil-bridge edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-bridge-to-sybil2-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil-bridge -> Sybil2 edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-bridge-to-sybil-bridge-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil-bridge -> Sybil-bridge edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil2-to-honest-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil2 -> honest edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil2-to-attacker-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil2 -> attacker edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil2-to-sybil1-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil2 -> Sybil1 edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil2-to-sybil-bridge-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil2 -> Sybil-bridge edges")
+    parser_random_sybil_attack.add_argument(
+        "--sybil1-to-sybil2-edge-probability",
+        type=float, default=None,
+        help="Probability of Sybil1 -> Sybil2 edges")
+    parser_random_sybil_attack.add_argument(
         "--connect-attacker-to-attacker", action="store_true", default=None,
         help="Connect attackers to each other")
     parser_random_sybil_attack.add_argument(
@@ -1118,8 +1370,31 @@ def main() -> None:
         "--connect-sybil-to-attacker", action="store_true", default=None,
         help="Connect Sybil orgs to attacker orgs")
     parser_random_sybil_attack.add_argument(
+        "--connect-sybil-bridge-to-sybil-bridge",
+        action="store_true",
+        default=None,
+        help="Connect Sybil-bridge orgs to each other")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil2-to-honest", action="store_true", default=None,
+        help="Connect Sybil2 orgs to honest orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil2-to-attacker", action="store_true", default=None,
+        help="Connect Sybil2 orgs to attacker orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil2-to-sybil1", action="store_true", default=None,
+        help="Connect Sybil2 orgs to Sybil1 orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil2-to-sybil-bridge", action="store_true", default=None,
+        help="Connect Sybil2 orgs to Sybil-bridge orgs")
+    parser_random_sybil_attack.add_argument(
+        "--connect-sybil1-to-sybil2", action="store_true", default=None,
+        help="Connect Sybil1 orgs to Sybil2 orgs")
+    parser_random_sybil_attack.add_argument(
         "--plot", action="store_true",
         help="Plot the org graph")
+    parser_random_sybil_attack.add_argument(
+        "--print-fbas", action="store_true",
+        help="Print the generated FBAS JSON to stdout")
     parser_random_sybil_attack.add_argument(
         "--plot-with-trust", action="store_true",
         help="Plot the org graph with trust scores from a random honest org")
@@ -1142,6 +1417,11 @@ def main() -> None:
         print(f"Error: Log level must be one of {debug_levels}", file=sys.stderr)
         sys.exit(1)
     logging.getLogger().setLevel(args.log_level)
+
+    if args.config_dir and args.config_file is None:
+        config_candidate = os.path.join(args.config_dir, "python-fbas.cfg")
+        if os.path.exists(config_candidate):
+            args.config_file = config_candidate
 
     # Load configuration file first (if it exists)
     try:

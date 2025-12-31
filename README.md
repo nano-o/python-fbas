@@ -114,10 +114,11 @@ python-fbas random-quorum
 
 **Generate a random Sybil-attack FBAS (or top-tier if sybils=0):**
 ```bash
-python-fbas random-sybil-attack-fbas --orgs 5 --sybils 3
-python-fbas random-sybil-attack-fbas --generator-config python-fbas.generator.cfg.example
+python-fbas random-sybil-attack-fbas --orgs 5 --sybils 3 --print-fbas
+python-fbas random-sybil-attack-fbas --generator-config python-fbas.generator.cfg.example --print-fbas
 ```
-*Use `python-fbas show-generator-config` to print generator defaults. Add `--plot` to visualize the generated org graph (not the full FBAS), or `--plot-with-trust` to shade nodes by trust from a random honest org. You can pass `--sybil-detection-config` or `--sybil-detection-steps`/`--sybil-detection-capacity` to tune the trust heuristic. If `python-fbas.generator.cfg` or `python-fbas.sybil-detection.cfg` exist in the current directory, they are used by default unless overridden.*
+*See `README.generator.md` for full generator documentation (parameters,
+configuration, and reproducibility).*
 
 **Find history-critical set:**
 ```bash

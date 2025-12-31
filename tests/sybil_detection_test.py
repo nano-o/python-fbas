@@ -2,11 +2,13 @@ import random
 import statistics
 
 import networkx as nx
+import pytest
 
 from python_fbas.fbas_generator import (
     SybilAttackConfig,
     gen_random_sybil_attack_org_graph,
 )
+from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
@@ -66,6 +68,109 @@ def test_sybil_attack_scores_honest_higher():
     honest_mean = statistics.mean(scores[n] for n in honest_nodes)
     sybil_mean = statistics.mean(scores[n] for n in sybil_nodes)
     assert honest_mean > sybil_mean
+
+
+def test_sybil_attack_two_clusters_smoke():
+    rng = random.Random(1)
+    config = SybilAttackConfig(
+        original_edge_probability=0.7,
+        sybil_sybil_edge_probability=0.7,
+        sybil2_sybil2_edge_probability=0.7,
+        attacker_to_sybil_edge_probability=0.9,
+        sybil_to_sybil_bridge_edge_probability=0.9,
+        sybil_bridge_to_sybil2_edge_probability=0.9,
+        connect_attacker_to_attacker=False,
+        connect_attacker_to_honest=False,
+        connect_sybil_to_honest=False,
+        connect_sybil_to_attacker=False,
+        connect_sybil_bridge_to_sybil_bridge=False,
+        connect_sybil2_to_honest=False,
+        connect_sybil2_to_attacker=False,
+        connect_sybil2_to_sybil1=False,
+        connect_sybil2_to_sybil_bridge=False,
+        connect_sybil1_to_sybil2=False,
+        max_attempts=200,
+    )
+    graph = gen_random_sybil_attack_org_graph(
+        num_orgs=10,
+        num_sybil_orgs=6,
+        num_sybil_clusters=2,
+        num_sybil_orgs_2=6,
+        num_sybil_bridge_orgs=2,
+        config=config,
+        rng=rng,
+    )
+    roles = nx.get_node_attributes(graph, "role")
+    assert "sybil_sybil_bridge" in roles.values()
+    sybil_nodes = [n for n, role in roles.items() if role == "sybil"]
+    assert any(graph.nodes[n].get("sybil_cluster") == 1 for n in sybil_nodes)
+    assert any(graph.nodes[n].get("sybil_cluster") == 2 for n in sybil_nodes)
+
+
+def test_sybil_attack_two_clusters_with_links_smoke():
+    rng = random.Random(2)
+    config = SybilAttackConfig(
+        original_edge_probability=0.7,
+        sybil_sybil_edge_probability=0.7,
+        sybil2_sybil2_edge_probability=0.7,
+        attacker_to_sybil_edge_probability=0.9,
+        sybil_to_sybil_bridge_edge_probability=1.0,
+        sybil_bridge_to_sybil2_edge_probability=1.0,
+        sybil_bridge_to_sybil_bridge_edge_probability=1.0,
+        sybil2_to_honest_edge_probability=1.0,
+        sybil2_to_attacker_edge_probability=1.0,
+        sybil2_to_sybil1_edge_probability=1.0,
+        sybil2_to_sybil_bridge_edge_probability=1.0,
+        sybil1_to_sybil2_edge_probability=1.0,
+        connect_attacker_to_attacker=True,
+        connect_attacker_to_honest=True,
+        connect_sybil_to_honest=True,
+        connect_sybil_to_attacker=True,
+        connect_sybil_bridge_to_sybil_bridge=True,
+        connect_sybil2_to_honest=True,
+        connect_sybil2_to_attacker=True,
+        connect_sybil2_to_sybil1=True,
+        connect_sybil2_to_sybil_bridge=True,
+        connect_sybil1_to_sybil2=True,
+        max_attempts=200,
+    )
+    graph = gen_random_sybil_attack_org_graph(
+        num_orgs=12,
+        num_sybil_orgs=6,
+        num_sybil_clusters=2,
+        num_sybil_orgs_2=6,
+        num_sybil_bridge_orgs=3,
+        config=config,
+        rng=rng,
+    )
+    roles = nx.get_node_attributes(graph, "role")
+    assert "sybil_sybil_bridge" in roles.values()
+    assert any(role == "sybil" for role in roles.values())
+
+
+def test_sybil_attack_min_quorum_smoke():
+    if not HAS_QBF:
+        pytest.skip("QBF support not available")
+    rng = random.Random(3)
+    config = SybilAttackConfig(
+        original_edge_probability=0.7,
+        sybil_sybil_edge_probability=0.7,
+        attacker_to_sybil_edge_probability=0.9,
+        connect_attacker_to_attacker=False,
+        connect_attacker_to_honest=False,
+        connect_sybil_to_honest=False,
+        connect_sybil_to_attacker=False,
+        max_attempts=100,
+    )
+    graph = gen_random_sybil_attack_org_graph(
+        num_orgs=8,
+        num_sybil_orgs=4,
+        quorum_selection="min",
+        config=config,
+        rng=rng,
+    )
+    roles = nx.get_node_attributes(graph, "role")
+    assert "honest" in roles.values()
 
 
 def test_trustrank_seed_bias():
