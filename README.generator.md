@@ -109,7 +109,8 @@ creating duplicate run folders.
   PageRank with `trustrank_alpha`, `trustrank_epsilon`).
 - `--plot-with-maxflow`: shade nodes by max-flow scores with
   `maxflow_seed_capacity`. If `maxflow_sweep` is enabled, it prints bimodality
-  coefficients and shows a small sweep plot.
+  coefficients and shows a small sweep plot. Set `maxflow_mode: equal-outflow`
+  to enforce equal outflow per node (requires `python-fbas[lp]`).
 
 Only one of `--plot-with-trust`, `--plot-with-trustrank`, or
 `--plot-with-maxflow` can be enabled at a time.

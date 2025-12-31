@@ -10,6 +10,7 @@ from python_fbas.fbas_generator import (
 )
 from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
+    HAS_LP,
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
     compute_trust_scores,
@@ -213,6 +214,20 @@ def test_maxflow_scores_multiple_seeds():
     assert scores["s1"] == 0.0
     assert scores["s2"] == 0.0
     assert scores["a"] == 2.0
+
+
+def test_maxflow_scores_equal_outflow_split():
+    if not HAS_LP:
+        pytest.skip("LP support not available")
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("seed", "b"),
+    ])
+    scores = compute_maxflow_scores(graph, ["seed"], mode="equal-outflow")
+    assert scores["seed"] == pytest.approx(0.0)
+    assert scores["a"] == pytest.approx(0.5)
+    assert scores["b"] == pytest.approx(0.5)
 
 
 def test_maxflow_scores_converging_paths():

@@ -89,6 +89,7 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "trustrank_alpha": 0.2,
     "trustrank_epsilon": 1e-8,
     "maxflow_seed_capacity": 1.0,
+    "maxflow_mode": "standard",
     "maxflow_sweep": False,
     "maxflow_sweep_factor": 2.0,
     "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
@@ -921,6 +922,8 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["maxflow_seed_capacity"] = (
             args.sybil_detection_maxflow_seed_capacity
         )
+    if args.sybil_detection_maxflow_mode is not None:
+        sybil_params["maxflow_mode"] = args.sybil_detection_maxflow_mode
     if args.sybil_detection_maxflow_sweep is not None:
         sybil_params["maxflow_sweep"] = args.sybil_detection_maxflow_sweep
     if args.sybil_detection_maxflow_sweep_factor is not None:
@@ -1018,6 +1021,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 graph,
                 trust_seeds,
                 seed_capacity=sybil_params["maxflow_seed_capacity"],
+                mode=sybil_params["maxflow_mode"],
                 sweep_factor=sybil_params["maxflow_sweep_factor"],
                 sweep_bimodality_threshold=(
                     sybil_params["maxflow_sweep_bimodality_threshold"]
@@ -1032,6 +1036,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 graph,
                 trust_seeds,
                 seed_capacity=sybil_params["maxflow_seed_capacity"],
+                mode=sybil_params["maxflow_mode"],
             )
         _plot_random_org_graph(
             graph,
@@ -1251,6 +1256,11 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-seed-capacity", type=float, default=None,
         help="Seed node capacity for --plot-with-maxflow")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-mode",
+        choices=["standard", "equal-outflow"],
+        default=None,
+        help="Max-flow scoring mode for --plot-with-maxflow")
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-sweep",
         action=argparse.BooleanOptionalAction,

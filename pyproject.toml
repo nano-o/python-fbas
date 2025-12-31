@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 unigen = ["pyunigen"]
 qbf = ["pyqbf @ git+https://gitlab.sai.jku.at/qbf/pyqbf"]
+lp = ["scipy>=1.10"]
 dev = [
     "pip-tools",
     "pytest",
