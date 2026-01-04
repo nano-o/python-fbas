@@ -7,10 +7,11 @@ which has a threshold attribute.
 from copy import copy
 from typing import Any, Literal
 from collections.abc import Collection, ValuesView
+import hashlib
+import json
 from itertools import chain, combinations
 import logging
 from pprint import pformat
-import uuid
 import networkx as nx
 from networkx.classes.reportviews import NodeView
 from python_fbas.utils import powerset
@@ -257,6 +258,20 @@ class FBASGraph:
             # then add the new qset:
             self._graph.add_edge(v, qset)
 
+    @staticmethod
+    def _deterministic_qset_id(
+        threshold: int,
+        components: frozenset[str],
+    ) -> str:
+        components_list = sorted(components)
+        payload = json.dumps(
+            [threshold, components_list],
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+        return f"_q{digest}"
+
     def add_qset(self, threshold: int, components: Collection[str],
                  qset_id: str | None = None) -> str:
         """
@@ -267,7 +282,7 @@ class FBASGraph:
         Args:
             threshold: The threshold for the quorum set
             members: List of vertex IDs (validators or other qset vertices) that are members. Those must be in the graph.
-            qset_id: Optional ID for the qset vertex. If not provided, a UUID-based ID will be generated. If provided but a duplicate qset exists, a warning is emitted.
+            qset_id: Optional ID for the qset vertex. If not provided, a deterministic ID will be generated based on the threshold and members. If provided but a duplicate qset exists, a warning is emitted.
 
         Returns:
             The ID of the qset vertex (either existing or newly created)
@@ -302,16 +317,16 @@ class FBASGraph:
 
         # Create qset ID if not provided
         if qset_id is None:
-            qset_id = "_q" + uuid.uuid4().hex
-        else:
-            # Validate that the ID doesn't already exist
-            if qset_id in self._graph:
-                raise ValueError(
-                    f"Vertex with ID {qset_id} already exists in the graph")
-            # Validate that it's not in the validators set
-            if qset_id in self._validators:
-                raise ValueError(
-                    f"ID {qset_id} is already used by a validator")
+            qset_id = self._deterministic_qset_id(threshold, components_set)
+
+        # Validate that the ID doesn't already exist
+        if qset_id in self._graph:
+            raise ValueError(
+                f"Vertex with ID {qset_id} already exists in the graph")
+        # Validate that it's not in the validators set
+        if qset_id in self._validators:
+            raise ValueError(
+                f"ID {qset_id} is already used by a validator")
 
         # Create the qset vertex
         self._graph.add_node(qset_id, threshold=threshold)
