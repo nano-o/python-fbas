@@ -1,5 +1,7 @@
 *.dimacs
 
+runs/
+
 # Aider
 .aider*
 

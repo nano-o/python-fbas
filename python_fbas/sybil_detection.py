@@ -513,6 +513,12 @@ def compute_maxflow_scores_sweep(
             seed_capacity,
         )
         return scores, capacities, bcs
+    if bcs[-1] >= sweep_bimodality_threshold:
+        logging.info(
+            "Max-flow sweep stopped after 1 iteration; final seed_capacity=%.6g",
+            seed_capacity,
+        )
+        return scores, capacities, bcs
 
     for step in range(sweep_max_steps):
         current_capacity *= sweep_factor
@@ -526,19 +532,10 @@ def compute_maxflow_scores_sweep(
         bc = compute_bimodality_coefficient(scores.values())
         bcs.append(bc)
         if bc >= sweep_bimodality_threshold:
-            next_capacity = current_capacity * sweep_factor
-            scores = compute_maxflow_scores(
-                graph,
-                seeds,
-                seed_capacity=next_capacity,
-                mode=mode,
-            )
-            capacities.append(next_capacity)
-            bcs.append(compute_bimodality_coefficient(scores.values()))
             logging.info(
                 "Max-flow sweep stopped after %d iterations; final seed_capacity=%.6g",
                 step + 2,
-                next_capacity,
+                current_capacity,
             )
             return scores, capacities, bcs
 
