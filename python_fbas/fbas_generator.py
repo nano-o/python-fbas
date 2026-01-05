@@ -8,7 +8,7 @@ import networkx as nx
 from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
-    find_min_quorum,
+    find_min_cardinality_min_quorum,
     random_quorum,
 )
 
@@ -266,7 +266,9 @@ def gen_random_sybil_attack_org_graph(
                 org_prefix="sybil2",
             )
         if quorum_selection == "min":
-            quorum = find_min_quorum(original_fbas, project_on_scc=False)
+            quorum = find_min_cardinality_min_quorum(
+                original_fbas,
+                project_on_scc=False)
             if not quorum:
                 continue
         else:

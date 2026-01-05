@@ -715,11 +715,13 @@ def find_min_quorum(
         fbas: FBASGraph,
         *,
         not_subset_of: Collection[str] | None = None,
-        project_on_scc: bool = True) -> Collection[str]:
+        project_on_scc: bool = True,
+        cardinality: int | None = None) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
     set of validators, then the quorum should contain at least one validator
-    outside this set.
+    outside this set. If cardinality is set, require exactly that many
+    validators in the quorum.
     """
     if not HAS_QBF:
         raise ImportError(
@@ -735,6 +737,7 @@ def find_min_quorum(
     if not fbas.get_validators():
         logging.info("The FBAS has no validators!")
         return []
+    validators = list(fbas.get_validators())
 
     quorum_a_tagger = Tagger("quorum_A")
     quorum_b_tagger = Tagger("quorum_B")
@@ -747,6 +750,17 @@ def find_min_quorum(
 
     # The set 'A' is a quorum in the scc:
     qa_constraints: list[Formula] = quorum_constraints(fbas, in_quorum_a)
+    if cardinality is not None:
+        if cardinality < 1 or cardinality > len(validators):
+            raise ValueError(
+                f"cardinality {cardinality} is outside 1..{len(validators)}")
+        qa_constraints.append(
+            AtLeast(cardinality, *[in_quorum_a(v) for v in validators]))
+        if cardinality < len(validators):
+            qa_constraints.append(
+                AtLeast(
+                    len(validators) - cardinality,
+                    *[Not(in_quorum_a(v)) for v in validators]))
 
     # it contains at least one validator outside not_subset_of:
     if not_subset_of:
@@ -798,6 +812,41 @@ def find_min_quorum(
     else:
         logging.info("No minimal quorum found!")
         return []
+
+
+def find_min_cardinality_min_quorum(
+        fbas: FBASGraph,
+        *,
+        not_subset_of: Collection[str] | None = None,
+        project_on_scc: bool = True) -> Collection[str]:
+    """
+    Find a minimal-cardinality minimal quorum in the FBAS graph using pyqbf.
+    """
+    if not HAS_QBF:
+        raise ImportError(
+            "QBF support not available. Install with: pip install python-fbas[qbf]")
+
+    if project_on_scc:
+        sccs = sccs_including_quorum(fbas)
+        if not sccs:
+            return []
+        scc = set(sccs[0])
+        fbas = fbas.project_on_reachable_from(scc & fbas.get_validators())
+
+    if not fbas.get_validators():
+        logging.info("The FBAS has no validators!")
+        return []
+
+    max_cardinality = len(fbas.get_validators())
+    for cardinality in range(1, max_cardinality + 1):
+        quorum = find_min_quorum(
+            fbas,
+            not_subset_of=not_subset_of,
+            project_on_scc=False,
+            cardinality=cardinality)
+        if quorum:
+            return quorum
+    return []
 
 
 def top_tier(fbas: FBASGraph, *, from_validator: str | None = None) -> Collection[str]:
