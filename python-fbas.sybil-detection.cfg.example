@@ -1,0 +1,14 @@
+# Example sybil-detection configuration for python-fbas
+# Use with: python-fbas show-sybil-detection-config
+trust_steps: 5
+trust_capacity: 1.0
+seed_count: 3
+trustrank_alpha: 0.2
+trustrank_epsilon: 1.0e-08
+maxflow_seed_capacity: 1.0
+maxflow_mode: standard
+maxflow_sweep: false
+maxflow_sweep_factor: 2.0
+maxflow_sweep_bimodality_threshold: 0.5555555555555556
+maxflow_sweep_post_threshold_steps: 0
+maxflow_sweep_max_steps: 8
