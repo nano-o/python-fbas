@@ -2,7 +2,9 @@
 
 This document describes the synthetic FBAS generator used for Sybil-attack
 experiments. The command builds a directed org graph with thresholds and then
-exports an FBAS from it.
+exports an FBAS from it. It also includes optional sybil-detection heuristics
+(trust, TrustRank, max-flow) for analysis and plotting; these do not modify the
+generated FBAS.
 
 ## Quick start
 
@@ -35,6 +37,15 @@ python-fbas random-sybil-attack-fbas --quorum-selection min --print-fbas
 Plot the generated org graph:
 ```bash
 python-fbas random-sybil-attack-fbas --plot
+```
+
+Plot with max-flow and keep sweeping for two more iterations after hitting
+the bimodality threshold:
+```bash
+python-fbas random-sybil-attack-fbas \
+  --plot-with-maxflow \
+  --sybil-detection-maxflow-sweep \
+  --sybil-detection-maxflow-sweep-post-threshold-steps 2
 ```
 
 ## Graph shape and roles
@@ -104,13 +115,14 @@ creating duplicate run folders.
 - `--print-fbas`: print the generated FBAS JSON to stdout.
 - `--plot`: draw the org graph layout (roles, edges, thresholds).
 - `--plot-with-trust`: shade nodes by trust scores computed with bounded
-  capacity-limited propagation (`steps`, `capacity`).
+  capacity-limited propagation (`trust_steps`, `trust_capacity`).
 - `--plot-with-trustrank`: shade nodes by TrustRank scores (personalized
   PageRank with `trustrank_alpha`, `trustrank_epsilon`).
 - `--plot-with-maxflow`: shade nodes by max-flow scores with
   `maxflow_seed_capacity`. If `maxflow_sweep` is enabled, it prints bimodality
-  coefficients and shows a small sweep plot. Set `maxflow_mode: equal-outflow`
-  to enforce equal outflow per node (requires `python-fbas[lp]`).
+  coefficients and shows a small sweep plot. Set
+  `maxflow_sweep_post_threshold_steps` to keep sweeping for extra iterations
+  after hitting the bimodality threshold (default 0).
 
 Only one of `--plot-with-trust`, `--plot-with-trustrank`, or
 `--plot-with-maxflow` can be enabled at a time.
@@ -156,6 +168,16 @@ probabilities and `connect_*` flags.
 
 Sybil detection parameters are configured separately via
 `python-fbas.sybil-detection.cfg` or `--sybil-detection-*` flags. The detection
-step uses max-flow and trust ranking on the generated graph.
+step runs on the generated graph and only affects plots/diagnostics.
+
+Useful parameters include:
+- `seed_count`, `trust_steps`, `trust_capacity`: trust propagation settings.
+- `trustrank_alpha`, `trustrank_epsilon`: TrustRank settings.
+- `maxflow_seed_capacity`, `maxflow_mode` (currently only `standard`):
+  max-flow scoring settings.
+- `maxflow_sweep`, `maxflow_sweep_factor`,
+  `maxflow_sweep_bimodality_threshold`: sweep controls.
+- `maxflow_sweep_post_threshold_steps`: extra sweep iterations after the
+  threshold is reached.
 
 Use `python-fbas show-sybil-detection-config` to see all available settings.

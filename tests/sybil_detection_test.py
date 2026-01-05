@@ -11,7 +11,6 @@ from python_fbas.fbas_generator import (
 )
 from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
-    HAS_LP,
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
     compute_trust_scores,
@@ -217,20 +216,6 @@ def test_maxflow_scores_multiple_seeds():
     assert scores["a"] == 2.0
 
 
-def test_maxflow_scores_equal_outflow_split():
-    if not HAS_LP:
-        pytest.skip("LP support not available")
-    graph = nx.DiGraph()
-    graph.add_edges_from([
-        ("seed", "a"),
-        ("seed", "b"),
-    ])
-    scores = compute_maxflow_scores(graph, ["seed"], mode="equal-outflow")
-    assert scores["seed"] == pytest.approx(0.0)
-    assert scores["a"] == pytest.approx(0.5)
-    assert scores["b"] == pytest.approx(0.5)
-
-
 def test_maxflow_scores_converging_paths():
     graph = nx.DiGraph()
     graph.add_edges_from([
@@ -302,3 +287,44 @@ def test_maxflow_scores_sweep_stops_after_first_iteration(monkeypatch):
     assert capacities == [0.25]
     assert bcs == [1.0]
     assert scores["a"] == 0.25
+
+
+def test_maxflow_scores_sweep_runs_post_threshold_steps(monkeypatch):
+    calls: list[float] = []
+
+    def fake_scores(_graph, _seeds, *, seed_capacity, mode):
+        calls.append(seed_capacity)
+        return {
+            "seed": 0.0,
+            "a": seed_capacity,
+            "b": seed_capacity,
+            "c": seed_capacity,
+        }
+
+    monkeypatch.setattr(sybil_detection, "compute_maxflow_scores", fake_scores)
+    monkeypatch.setattr(
+        sybil_detection,
+        "compute_bimodality_coefficient",
+        lambda _values: 1.0,
+    )
+
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+        ("a", "c"),
+    ])
+    scores, capacities, bcs = sybil_detection.compute_maxflow_scores_sweep(
+        graph,
+        ["seed"],
+        seed_capacity=0.25,
+        sweep_factor=2.0,
+        sweep_bimodality_threshold=0.5,
+        sweep_max_steps=5,
+        sweep_post_threshold_steps=2,
+    )
+
+    assert calls == [0.25, 0.5, 1.0]
+    assert capacities == [0.25, 0.5, 1.0]
+    assert bcs == [1.0, 1.0, 1.0]
+    assert scores["a"] == 1.0

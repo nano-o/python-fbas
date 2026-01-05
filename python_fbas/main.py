@@ -83,9 +83,9 @@ GENERATOR_DEFAULTS: dict[str, Any] = {
 }
 
 SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
-    "steps": 5,
-    "capacity": 1.0,
     "seed_count": 3,
+    "trust_steps": 5,
+    "trust_capacity": 1.0,
     "trustrank_alpha": 0.2,
     "trustrank_epsilon": 1e-8,
     "maxflow_seed_capacity": 1.0,
@@ -93,6 +93,7 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "maxflow_sweep": False,
     "maxflow_sweep_factor": 2.0,
     "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
+    "maxflow_sweep_post_threshold_steps": 0,
     "maxflow_sweep_max_steps": 8,
 }
 
@@ -876,6 +877,10 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         print(serialize(fbas, format="stellarbeat"))
     sybil_defaults = SYBIL_DETECTION_DEFAULTS
     sybil_allowed = set(SYBIL_DETECTION_DEFAULTS.keys())
+    deprecated_sybil_keys = {
+        "steps": "trust_steps",
+        "capacity": "trust_capacity",
+    }
     sybil_params = sybil_defaults.copy()
     sybil_detection_path = args.sybil_detection_config
     if sybil_detection_path is None:
@@ -896,6 +901,22 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         if not isinstance(sybil_config, dict):
             raise ValueError(
                 "--sybil-detection-config must contain a YAML mapping of parameters")
+        for old_key, new_key in deprecated_sybil_keys.items():
+            if old_key in sybil_config:
+                if new_key in sybil_config:
+                    logging.warning(
+                        "Ignoring deprecated sybil-detection key %s because %s is set",
+                        old_key,
+                        new_key,
+                    )
+                else:
+                    logging.warning(
+                        "sybil-detection key %s is deprecated; use %s",
+                        old_key,
+                        new_key,
+                    )
+                    sybil_config[new_key] = sybil_config[old_key]
+                sybil_config.pop(old_key, None)
         invalid_keys = set(sybil_config.keys()) - sybil_allowed
         if invalid_keys:
             logging.warning(
@@ -908,10 +929,10 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 if key in sybil_allowed
             }
         sybil_params.update(sybil_config)
-    if args.sybil_detection_steps is not None:
-        sybil_params["steps"] = args.sybil_detection_steps
-    if args.sybil_detection_capacity is not None:
-        sybil_params["capacity"] = args.sybil_detection_capacity
+    if args.sybil_detection_trust_steps is not None:
+        sybil_params["trust_steps"] = args.sybil_detection_trust_steps
+    if args.sybil_detection_trust_capacity is not None:
+        sybil_params["trust_capacity"] = args.sybil_detection_trust_capacity
     if args.sybil_detection_seed_count is not None:
         sybil_params["seed_count"] = args.sybil_detection_seed_count
     if args.sybil_detection_trustrank_alpha is not None:
@@ -933,6 +954,10 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     if args.sybil_detection_maxflow_sweep_bimodality_threshold is not None:
         sybil_params["maxflow_sweep_bimodality_threshold"] = (
             args.sybil_detection_maxflow_sweep_bimodality_threshold
+        )
+    if args.sybil_detection_maxflow_sweep_post_threshold_steps is not None:
+        sybil_params["maxflow_sweep_post_threshold_steps"] = (
+            args.sybil_detection_maxflow_sweep_post_threshold_steps
         )
     if args.sybil_detection_maxflow_sweep_max_steps is not None:
         sybil_params["maxflow_sweep_max_steps"] = (
@@ -991,8 +1016,8 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         trust_scores = compute_trust_scores(
             graph,
             trust_seeds,
-            steps=sybil_params["steps"],
-            capacity=sybil_params["capacity"],
+            steps=sybil_params["trust_steps"],
+            capacity=sybil_params["trust_capacity"],
         )
         _plot_random_org_graph(
             graph,
@@ -1025,6 +1050,9 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 sweep_factor=sybil_params["maxflow_sweep_factor"],
                 sweep_bimodality_threshold=(
                     sybil_params["maxflow_sweep_bimodality_threshold"]
+                ),
+                sweep_post_threshold_steps=(
+                    sybil_params["maxflow_sweep_post_threshold_steps"]
                 ),
                 sweep_max_steps=sybil_params["maxflow_sweep_max_steps"],
             )
@@ -1239,10 +1267,18 @@ def main() -> None:
         default=None,
         help="Path to YAML config for sybil-detection parameters")
     parser_random_sybil_attack.add_argument(
-        "--sybil-detection-steps", type=int, default=None,
+        "--sybil-detection-trust-steps",
+        "--sybil-detection-steps",
+        dest="sybil_detection_trust_steps",
+        type=int,
+        default=None,
         help="Trust-propagation steps for --plot-with-trust")
     parser_random_sybil_attack.add_argument(
-        "--sybil-detection-capacity", type=float, default=None,
+        "--sybil-detection-trust-capacity",
+        "--sybil-detection-capacity",
+        dest="sybil_detection_trust_capacity",
+        type=float,
+        default=None,
         help="Trust-propagation capacity for --plot-with-trust")
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-seed-count", type=int, default=None,
@@ -1258,7 +1294,7 @@ def main() -> None:
         help="Seed node capacity for --plot-with-maxflow")
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-mode",
-        choices=["standard", "equal-outflow"],
+        choices=["standard"],
         default=None,
         help="Max-flow scoring mode for --plot-with-maxflow")
     parser_random_sybil_attack.add_argument(
@@ -1274,6 +1310,11 @@ def main() -> None:
         type=float,
         default=None,
         help="Bimodality coefficient threshold to stop the sweep")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-sweep-post-threshold-steps",
+        type=int,
+        default=None,
+        help="Extra sweep steps after hitting the bimodality threshold")
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-sweep-max-steps", type=int, default=None,
         help="Maximum number of sweep steps")
