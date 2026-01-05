@@ -273,11 +273,11 @@ class TestFileBasedSerialization:
                 assert qset1 == qset2
 
 
-class TestUUIDGeneration:
-    """Test UUID-based qset ID generation."""
+class TestDeterministicQsetIds:
+    """Test deterministic qset ID generation."""
 
-    def test_add_qset_generates_uuid(self):
-        """Test that add_qset generates UUID-based IDs."""
+    def test_add_qset_generates_deterministic_ids(self):
+        """Test that add_qset generates deterministic IDs."""
         fbas = FBASGraph()
         fbas.add_validator('v1')
         fbas.add_validator('v2')
@@ -285,7 +285,7 @@ class TestUUIDGeneration:
         fbas.add_validator('v4')
         fbas.add_validator('v5')
 
-        # Add multiple different qsets to ensure unique UUIDs
+        # Add multiple different qsets to ensure unique IDs
         qset_ids = set()
         for i in range(5):
             # Create different qsets by varying validator combinations
@@ -298,6 +298,22 @@ class TestUUIDGeneration:
 
         # All IDs should be unique
         assert len(qset_ids) == 5
+
+    def test_add_qset_is_deterministic_across_instances(self):
+        """Test that the same qset spec yields the same ID."""
+        fbas1 = FBASGraph()
+        fbas1.add_validator('v1')
+        fbas1.add_validator('v2')
+        fbas1.add_validator('v3')
+        qset_id1 = fbas1.add_qset(threshold=2, components=['v2', 'v3'])
+
+        fbas2 = FBASGraph()
+        fbas2.add_validator('v3')
+        fbas2.add_validator('v2')
+        fbas2.add_validator('v1')
+        qset_id2 = fbas2.add_qset(threshold=2, components=['v3', 'v2'])
+
+        assert qset_id1 == qset_id2
 
     def test_manual_qset_ids_preserved(self):
         """Test that manually specified qset IDs are preserved."""
@@ -370,14 +386,14 @@ class TestUUIDGeneration:
         with pytest.raises(ValueError):
             deserialize(json.dumps(json_data))
 
-    def test_round_trip_with_uuid_qsets(self):
-        """Test that UUID-generated qsets survive round-trip serialization."""
+    def test_round_trip_with_generated_qsets(self):
+        """Test that auto-generated qsets survive round-trip serialization."""
         fbas1 = FBASGraph()
         fbas1.add_validator('v1')
         fbas1.add_validator('v2')
         fbas1.add_validator('v3')
 
-        # Create qsets using add_qset (will generate UUIDs)
+        # Create qsets using add_qset (will generate deterministic IDs)
         qset1_id = fbas1.add_qset(threshold=2, components=['v2', 'v3'])
         fbas1.update_validator('v1', qset=qset1_id)
 
@@ -390,7 +406,7 @@ class TestUUIDGeneration:
         json_str = serialize(fbas1, format='python-fbas')
         fbas2 = deserialize(json_str)
 
-        # Check that the UUID-based ID is preserved
+        # Check that the generated ID is preserved
         qset_id2 = list(fbas2.graph_view().successors('v1'))[0]
         assert qset_id == qset_id2
 

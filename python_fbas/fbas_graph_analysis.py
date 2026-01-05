@@ -3,6 +3,7 @@ SAT-based analysis of FBAS graphs
 """
 
 import logging
+import random
 from dataclasses import dataclass
 from typing import Any, Callable
 from collections.abc import Collection
@@ -23,6 +24,10 @@ try:
     HAS_QBF = True
 except ImportError:
     HAS_QBF = False
+try:
+    from pysat.allies.unigen import Sampler as UniGenSampler
+except ImportError:
+    UniGenSampler = None
 
 @dataclass
 class DisjointQuorumsResult:
@@ -151,22 +156,25 @@ def group_constraints(
         fbas: FBASGraph,
         group_by: str) -> list[Formula]:
     """
-    Returns constraints that express that a tagged group atom is true iff the
-    tagged validator atom of each of its members is true.
+    Returns constraints that express that a tagged group atom is true iff any
+    tagged validator atom of its members is true.
     """
     constraints: list[Formula] = []
     groups = fbas.groups_dict(group_by)
     for group_name, members in groups.items():
         if members:
-            # If group is tagged, all members are tagged
+            group_id = group_var(group_name)
+            member_atoms = [tagger.atom(v) for v in members]
+            # Group is tagged iff any member is tagged.
             constraints.append(
-                Implies(tagger.atom(group_name),
-                        And(*[tagger.atom(v) for v in members])))
-            # If any member is tagged, group is tagged
+                Implies(tagger.atom(group_id), Or(*member_atoms)))
             constraints.append(
-                Implies(Or(*[tagger.atom(v) for v in members]),
-                        tagger.atom(group_name)))
+                Implies(Or(*member_atoms), tagger.atom(group_id)))
     return constraints
+
+
+def group_var(name: str) -> tuple[str, str]:
+    return ("group", name)
 
 
 def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
@@ -193,6 +201,61 @@ def contains_quorum(s: set[str], fbas: FBASGraph) -> bool:
     else:
         logging.info("No quorum found in %s", s)
     return sat_res.sat
+
+
+def random_quorum(
+        fbas: FBASGraph,
+        *,
+        seed: int | None = None,
+        epsilon: float = 0.8,
+        delta: float = 0.2,
+        kappa: float = 0.638) -> Collection[str] | None:
+    """
+    Return a random quorum using UniGen's sampler, or None if no quorum exists.
+    """
+    if UniGenSampler is None:
+        raise ImportError(
+            "UniGen support not available. Install pysat with UniGen dependencies.")
+
+    if not fbas.get_validators():
+        logging.info("The FBAS has no validators!")
+        return None
+
+    constraints = quorum_constraints(fbas, Atom)
+    clauses = to_cnf(constraints)
+    sat_res = slv.solve_sat(clauses, label="Quorum SAT check")
+    if not sat_res.sat:
+        logging.info("No quorum found in the FBAS graph.")
+        return None
+
+    sample_over = [
+        abs(variables[Atom(v).identifier])
+        for v in fbas.get_validators()
+        if Atom(v).identifier in variables
+    ]
+    if not sample_over:
+        logging.info("No validators with qsets available for sampling.")
+        return None
+
+    if seed is None:
+        seed = random.SystemRandom().randint(1, 2**31 - 1)
+
+    cnf = CNF(from_clauses=clauses)
+    try:
+        with UniGenSampler(formula=cnf, seed=seed, epsilon=epsilon,
+                           delta=delta, kappa=kappa) as sampler:
+            samples = sampler.sample(nof_samples=1, sample_over=sample_over)
+    except AssertionError as exc:
+        raise ImportError(
+            "UniGen support not available. Install pyunigen.") from exc
+
+    if not samples:
+        logging.info("UniGen returned no samples.")
+        return None
+
+    sample = samples[0]
+    quorum = {v for v in decode_model(sample, predicate=fbas.is_validator)}
+    return quorum
 
 
 def find_disjoint_quorums(
@@ -322,12 +385,15 @@ def find_minimal_splitting_set(
                                Not(in_quorum('A', v)),
                                Not(in_quorum('B', v)))]
 
-        groups: set[str] = set()
+        groups: set[tuple[str, str]] = set()
+        group_lookup: dict[tuple[str, str], str] = {}
 
         group_by = config.get().group_by
         if group_by:
             constraints += group_constraints(faulty_tagger, fbas, group_by)
-            groups = set(fbas.groups_dict(group_by).keys())
+            group_names = fbas.groups_dict(group_by).keys()
+            groups = {group_var(name) for name in group_names}
+            group_lookup = {group_var(name): name for name in group_names}
 
         # finally, convert to weighted CNF and add soft constraints that
         # minimize the number of faulty validators (or groups):
@@ -358,7 +424,7 @@ def find_minimal_splitting_set(
                          [fbas.format_validator(s) for s in ss])
         else:
             logging.info("Minimal-cardinality splitting set (groups): %s",
-                         [s for s in ss if s in groups])
+                         [group_lookup[s] for s in ss if s in groups])
             logging.info(
                 "Minimal-cardinality splitting set (corresponding validators): %s",
                 [fbas.format_validator(s) for s in ss if s not in groups])
@@ -379,7 +445,7 @@ def find_minimal_splitting_set(
             return SplittingSetResult(splitting_set=ss, quorum_a=q1, quorum_b=q2)
         else:
             return SplittingSetResult(
-                splitting_set=[s for s in ss if s in groups],
+                splitting_set=[group_lookup[s] for s in ss if s in groups],
                 quorum_a=q1,
                 quorum_b=q2)
 
@@ -509,12 +575,15 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
         #             constraints.append(
         #                 Implies(And(lt(v1, v2), lt(v2, v3)), lt(v1, v3)))
 
-        groups: set[str] = set()
+        groups: set[tuple[str, str]] = set()
+        group_lookup: dict[tuple[str, str], str] = {}
         group_by = config.get().group_by
         if group_by:
             constraints += group_constraints(
                 faulty_tagger, fbas, group_by)
-            groups = set(fbas.groups_dict(group_by).keys())
+            group_names = fbas.groups_dict(group_by).keys()
+            groups = {group_var(name) for name in group_names}
+            group_lookup = {group_var(name): name for name in group_names}
 
         # convert to weighted CNF and add soft constraints that minimize the
         # number of faulty validators:
@@ -548,7 +617,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
                          [fbas.format_validator(v) for v in s])
         else:
             logging.info("Minimal-cardinality blocking set: %s",
-                         [g for g in s if g in groups])
+                         [group_lookup[g] for g in s if g in groups])
         vs = set(s) - groups
         no_qset = {v for v in fbas.get_validators() if fbas.graph_view().out_degree(v) == 0}
         assert fbas.closure(vs | no_qset) == fbas.get_validators()
@@ -561,7 +630,7 @@ def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
         if not config.get().group_by:
             return s
         else:
-            return [g for g in s if g in groups]
+            return [group_lookup[g] for g in s if g in groups]
 
 
 def min_history_loss_critical_set(
@@ -646,11 +715,13 @@ def find_min_quorum(
         fbas: FBASGraph,
         *,
         not_subset_of: Collection[str] | None = None,
-        project_on_scc: bool = True) -> Collection[str]:
+        project_on_scc: bool = True,
+        cardinality: int | None = None) -> Collection[str]:
     """
     Find a minimal quorum in the FBAS graph using pyqbf.  If not_subset_of is a
     set of validators, then the quorum should contain at least one validator
-    outside this set.
+    outside this set. If cardinality is set, require exactly that many
+    validators in the quorum.
     """
     if not HAS_QBF:
         raise ImportError(
@@ -666,6 +737,7 @@ def find_min_quorum(
     if not fbas.get_validators():
         logging.info("The FBAS has no validators!")
         return []
+    validators = list(fbas.get_validators())
 
     quorum_a_tagger = Tagger("quorum_A")
     quorum_b_tagger = Tagger("quorum_B")
@@ -678,6 +750,17 @@ def find_min_quorum(
 
     # The set 'A' is a quorum in the scc:
     qa_constraints: list[Formula] = quorum_constraints(fbas, in_quorum_a)
+    if cardinality is not None:
+        if cardinality < 1 or cardinality > len(validators):
+            raise ValueError(
+                f"cardinality {cardinality} is outside 1..{len(validators)}")
+        qa_constraints.append(
+            AtLeast(cardinality, *[in_quorum_a(v) for v in validators]))
+        if cardinality < len(validators):
+            qa_constraints.append(
+                AtLeast(
+                    len(validators) - cardinality,
+                    *[Not(in_quorum_a(v)) for v in validators]))
 
     # it contains at least one validator outside not_subset_of:
     if not_subset_of:
@@ -729,6 +812,41 @@ def find_min_quorum(
     else:
         logging.info("No minimal quorum found!")
         return []
+
+
+def find_min_cardinality_min_quorum(
+        fbas: FBASGraph,
+        *,
+        not_subset_of: Collection[str] | None = None,
+        project_on_scc: bool = True) -> Collection[str]:
+    """
+    Find a minimal-cardinality minimal quorum in the FBAS graph using pyqbf.
+    """
+    if not HAS_QBF:
+        raise ImportError(
+            "QBF support not available. Install with: pip install python-fbas[qbf]")
+
+    if project_on_scc:
+        sccs = sccs_including_quorum(fbas)
+        if not sccs:
+            return []
+        scc = set(sccs[0])
+        fbas = fbas.project_on_reachable_from(scc & fbas.get_validators())
+
+    if not fbas.get_validators():
+        logging.info("The FBAS has no validators!")
+        return []
+
+    max_cardinality = len(fbas.get_validators())
+    for cardinality in range(1, max_cardinality + 1):
+        quorum = find_min_quorum(
+            fbas,
+            not_subset_of=not_subset_of,
+            project_on_scc=False,
+            cardinality=cardinality)
+        if quorum:
+            return quorum
+    return []
 
 
 def top_tier(fbas: FBASGraph, *, from_validator: str | None = None) -> Collection[str]:

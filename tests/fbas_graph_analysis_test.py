@@ -4,14 +4,16 @@ import json
 import networkx as nx
 from test_utils import get_test_data_list, get_validators_from_test_fbas, load_fbas_from_test_file
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.serialization import deserialize
+from python_fbas.serialization import deserialize, serialize
 from python_fbas import config
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
     find_minimal_splitting_set,
     find_minimal_blocking_set,
     find_min_quorum,
+    find_min_cardinality_min_quorum,
     contains_quorum,
+    random_quorum,
     top_tier,
     is_overlay_resilient,
     num_not_blocked,
@@ -131,6 +133,9 @@ def test_min_quorum():
     with config.temporary_config(card_encoding='totalizer'):
         assert len(find_min_quorum(fbas1)) == 3
         assert len(find_min_quorum(fbas1, not_subset_of=['PK1', 'PK2', 'PK3'])) == 3
+        assert len(find_min_quorum(fbas1, cardinality=3)) == 3
+        assert not find_min_quorum(fbas1, cardinality=2)
+        assert len(find_min_cardinality_min_quorum(fbas1)) == 3
     with config.temporary_config(card_encoding='naive'):
         assert len(find_min_quorum(fbas1)) == 3
 
@@ -183,6 +188,30 @@ def test_contains_quorum():
     fbas2 = load_fbas_from_test_file('circular_2.json')
     assert not contains_quorum({'PK1', 'PK2'}, fbas2)
     assert contains_quorum({'PK1', 'PK3'}, fbas2)
+
+
+def test_random_quorum_small_data():
+    from pysat.allies import unigen
+
+    if not getattr(unigen, 'pyunigen_present', False):
+        pytest.skip("pyunigen is not available")
+
+    data = get_test_data_list(dirs=['small'])
+    with config.temporary_config(card_encoding='totalizer'):
+        for filename, raw in data.items():
+            fbas = deserialize(json.dumps(raw))
+            for _ in range(3):
+                q = random_quorum(fbas)
+                if q is None:
+                    assert not contains_quorum(fbas.get_validators(), fbas)
+                else:
+                    if not fbas.is_quorum(q, over_approximate=True):
+                        logging.debug(
+                            "random_quorum failed for %s: quorum=%s fbas=%s",
+                            filename,
+                            sorted(q),
+                            serialize(fbas, format='python-fbas'))
+                    assert fbas.is_quorum(q, over_approximate=True)
 
 
 def test_top_tier():
