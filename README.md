@@ -130,7 +130,7 @@ python-fbas validator-metadata GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB6
 ```bash
 python-fbas --group-by=homeDomain min-splitting-set
 ```
-*Computes the minimal number of home domains (organizations) that must be corrupted to create disjoint quorums.*
+*Computes the minimal number of home domains (organizations) that must be corrupted to create disjoint quorums. Supports dotted paths for nested metadata (e.g. `geoData.countryCode`).*
 
 **Restrict analysis to validators that are reachable from a given validator:**
 ```bash

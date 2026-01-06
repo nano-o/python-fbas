@@ -19,6 +19,37 @@ def test_load_fbas():
         fg.check_integrity()
 
 
+def test_groups_dict_nested_attr_path():
+    fbas = FBASGraph()
+    fbas.add_validator("A", geoData={"countryCode": "US"})
+    fbas.add_validator("B", geoData={"countryCode": "CA"})
+    fbas.add_validator("C", geoData={"countryCode": "US"})
+    fbas.add_validator("D", geoData={"countryName": "United States"})
+
+    groups = fbas.groups_dict("geoData.countryCode")
+    unknown_label = fbas.group_unknown_label("geoData.countryCode")
+
+    assert groups["US"] == {"A", "C"}
+    assert groups["CA"] == {"B"}
+    assert groups[unknown_label] == {"D"}
+
+
+def test_groups_dict_prefers_literal_dotted_key():
+    fbas = FBASGraph()
+    fbas.add_validator(
+        "A",
+        **{
+            "geoData.countryCode": "literal",
+            "geoData": {"countryCode": "nested"},
+        },
+    )
+
+    groups = fbas.groups_dict("geoData.countryCode")
+
+    assert groups["literal"] == {"A"}
+    assert "nested" not in groups
+
+
 def test_is_quorum():
     fbas = load_fbas_from_test_file('conflicted.json')
     assert fbas.is_quorum({'PK11', 'PK12', 'PK13'})
