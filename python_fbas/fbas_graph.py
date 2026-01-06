@@ -6,7 +6,7 @@ which has a threshold attribute.
 
 from copy import copy
 from typing import Any, Literal
-from collections.abc import Collection, ValuesView
+from collections.abc import Collection, Mapping, ValuesView
 import hashlib
 import json
 from itertools import chain, combinations
@@ -484,11 +484,33 @@ class FBASGraph:
         unknown_label = self.group_unknown_label(group_by)
         for v in self._validators:
             attrs = self.vertice_attrs(v)
-            group_name = attrs.get(group_by)
+            group_name = self.resolve_attr_path(attrs, group_by)
             if not group_name:
                 group_name = unknown_label
             groups.setdefault(group_name, set()).add(v)
         return groups
+
+    @staticmethod
+    def resolve_attr_path(
+            attrs: Mapping[str, Any],
+            attr_path: str,
+    ) -> Any:
+        """
+        Returns the attribute value, supporting dotted paths for nested maps.
+        Exact-key matches take precedence over dotted lookup.
+        """
+        if attr_path in attrs:
+            return attrs.get(attr_path)
+        if "." not in attr_path:
+            return attrs.get(attr_path)
+        value: Any = attrs
+        for part in attr_path.split("."):
+            if not isinstance(value, Mapping):
+                return None
+            value = value.get(part)
+            if value is None:
+                return None
+        return value
 
     def group_unknown_label(self, group_by: str = 'homeDomain') -> str:
         """
@@ -498,7 +520,7 @@ class FBASGraph:
         existing: set[str] = set()
         for v in self._validators:
             attrs = self.vertice_attrs(v)
-            value = attrs.get(group_by)
+            value = self.resolve_attr_path(attrs, group_by)
             if value:
                 existing.add(value)
         base = "UNKNOWN"

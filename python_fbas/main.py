@@ -1108,7 +1108,7 @@ def main() -> None:
     parser.add_argument(
         '--group-by',
         default=None,
-        help="Group by the provided field (e.g. min-splitting-set with --group-by=homeDomain will compute the minimum number of home domains to corrupt to create disjoint quorums)")
+        help="Group by the provided field (supports dotted paths like geoData.countryCode; e.g. min-splitting-set with --group-by=homeDomain will compute the minimum number of home domains to corrupt to create disjoint quorums)")
 
     parser.add_argument(
         '--validator-display',
@@ -1550,7 +1550,10 @@ def main() -> None:
     if cfg.group_by is not None:
         missing = [
             v for v in fbas.get_validators()
-            if not fbas.vertice_attrs(v).get(cfg.group_by)
+            if not fbas.resolve_attr_path(
+                fbas.vertice_attrs(v),
+                cfg.group_by,
+            )
         ]
         if missing:
             unknown_label = fbas.group_unknown_label(cfg.group_by)
