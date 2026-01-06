@@ -21,6 +21,7 @@ Short guide for working in this repo.
 ## Notes
 - Optional QBF support comes from `pyqbf` (installed via `.[qbf]`).
 - Default data source is the Stellar network URL in `config.py` and can be overridden via CLI/config file.
+- PySAT docs are stored in the container image at `/opt/pysat-docs/docs/` (from `https://github.com/pysathq/pysat`).
 
 ## Architecture map
 - `python_fbas/main.py`: CLI entry point and command routing.
