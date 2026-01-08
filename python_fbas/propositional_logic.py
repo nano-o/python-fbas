@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 from itertools import combinations
 from typing import Any, cast, Callable, Sequence
-from pysat.card import CardEnc, EncType
+from pysat.card import ITotalizer
 from python_fbas.config import get
 
 """
@@ -11,10 +11,11 @@ This module provides a simple implementation of propositional logic formulas,
 extended with cardinality constraints. The goal is to avoid most of the
 bookkeeping done by pysat, which makes things too slow, and use CNF
 optimizations specific to our usecase. The main functionality is conversion to
-CNF.
+equisatisfiable CNF.
 
-TODO: Handling of CardEnc is likely broken. We cannot rely on the last clause
-being a unit clause reifying the constraint.
+If card_encoding is set to 'totalizer', cardinality constraints use a totalizer
+AtMost encoding on negated literals; negation of totalizer-encoded constraints
+is not supported (see details in to_cnf).
 """
 
 
@@ -82,7 +83,6 @@ class AtLeast(Formula):
     A cardinality constraint expressing that at least `threshold` number of
     operands are true.
 
-    TODO: totalizer encoding cannot be negated; how to deal with this?
     """
     threshold: int
     operands: list[Formula]
@@ -161,7 +161,9 @@ def anonymous_var() -> int:
 
 def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
     """
-    Recursive method to convert the formula (or list of clauses) to CNF.
+    Recursive method to convert the formula (or list of clauses) to a CNF that
+    is equivalent up to existential quantification of the auxiliary variables
+    introduced.
 
     This is a very basic application of the Tseitin transformation. We are not
     expecting formulas to share subformulas, so we will not keep track of which
@@ -171,6 +173,12 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
     if and only if the formula is satisfied. Callers depend on this convention.
     This is unless we know that the formula is at the top-level and so there is
     no caller to make use of this.
+
+    Cardinality constraints are a special case: the totalizer encoding enforces
+    AtLeast(k) by adding a unit clause for AtMost(n-k) over negated literals.
+    This is sufficient to enforce the constraint when the unit clause is kept,
+    but it is not a full reification literal, so negating it is unsound. As a
+    result, totalizer-encoded AtLeast constraints are rejected under negation.
 
     Note that this is a recursive function that will blow the stack if a formula
     is too deep (which we do not expect for our application).
@@ -263,10 +271,6 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     fmla = Or(*[And(*c) for c in combinations(ops, threshold)])
                     return to_cnf(fmla, polarity)
                 case 'totalizer':
-                    # It's possible to get a model where cnfp.clauses[-1] is
-                    # false but the cardinality constraint is satisfied, so
-                    # negation cannot work. For the other transformations, I
-                    # think equisatisfiability is preserved.
                     if polarity < 0:
                         raise ValueError('Totalizer encoding does not support negation')
                     ops_clauses = [to_cnf(op, polarity) for op in ops]
@@ -277,10 +281,18 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                         return inner_clauses + and_gate(ops_atoms)
                     if threshold == 1:
                         return inner_clauses + or_gate(ops_atoms)
+
                     global next_int
-                    cnfp = CardEnc.atleast(lits=list(ops_atoms), bound=threshold, top_id=next_int, encoding=EncType.totalizer)
-                    next_int = cnfp.nv+1
-                    return inner_clauses + cnfp.clauses
+                    neg_bound = len(ops_atoms) - threshold
+                    tot = ITotalizer(
+                        lits=[-lit for lit in ops_atoms],
+                        ubound=neg_bound,
+                        top_id=next_int)
+                    atmost_lit = -tot.rhs[neg_bound]
+                    tot_clauses = tot.cnf.clauses
+                    next_int = tot.top_id + 1
+                    tot.delete()
+                    return inner_clauses + tot_clauses + [[atmost_lit]]
                 case _:
                     raise ValueError('Unknown cardinality encoding')
         case _:
