@@ -168,6 +168,10 @@ def _command_min_quorum(_args: Any, fbas: FBASGraph) -> None:
 
 
 def _command_top_tier(args: Any, fbas: FBASGraph) -> None:
+    cfg = get_config()
+    if cfg.group_by:
+        logging.error("Error: --group-by cannot be used with top-tier")
+        sys.exit(1)
     from_validator = getattr(args, 'from_validator', None)
     result = top_tier(fbas, from_validator=from_validator)
     print(f"Top tier: {_format_validators(fbas, result)}")
