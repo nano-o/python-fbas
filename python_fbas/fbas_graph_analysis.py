@@ -820,12 +820,9 @@ def find_min_cardinality_min_quorum(
         not_subset_of: Collection[str] | None = None,
         project_on_scc: bool = True) -> Collection[str]:
     """
-    Find a minimal-cardinality minimal quorum in the FBAS graph using pyqbf.
+    Find a minimal-cardinality quorum in the FBAS graph by sweeping the
+    cardinality and solving the SAT constraints.
     """
-    if not HAS_QBF:
-        raise ImportError(
-            "QBF support not available. Install with: pip install python-fbas[qbf]")
-
     if project_on_scc:
         sccs = sccs_including_quorum(fbas)
         if not sccs:
@@ -837,14 +834,36 @@ def find_min_cardinality_min_quorum(
         logging.info("The FBAS has no validators!")
         return []
 
-    max_cardinality = len(fbas.get_validators())
+    validators = list(fbas.get_validators())
+    validator_atoms = [Atom(v) for v in validators]
+    validator_not_atoms = [Not(atom) for atom in validator_atoms]
+    max_cardinality = len(validators)
+    base_constraints = quorum_constraints(fbas, Atom)
+    not_subset_set = set(not_subset_of) if not_subset_of else None
+    if not_subset_set:
+        outside_atoms = [
+            atom for v, atom in zip(validators, validator_atoms)
+            if v not in not_subset_set
+        ]
+        base_constraints.append(Or(*outside_atoms))
     for cardinality in range(1, max_cardinality + 1):
-        quorum = find_min_quorum(
-            fbas,
-            not_subset_of=not_subset_of,
-            project_on_scc=False,
-            cardinality=cardinality)
-        if quorum:
+        constraints = list(base_constraints)
+        constraints.append(AtLeast(cardinality, *validator_atoms))
+        if cardinality < max_cardinality:
+            constraints.append(
+                AtLeast(
+                    max_cardinality - cardinality,
+                    *validator_not_atoms))
+        sat_res = solve_constraints(constraints)
+        if sat_res.sat:
+            quorum = decode_model(
+                sat_res.model,
+                predicate=fbas.is_validator)
+            assert fbas.is_quorum(quorum, over_approximate=True)
+            if not_subset_set:
+                assert not set(quorum) <= not_subset_set
+            logging.info("Minimal-cardinality quorum found: %s",
+                         [fbas.format_validator(v) for v in quorum])
             return quorum
     return []
 
