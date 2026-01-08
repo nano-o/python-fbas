@@ -11,7 +11,7 @@ This module provides a simple implementation of propositional logic formulas,
 extended with cardinality constraints. The goal is to avoid most of the
 bookkeeping done by pysat, which makes things too slow, and use CNF
 optimizations specific to our usecase. The main functionality is conversion to
-equisatisfiable CNF.
+equivalent CNF (up to existential quantification of auxiliary variables).
 
 If card_encoding is set to 'totalizer', cardinality constraints use a totalizer
 AtMost encoding on negated literals; negation of totalizer-encoded constraints
