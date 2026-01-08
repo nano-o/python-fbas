@@ -16,6 +16,9 @@ equisatisfiable CNF.
 If card_encoding is set to 'totalizer', cardinality constraints use a totalizer
 AtMost encoding on negated literals; negation of totalizer-encoded constraints
 is not supported (see details in to_cnf).
+
+To support negation of cardinality constraints, we could consider converting
+formulas to NNF and rewriting Not(AtLeast(k, ops)) into AtMost(k-1, ops).
 """
 
 
@@ -272,6 +275,8 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                     return to_cnf(fmla, polarity)
                 case 'totalizer':
                     if polarity < 0:
+                        # Consider converting to NNF and rewriting
+                        # Not(AtLeast(k, ops)) as AtMost(k-1, ops) if needed.
                         raise ValueError('Totalizer encoding does not support negation')
                     ops_clauses = [to_cnf(op, polarity) for op in ops]
                     assert all(len(c[-1]) == 1 for c in ops_clauses)
