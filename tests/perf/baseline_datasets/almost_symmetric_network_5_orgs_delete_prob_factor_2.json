@@ -1,0 +1,192 @@
+{
+  "validators": [
+    {
+      "id": "org1v2",
+      "qset": "_qbcb5878a9d424047813f31b08494fba5",
+      "attrs": {
+        "publicKey": "org1v2"
+      }
+    },
+    {
+      "id": "org0v2",
+      "qset": "_q8b791fea2d46408786f665262c1cf9e7",
+      "attrs": {
+        "publicKey": "org0v2"
+      }
+    },
+    {
+      "id": "org4v1",
+      "qset": "_q97e4a223b0444aa1b5ba0812685335de",
+      "attrs": {
+        "publicKey": "org4v1"
+      }
+    },
+    {
+      "id": "org2v1",
+      "qset": "_q6825b950d4a543db89feb0191c4d01e2",
+      "attrs": {
+        "publicKey": "org2v1"
+      }
+    },
+    {
+      "id": "org0v0",
+      "qset": "_q8b791fea2d46408786f665262c1cf9e7",
+      "attrs": {
+        "publicKey": "org0v0"
+      }
+    },
+    {
+      "id": "org2v2",
+      "qset": "_q6825b950d4a543db89feb0191c4d01e2",
+      "attrs": {
+        "publicKey": "org2v2"
+      }
+    },
+    {
+      "id": "org4v2",
+      "qset": "_q97e4a223b0444aa1b5ba0812685335de",
+      "attrs": {
+        "publicKey": "org4v2"
+      }
+    },
+    {
+      "id": "org3v0",
+      "qset": "_q957a189db9ea43a49aec183bccc44067",
+      "attrs": {
+        "publicKey": "org3v0"
+      }
+    },
+    {
+      "id": "org4v0",
+      "qset": "_q97e4a223b0444aa1b5ba0812685335de",
+      "attrs": {
+        "publicKey": "org4v0"
+      }
+    },
+    {
+      "id": "org3v2",
+      "qset": "_q957a189db9ea43a49aec183bccc44067",
+      "attrs": {
+        "publicKey": "org3v2"
+      }
+    },
+    {
+      "id": "org2v0",
+      "qset": "_q6825b950d4a543db89feb0191c4d01e2",
+      "attrs": {
+        "publicKey": "org2v0"
+      }
+    },
+    {
+      "id": "org0v1",
+      "qset": "_q8b791fea2d46408786f665262c1cf9e7",
+      "attrs": {
+        "publicKey": "org0v1"
+      }
+    },
+    {
+      "id": "org3v1",
+      "qset": "_q957a189db9ea43a49aec183bccc44067",
+      "attrs": {
+        "publicKey": "org3v1"
+      }
+    },
+    {
+      "id": "org1v0",
+      "qset": "_qbcb5878a9d424047813f31b08494fba5",
+      "attrs": {
+        "publicKey": "org1v0"
+      }
+    },
+    {
+      "id": "org1v1",
+      "qset": "_qbcb5878a9d424047813f31b08494fba5",
+      "attrs": {
+        "publicKey": "org1v1"
+      }
+    }
+  ],
+  "qsets": {
+    "_qcafd0a1931a5416fb37c5055d85feedb": {
+      "threshold": 2,
+      "members": [
+        "org2v1",
+        "org2v2",
+        "org2v0"
+      ]
+    },
+    "_q589f4b674bb04391b90cdf4b23f0b5c6": {
+      "threshold": 2,
+      "members": [
+        "org4v2",
+        "org4v1",
+        "org4v0"
+      ]
+    },
+    "_q8b791fea2d46408786f665262c1cf9e7": {
+      "threshold": 2,
+      "members": [
+        "_q589f4b674bb04391b90cdf4b23f0b5c6",
+        "_qcafd0a1931a5416fb37c5055d85feedb"
+      ]
+    },
+    "_q755694f877864c2593eb96c950cb68b2": {
+      "threshold": 2,
+      "members": [
+        "org1v2",
+        "org1v0",
+        "org1v1"
+      ]
+    },
+    "_qff0191b04e344bca8335b2007ad2b917": {
+      "threshold": 2,
+      "members": [
+        "org3v0",
+        "org3v2",
+        "org3v1"
+      ]
+    },
+    "_qbcb5878a9d424047813f31b08494fba5": {
+      "threshold": 3,
+      "members": [
+        "_q589f4b674bb04391b90cdf4b23f0b5c6",
+        "_q755694f877864c2593eb96c950cb68b2",
+        "_qff0191b04e344bca8335b2007ad2b917"
+      ]
+    },
+    "_q6825b950d4a543db89feb0191c4d01e2": {
+      "threshold": 3,
+      "members": [
+        "_q589f4b674bb04391b90cdf4b23f0b5c6",
+        "_q755694f877864c2593eb96c950cb68b2",
+        "_qcafd0a1931a5416fb37c5055d85feedb"
+      ]
+    },
+    "_q23df223ab7874a61a492da98264af9a8": {
+      "threshold": 2,
+      "members": [
+        "org0v0",
+        "org0v1",
+        "org0v2"
+      ]
+    },
+    "_q957a189db9ea43a49aec183bccc44067": {
+      "threshold": 4,
+      "members": [
+        "_qff0191b04e344bca8335b2007ad2b917",
+        "_q755694f877864c2593eb96c950cb68b2",
+        "_q23df223ab7874a61a492da98264af9a8",
+        "_qcafd0a1931a5416fb37c5055d85feedb"
+      ]
+    },
+    "_q97e4a223b0444aa1b5ba0812685335de": {
+      "threshold": 4,
+      "members": [
+        "_q589f4b674bb04391b90cdf4b23f0b5c6",
+        "_q755694f877864c2593eb96c950cb68b2",
+        "_q23df223ab7874a61a492da98264af9a8",
+        "_qff0191b04e344bca8335b2007ad2b917"
+      ]
+    }
+  }
+}

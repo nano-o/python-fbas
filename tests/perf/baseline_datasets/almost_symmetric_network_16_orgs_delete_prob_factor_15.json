@@ -1,0 +1,501 @@
+{
+  "validators": [
+    {
+      "id": "org10v2",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org10v2"
+      }
+    },
+    {
+      "id": "org7v1",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org7v1"
+      }
+    },
+    {
+      "id": "org12v1",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org12v1"
+      }
+    },
+    {
+      "id": "org9v1",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org9v1"
+      }
+    },
+    {
+      "id": "org0v0",
+      "qset": "_q16ea1926d2594d439388110cfb748362",
+      "attrs": {
+        "publicKey": "org0v0"
+      }
+    },
+    {
+      "id": "org4v2",
+      "qset": "_q632253d698ca4b1bb7f8f20db47f3309",
+      "attrs": {
+        "publicKey": "org4v2"
+      }
+    },
+    {
+      "id": "org14v2",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org14v2"
+      }
+    },
+    {
+      "id": "org13v0",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org13v0"
+      }
+    },
+    {
+      "id": "org3v2",
+      "qset": "_qd9b1455b057648ea829d04c7982c822a",
+      "attrs": {
+        "publicKey": "org3v2"
+      }
+    },
+    {
+      "id": "org11v0",
+      "qset": "_qd787e8ebec774d88886225eef395dcb9",
+      "attrs": {
+        "publicKey": "org11v0"
+      }
+    },
+    {
+      "id": "org0v1",
+      "qset": "_q16ea1926d2594d439388110cfb748362",
+      "attrs": {
+        "publicKey": "org0v1"
+      }
+    },
+    {
+      "id": "org10v0",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org10v0"
+      }
+    },
+    {
+      "id": "org14v0",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org14v0"
+      }
+    },
+    {
+      "id": "org1v0",
+      "qset": "_q7b6e31a4730c418884f6180c3ae5f63f",
+      "attrs": {
+        "publicKey": "org1v0"
+      }
+    },
+    {
+      "id": "org3v1",
+      "qset": "_qd9b1455b057648ea829d04c7982c822a",
+      "attrs": {
+        "publicKey": "org3v1"
+      }
+    },
+    {
+      "id": "org6v2",
+      "qset": "_qc88f0d5556fd4d15a19e5a7eb5db0a37",
+      "attrs": {
+        "publicKey": "org6v2"
+      }
+    },
+    {
+      "id": "org1v2",
+      "qset": "_q7b6e31a4730c418884f6180c3ae5f63f",
+      "attrs": {
+        "publicKey": "org1v2"
+      }
+    },
+    {
+      "id": "org6v0",
+      "qset": "_qc88f0d5556fd4d15a19e5a7eb5db0a37",
+      "attrs": {
+        "publicKey": "org6v0"
+      }
+    },
+    {
+      "id": "org0v2",
+      "qset": "_q16ea1926d2594d439388110cfb748362",
+      "attrs": {
+        "publicKey": "org0v2"
+      }
+    },
+    {
+      "id": "org5v2",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org5v2"
+      }
+    },
+    {
+      "id": "org12v0",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org12v0"
+      }
+    },
+    {
+      "id": "org3v0",
+      "qset": "_qd9b1455b057648ea829d04c7982c822a",
+      "attrs": {
+        "publicKey": "org3v0"
+      }
+    },
+    {
+      "id": "org2v2",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org2v2"
+      }
+    },
+    {
+      "id": "org9v0",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org9v0"
+      }
+    },
+    {
+      "id": "org14v1",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org14v1"
+      }
+    },
+    {
+      "id": "org5v0",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org5v0"
+      }
+    },
+    {
+      "id": "org5v1",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org5v1"
+      }
+    },
+    {
+      "id": "org7v2",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org7v2"
+      }
+    },
+    {
+      "id": "org8v1",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org8v1"
+      }
+    },
+    {
+      "id": "org11v2",
+      "qset": "_qd787e8ebec774d88886225eef395dcb9",
+      "attrs": {
+        "publicKey": "org11v2"
+      }
+    },
+    {
+      "id": "org4v1",
+      "qset": "_q632253d698ca4b1bb7f8f20db47f3309",
+      "attrs": {
+        "publicKey": "org4v1"
+      }
+    },
+    {
+      "id": "org15v0",
+      "qset": "_q3cc6b82b35cb443296a655bd10806ef8",
+      "attrs": {
+        "publicKey": "org15v0"
+      }
+    },
+    {
+      "id": "org4v0",
+      "qset": "_q632253d698ca4b1bb7f8f20db47f3309",
+      "attrs": {
+        "publicKey": "org4v0"
+      }
+    },
+    {
+      "id": "org10v1",
+      "qset": "_q3c35a7a576b34053a20a29b89bd0587a",
+      "attrs": {
+        "publicKey": "org10v1"
+      }
+    },
+    {
+      "id": "org8v0",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org8v0"
+      }
+    },
+    {
+      "id": "org12v2",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org12v2"
+      }
+    },
+    {
+      "id": "org13v1",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org13v1"
+      }
+    },
+    {
+      "id": "org9v2",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org9v2"
+      }
+    },
+    {
+      "id": "org6v1",
+      "qset": "_qc88f0d5556fd4d15a19e5a7eb5db0a37",
+      "attrs": {
+        "publicKey": "org6v1"
+      }
+    },
+    {
+      "id": "org15v2",
+      "qset": "_q3cc6b82b35cb443296a655bd10806ef8",
+      "attrs": {
+        "publicKey": "org15v2"
+      }
+    },
+    {
+      "id": "org2v1",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org2v1"
+      }
+    },
+    {
+      "id": "org11v1",
+      "qset": "_qd787e8ebec774d88886225eef395dcb9",
+      "attrs": {
+        "publicKey": "org11v1"
+      }
+    },
+    {
+      "id": "org15v1",
+      "qset": "_q3cc6b82b35cb443296a655bd10806ef8",
+      "attrs": {
+        "publicKey": "org15v1"
+      }
+    },
+    {
+      "id": "org7v0",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org7v0"
+      }
+    },
+    {
+      "id": "org2v0",
+      "qset": "_q789f55baa3ef434d9d9e2dfad9eef3aa",
+      "attrs": {
+        "publicKey": "org2v0"
+      }
+    },
+    {
+      "id": "org8v2",
+      "qset": "_qf41145a550d9422abde0fa7f14b5516e",
+      "attrs": {
+        "publicKey": "org8v2"
+      }
+    },
+    {
+      "id": "org13v2",
+      "qset": "_q7afebb6ba5ee4e1eba62b2262e9caffe",
+      "attrs": {
+        "publicKey": "org13v2"
+      }
+    },
+    {
+      "id": "org1v1",
+      "qset": "_q7b6e31a4730c418884f6180c3ae5f63f",
+      "attrs": {
+        "publicKey": "org1v1"
+      }
+    }
+  ],
+  "qsets": {
+    "_qd44b739659494638ab5315d363438523": {
+      "threshold": 2,
+      "members": [
+        "org14v2",
+        "org14v0",
+        "org14v1"
+      ]
+    },
+    "_q14f2fbedb3884de59cf8c808404b538b": {
+      "threshold": 2,
+      "members": [
+        "org13v0",
+        "org13v2",
+        "org13v1"
+      ]
+    },
+    "_q16ea1926d2594d439388110cfb748362": {
+      "threshold": 2,
+      "members": [
+        "_q14f2fbedb3884de59cf8c808404b538b",
+        "_qd44b739659494638ab5315d363438523"
+      ]
+    },
+    "_q5db7b64e93984d318263c3ee65e3d1c5": {
+      "threshold": 2,
+      "members": [
+        "org1v2",
+        "org1v0",
+        "org1v1"
+      ]
+    },
+    "_q09f95eebdabb454f894c847a0ca61c37": {
+      "threshold": 2,
+      "members": [
+        "org4v2",
+        "org4v1",
+        "org4v0"
+      ]
+    },
+    "_q7b6e31a4730c418884f6180c3ae5f63f": {
+      "threshold": 2,
+      "members": [
+        "_q5db7b64e93984d318263c3ee65e3d1c5",
+        "_q09f95eebdabb454f894c847a0ca61c37"
+      ]
+    },
+    "_q789f55baa3ef434d9d9e2dfad9eef3aa": {
+      "threshold": 1,
+      "members": [
+        "_q09f95eebdabb454f894c847a0ca61c37"
+      ]
+    },
+    "_q820fe8ecd69540fc847cd6b735012069": {
+      "threshold": 2,
+      "members": [
+        "org9v0",
+        "org9v2",
+        "org9v1"
+      ]
+    },
+    "_qd9b1455b057648ea829d04c7982c822a": {
+      "threshold": 1,
+      "members": [
+        "_q820fe8ecd69540fc847cd6b735012069"
+      ]
+    },
+    "_q127960c46c154fd2b8f828090b14ae09": {
+      "threshold": 2,
+      "members": [
+        "org7v0",
+        "org7v1",
+        "org7v2"
+      ]
+    },
+    "_q2d25779989e44388b1bd348e92e46edd": {
+      "threshold": 2,
+      "members": [
+        "org10v2",
+        "org10v1",
+        "org10v0"
+      ]
+    },
+    "_q632253d698ca4b1bb7f8f20db47f3309": {
+      "threshold": 2,
+      "members": [
+        "_q127960c46c154fd2b8f828090b14ae09",
+        "_q2d25779989e44388b1bd348e92e46edd"
+      ]
+    },
+    "_qdfc28445b05c4d15afa8a9017331099a": {
+      "threshold": 2,
+      "members": [
+        "org8v0",
+        "org8v2",
+        "org8v1"
+      ]
+    },
+    "_q3c35a7a576b34053a20a29b89bd0587a": {
+      "threshold": 1,
+      "members": [
+        "_qdfc28445b05c4d15afa8a9017331099a"
+      ]
+    },
+    "_qf5a9e8e13751401d87684d9e14ab0813": {
+      "threshold": 2,
+      "members": [
+        "org12v2",
+        "org12v1",
+        "org12v0"
+      ]
+    },
+    "_qc88f0d5556fd4d15a19e5a7eb5db0a37": {
+      "threshold": 2,
+      "members": [
+        "_q14f2fbedb3884de59cf8c808404b538b",
+        "_qf5a9e8e13751401d87684d9e14ab0813"
+      ]
+    },
+    "_qe6820fee1c4a4037a86056dd2b63bd77": {
+      "threshold": 2,
+      "members": [
+        "org11v2",
+        "org11v1",
+        "org11v0"
+      ]
+    },
+    "_q7afebb6ba5ee4e1eba62b2262e9caffe": {
+      "threshold": 1,
+      "members": [
+        "_qe6820fee1c4a4037a86056dd2b63bd77"
+      ]
+    },
+    "_q7703764c5da747f3baeb28cd2256decc": {
+      "threshold": 2,
+      "members": [
+        "org5v0",
+        "org5v1",
+        "org5v2"
+      ]
+    },
+    "_qf41145a550d9422abde0fa7f14b5516e": {
+      "threshold": 1,
+      "members": [
+        "_q7703764c5da747f3baeb28cd2256decc"
+      ]
+    },
+    "_qd787e8ebec774d88886225eef395dcb9": {
+      "threshold": 1,
+      "members": [
+        "_qd44b739659494638ab5315d363438523"
+      ]
+    },
+    "_q3cc6b82b35cb443296a655bd10806ef8": {
+      "threshold": 2,
+      "members": [
+        "_q7703764c5da747f3baeb28cd2256decc",
+        "_qd44b739659494638ab5315d363438523"
+      ]
+    }
+  }
+}

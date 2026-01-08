@@ -1,0 +1,225 @@
+# Python-FBAS Performance Results
+
+- Timestamp: 20260107_122452
+- Dataset directory: /home/nano/Documents/python-fbas/tests/perf/baseline_datasets
+- Timeout per run: 30.0s
+- Datasets executed: 67
+- Dataset limit: none (67 available)
+- Total runs: 201
+- sat_solver: cryptominisat5
+- max_sat_algo: RC2
+- cardinality-encoding: totalizer
+
+## Summary (success-only statistics; variance is population variance)
+
+| test_type             | success | timeout | error | avg_s | median_s | variance_s |
+|-----------------------|---------|---------|-------|-------|----------|------------|
+| disjoint-quorums      | 67      | 0       | 0     | 0.208 | 0.207    | 0.000      |
+| minimal-splitting-set | 61      | 6       | 0     | 2.757 | 0.225    | 37.369     |
+| minimal-blocking-set  | 65      | 2       | 0     | 3.283 | 2.537    | 13.673     |
+
+## Results
+
+| file_name                                                   | test_type             | status  | elapsed_s | details |
+|-------------------------------------------------------------|-----------------------|---------|-----------|---------|
+| almost_symmetric_network_10_orgs_.json                      | disjoint-quorums      | success | 0.201     |         |
+| almost_symmetric_network_10_orgs_.json                      | minimal-blocking-set  | success | 0.948     |         |
+| almost_symmetric_network_10_orgs_.json                      | minimal-splitting-set | success | 0.310     |         |
+| almost_symmetric_network_12_orgs_.json                      | disjoint-quorums      | success | 0.211     |         |
+| almost_symmetric_network_12_orgs_.json                      | minimal-blocking-set  | success | 1.773     |         |
+| almost_symmetric_network_12_orgs_.json                      | minimal-splitting-set | success | 20.462    |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_1.json  | disjoint-quorums      | success | 0.218     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_1.json  | minimal-blocking-set  | success | 1.672     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_1.json  | minimal-splitting-set | success | 1.359     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_10.json | disjoint-quorums      | success | 0.228     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_10.json | minimal-blocking-set  | success | 1.030     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_10.json | minimal-splitting-set | success | 0.231     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_11.json | disjoint-quorums      | success | 0.217     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_11.json | minimal-blocking-set  | success | 0.745     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_11.json | minimal-splitting-set | success | 0.212     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_2.json  | disjoint-quorums      | success | 0.214     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_2.json  | minimal-blocking-set  | success | 2.633     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_2.json  | minimal-splitting-set | success | 4.626     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_3.json  | disjoint-quorums      | success | 0.214     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_3.json  | minimal-blocking-set  | success | 2.478     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_3.json  | minimal-splitting-set | success | 21.215    |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_4.json  | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_4.json  | minimal-blocking-set  | success | 2.123     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_4.json  | minimal-splitting-set | success | 0.945     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_5.json  | disjoint-quorums      | success | 0.217     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_5.json  | minimal-blocking-set  | success | 2.556     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_5.json  | minimal-splitting-set | success | 0.320     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_6.json  | disjoint-quorums      | success | 0.221     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_6.json  | minimal-blocking-set  | success | 2.328     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_6.json  | minimal-splitting-set | success | 0.225     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_7.json  | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_7.json  | minimal-blocking-set  | success | 2.271     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_7.json  | minimal-splitting-set | success | 0.217     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_8.json  | disjoint-quorums      | success | 0.204     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_8.json  | minimal-blocking-set  | success | 2.118     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_8.json  | minimal-splitting-set | success | 0.228     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_9.json  | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_9.json  | minimal-blocking-set  | success | 2.078     |         |
+| almost_symmetric_network_12_orgs_delete_prob_factor_9.json  | minimal-splitting-set | success | 0.221     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_1.json  | disjoint-quorums      | success | 0.214     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_1.json  | minimal-blocking-set  | success | 2.431     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_1.json  | minimal-splitting-set | success | 18.764    |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_10.json | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_10.json | minimal-blocking-set  | success | 2.027     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_10.json | minimal-splitting-set | success | 0.205     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_11.json | disjoint-quorums      | success | 0.210     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_11.json | minimal-blocking-set  | success | 0.387     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_11.json | minimal-splitting-set | success | 0.206     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_12.json | disjoint-quorums      | success | 0.202     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_12.json | minimal-blocking-set  | success | 1.609     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_12.json | minimal-splitting-set | success | 0.209     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_2.json  | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_2.json  | minimal-blocking-set  | success | 2.537     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_2.json  | minimal-splitting-set | success | 3.166     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_3.json  | disjoint-quorums      | success | 0.210     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_3.json  | minimal-blocking-set  | success | 3.096     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_3.json  | minimal-splitting-set | success | 21.727    |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_4.json  | disjoint-quorums      | success | 0.208     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_4.json  | minimal-blocking-set  | success | 3.117     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_4.json  | minimal-splitting-set | success | 21.417    |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_5.json  | disjoint-quorums      | success | 0.211     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_5.json  | minimal-blocking-set  | success | 3.298     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_5.json  | minimal-splitting-set | success | 0.212     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_6.json  | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_6.json  | minimal-blocking-set  | success | 3.230     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_6.json  | minimal-splitting-set | success | 1.257     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_7.json  | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_7.json  | minimal-blocking-set  | success | 2.764     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_7.json  | minimal-splitting-set | success | 0.226     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_8.json  | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_8.json  | minimal-blocking-set  | success | 2.671     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_8.json  | minimal-splitting-set | success | 0.215     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_9.json  | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_9.json  | minimal-blocking-set  | success | 2.779     |         |
+| almost_symmetric_network_13_orgs_delete_prob_factor_9.json  | minimal-splitting-set | success | 0.219     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_1.json  | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_1.json  | minimal-blocking-set  | success | 5.535     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_1.json  | minimal-splitting-set | success | 10.476    |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_10.json | disjoint-quorums      | success | 0.208     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_10.json | minimal-blocking-set  | success | 3.309     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_10.json | minimal-splitting-set | success | 0.223     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_11.json | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_11.json | minimal-blocking-set  | success | 3.178     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_11.json | minimal-splitting-set | success | 0.209     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_12.json | disjoint-quorums      | success | 0.204     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_12.json | minimal-blocking-set  | success | 1.229     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_12.json | minimal-splitting-set | success | 0.207     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_13.json | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_13.json | minimal-blocking-set  | success | 0.724     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_13.json | minimal-splitting-set | success | 0.210     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_2.json  | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_2.json  | minimal-blocking-set  | success | 3.786     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_2.json  | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_14_orgs_delete_prob_factor_3.json  | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_3.json  | minimal-blocking-set  | success | 4.306     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_3.json  | minimal-splitting-set | success | 19.484    |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_4.json  | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_4.json  | minimal-blocking-set  | success | 4.098     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_4.json  | minimal-splitting-set | success | 1.376     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_5.json  | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_5.json  | minimal-blocking-set  | success | 4.205     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_5.json  | minimal-splitting-set | success | 0.305     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_6.json  | disjoint-quorums      | success | 0.204     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_6.json  | minimal-blocking-set  | success | 3.899     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_6.json  | minimal-splitting-set | success | 0.278     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_7.json  | disjoint-quorums      | success | 0.211     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_7.json  | minimal-blocking-set  | success | 4.050     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_7.json  | minimal-splitting-set | success | 0.296     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_8.json  | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_8.json  | minimal-blocking-set  | success | 4.253     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_8.json  | minimal-splitting-set | success | 0.266     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_9.json  | disjoint-quorums      | success | 0.212     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_9.json  | minimal-blocking-set  | success | 3.545     |         |
+| almost_symmetric_network_14_orgs_delete_prob_factor_9.json  | minimal-splitting-set | success | 0.229     |         |
+| almost_symmetric_network_16_orgs_.json                      | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_16_orgs_.json                      | minimal-blocking-set  | success | 10.991    |         |
+| almost_symmetric_network_16_orgs_.json                      | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_1.json  | disjoint-quorums      | success | 0.208     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_1.json  | minimal-blocking-set  | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_1.json  | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_10.json | disjoint-quorums      | success | 0.215     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_10.json | minimal-blocking-set  | success | 5.286     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_10.json | minimal-splitting-set | success | 0.216     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_11.json | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_11.json | minimal-blocking-set  | success | 4.128     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_11.json | minimal-splitting-set | success | 0.211     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_12.json | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_12.json | minimal-blocking-set  | success | 5.285     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_12.json | minimal-splitting-set | success | 0.216     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_13.json | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_13.json | minimal-blocking-set  | success | 4.752     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_13.json | minimal-splitting-set | success | 0.206     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_14.json | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_14.json | minimal-blocking-set  | success | 1.888     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_14.json | minimal-splitting-set | success | 0.208     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_15.json | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_15.json | minimal-blocking-set  | success | 0.216     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_15.json | minimal-splitting-set | success | 0.207     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_2.json  | disjoint-quorums      | success | 0.210     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_2.json  | minimal-blocking-set  | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_2.json  | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_3.json  | disjoint-quorums      | success | 0.219     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_3.json  | minimal-blocking-set  | success | 6.719     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_3.json  | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_4.json  | disjoint-quorums      | success | 0.208     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_4.json  | minimal-blocking-set  | success | 11.725    |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_4.json  | minimal-splitting-set | timeout | 30.000    | TIMEOUT |
+| almost_symmetric_network_16_orgs_delete_prob_factor_5.json  | disjoint-quorums      | success | 0.210     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_5.json  | minimal-blocking-set  | success | 7.389     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_5.json  | minimal-splitting-set | success | 7.097     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_6.json  | disjoint-quorums      | success | 0.208     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_6.json  | minimal-blocking-set  | success | 8.563     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_6.json  | minimal-splitting-set | success | 3.126     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_7.json  | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_7.json  | minimal-blocking-set  | success | 9.052     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_7.json  | minimal-splitting-set | success | 0.220     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_8.json  | disjoint-quorums      | success | 0.205     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_8.json  | minimal-blocking-set  | success | 24.581    |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_8.json  | minimal-splitting-set | success | 1.445     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_9.json  | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_9.json  | minimal-blocking-set  | success | 7.279     |         |
+| almost_symmetric_network_16_orgs_delete_prob_factor_9.json  | minimal-splitting-set | success | 0.225     |         |
+| almost_symmetric_network_2_orgs_.json                       | disjoint-quorums      | success | 0.201     |         |
+| almost_symmetric_network_2_orgs_.json                       | minimal-blocking-set  | success | 0.207     |         |
+| almost_symmetric_network_2_orgs_.json                       | minimal-splitting-set | success | 0.203     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_1.json   | disjoint-quorums      | success | 0.209     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_1.json   | minimal-blocking-set  | success | 0.281     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_1.json   | minimal-splitting-set | success | 0.205     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_2.json   | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_2.json   | minimal-blocking-set  | success | 0.308     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_2.json   | minimal-splitting-set | success | 0.207     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_3.json   | disjoint-quorums      | success | 0.201     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_3.json   | minimal-blocking-set  | success | 0.240     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_3.json   | minimal-splitting-set | success | 0.205     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_4.json   | disjoint-quorums      | success | 0.204     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_4.json   | minimal-blocking-set  | success | 0.209     |         |
+| almost_symmetric_network_5_orgs_delete_prob_factor_4.json   | minimal-splitting-set | success | 0.199     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_1.json   | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_1.json   | minimal-blocking-set  | success | 0.346     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_1.json   | minimal-splitting-set | success | 0.245     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_2.json   | disjoint-quorums      | success | 0.202     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_2.json   | minimal-blocking-set  | success | 0.401     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_2.json   | minimal-splitting-set | success | 0.212     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_3.json   | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_3.json   | minimal-blocking-set  | success | 0.390     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_3.json   | minimal-splitting-set | success | 0.208     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_4.json   | disjoint-quorums      | success | 0.203     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_4.json   | minimal-blocking-set  | success | 0.204     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_4.json   | minimal-splitting-set | success | 0.205     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_5.json   | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_5.json   | minimal-blocking-set  | success | 0.246     |         |
+| almost_symmetric_network_6_orgs_delete_prob_factor_5.json   | minimal-splitting-set | success | 0.203     |         |
+| almost_symmetric_network_8_orgs_.json                       | disjoint-quorums      | success | 0.202     |         |
+| almost_symmetric_network_8_orgs_.json                       | minimal-blocking-set  | success | 0.548     |         |
+| almost_symmetric_network_8_orgs_.json                       | minimal-splitting-set | success | 0.230     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_1.json   | disjoint-quorums      | success | 0.207     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_1.json   | minimal-blocking-set  | success | 0.607     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_1.json   | minimal-splitting-set | success | 0.266     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_2.json   | disjoint-quorums      | success | 0.206     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_2.json   | minimal-blocking-set  | success | 0.717     |         |
+| almost_symmetric_network_8_orgs_delete_prob_factor_2.json   | minimal-splitting-set | success | 0.258     |         |
