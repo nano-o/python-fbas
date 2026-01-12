@@ -3,9 +3,11 @@
 trust_steps: 5
 trust_capacity: 1.0
 seed_count: 3
+seed_selection: honest
+seed_min_attackers: 0
 trustrank_alpha: 0.2
 trustrank_epsilon: 1.0e-08
-maxflow_seed_capacity: 1.0
+maxflow_initial_seed_capacity: 1.0
 maxflow_mode: standard
 maxflow_sweep: false
 maxflow_sweep_factor: 2.0

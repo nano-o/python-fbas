@@ -85,11 +85,13 @@ GENERATOR_DEFAULTS: dict[str, Any] = {
 
 SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "seed_count": 3,
+    "seed_selection": "honest",
+    "seed_min_attackers": 0,
     "trust_steps": 5,
     "trust_capacity": 1.0,
     "trustrank_alpha": 0.2,
     "trustrank_epsilon": 1e-8,
-    "maxflow_seed_capacity": 1.0,
+    "maxflow_initial_seed_capacity": 1.0,
     "maxflow_mode": "standard",
     "maxflow_sweep": False,
     "maxflow_sweep_factor": 2.0,
@@ -883,6 +885,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
     deprecated_sybil_keys = {
         "steps": "trust_steps",
         "capacity": "trust_capacity",
+        "maxflow_seed_capacity": "maxflow_initial_seed_capacity",
     }
     sybil_params = sybil_defaults.copy()
     sybil_detection_path = args.sybil_detection_config
@@ -938,14 +941,34 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["trust_capacity"] = args.sybil_detection_trust_capacity
     if args.sybil_detection_seed_count is not None:
         sybil_params["seed_count"] = args.sybil_detection_seed_count
+    if args.sybil_detection_seed_selection is not None:
+        sybil_params["seed_selection"] = args.sybil_detection_seed_selection
+    if args.sybil_detection_seed_min_attackers is not None:
+        sybil_params["seed_min_attackers"] = (
+            args.sybil_detection_seed_min_attackers
+        )
     if args.sybil_detection_trustrank_alpha is not None:
         sybil_params["trustrank_alpha"] = args.sybil_detection_trustrank_alpha
     if args.sybil_detection_trustrank_epsilon is not None:
         sybil_params["trustrank_epsilon"] = args.sybil_detection_trustrank_epsilon
-    if args.sybil_detection_maxflow_seed_capacity is not None:
-        sybil_params["maxflow_seed_capacity"] = (
-            args.sybil_detection_maxflow_seed_capacity
+    if args.sybil_detection_maxflow_initial_seed_capacity is not None:
+        sybil_params["maxflow_initial_seed_capacity"] = (
+            args.sybil_detection_maxflow_initial_seed_capacity
         )
+    if args.sybil_detection_maxflow_seed_capacity is not None:
+        if args.sybil_detection_maxflow_initial_seed_capacity is not None:
+            logging.warning(
+                "Ignoring deprecated --sybil-detection-maxflow-seed-capacity "
+                "because --sybil-detection-maxflow-initial-seed-capacity is set"
+            )
+        else:
+            logging.warning(
+                "--sybil-detection-maxflow-seed-capacity is deprecated; "
+                "use --sybil-detection-maxflow-initial-seed-capacity"
+            )
+            sybil_params["maxflow_initial_seed_capacity"] = (
+                args.sybil_detection_maxflow_seed_capacity
+            )
     if args.sybil_detection_maxflow_mode is not None:
         sybil_params["maxflow_mode"] = args.sybil_detection_maxflow_mode
     if args.sybil_detection_maxflow_sweep is not None:
@@ -1000,19 +1023,56 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
 
     def _choose_trust_seeds() -> list[str]:
         roles = nx.get_node_attributes(graph, "role")
+        seed_selection = sybil_params["seed_selection"]
+        attacker_nodes = [
+            node for node in graph.nodes
+            if roles.get(node, "honest") == "attacker"
+        ]
         honest_nodes = [
             node for node in graph.nodes
             if roles.get(node, "honest") == "honest"
         ]
-        if not honest_nodes:
-            honest_nodes = list(graph.nodes)
+        if seed_selection == "honest":
+            candidates = honest_nodes
+        elif seed_selection == "original":
+            candidates = honest_nodes + attacker_nodes
+        else:
+            raise ValueError(
+                "sybil-detection seed_selection must be 'honest' or 'original'"
+            )
+        if not candidates:
+            candidates = list(graph.nodes)
         trust_rng = rng if rng is not None else random.Random()
         seed_count = sybil_params["seed_count"]
+        min_attackers = sybil_params["seed_min_attackers"]
         if seed_count <= 0:
             raise ValueError("sybil-detection seed_count must be positive")
-        if seed_count >= len(honest_nodes):
-            return list(honest_nodes)
-        return trust_rng.sample(honest_nodes, seed_count)
+        if min_attackers < 0:
+            raise ValueError(
+                "sybil-detection seed_min_attackers must be non-negative"
+            )
+        if min_attackers > seed_count:
+            raise ValueError(
+                "sybil-detection seed_min_attackers cannot exceed seed_count"
+            )
+        if min_attackers > 0 and seed_selection != "original":
+            raise ValueError(
+                "sybil-detection seed_min_attackers requires seed_selection=original"
+            )
+        if min_attackers > len(attacker_nodes):
+            raise ValueError(
+                "sybil-detection seed_min_attackers exceeds attacker count"
+            )
+        if seed_count >= len(candidates):
+            return list(candidates)
+        attacker_seeds = []
+        if min_attackers:
+            attacker_seeds = trust_rng.sample(attacker_nodes, min_attackers)
+        remaining = [node for node in candidates if node not in attacker_seeds]
+        remaining_count = seed_count - min_attackers
+        if remaining_count >= len(remaining):
+            return attacker_seeds + remaining
+        return attacker_seeds + trust_rng.sample(remaining, remaining_count)
 
     if args.plot_with_trust:
         trust_seeds = _choose_trust_seeds()
@@ -1048,7 +1108,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             trust_scores, capacities, bcs = compute_maxflow_scores_sweep(
                 graph,
                 trust_seeds,
-                seed_capacity=sybil_params["maxflow_seed_capacity"],
+                seed_capacity=sybil_params["maxflow_initial_seed_capacity"],
                 mode=sybil_params["maxflow_mode"],
                 sweep_factor=sybil_params["maxflow_sweep_factor"],
                 sweep_bimodality_threshold=(
@@ -1066,7 +1126,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             trust_scores = compute_maxflow_scores(
                 graph,
                 trust_seeds,
-                seed_capacity=sybil_params["maxflow_seed_capacity"],
+                seed_capacity=sybil_params["maxflow_initial_seed_capacity"],
                 mode=sybil_params["maxflow_mode"],
             )
         _plot_random_org_graph(
@@ -1287,14 +1347,33 @@ def main() -> None:
         "--sybil-detection-seed-count", type=int, default=None,
         help="Number of trusted seeds for --plot-with-trust")
     parser_random_sybil_attack.add_argument(
+        "--sybil-detection-seed-selection",
+        choices=["honest", "original"],
+        default=None,
+        help="Seed selection: honest orgs only, or all original orgs")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-seed-min-attackers",
+        type=int,
+        default=None,
+        help="Minimum attacker seeds (requires seed_selection=original)")
+    parser_random_sybil_attack.add_argument(
         "--sybil-detection-trustrank-alpha", type=float, default=None,
         help="TrustRank restart probability for --plot-with-trustrank")
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-trustrank-epsilon", type=float, default=None,
         help="TrustRank convergence tolerance for --plot-with-trustrank")
     parser_random_sybil_attack.add_argument(
-        "--sybil-detection-maxflow-seed-capacity", type=float, default=None,
-        help="Seed node capacity for --plot-with-maxflow")
+        "--sybil-detection-maxflow-initial-seed-capacity",
+        type=float,
+        default=None,
+        help="Initial seed node capacity for --plot-with-maxflow")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-maxflow-seed-capacity",
+        type=float,
+        default=None,
+        help=(
+            "Deprecated: use --sybil-detection-maxflow-initial-seed-capacity"
+        ))
     parser_random_sybil_attack.add_argument(
         "--sybil-detection-maxflow-mode",
         choices=["standard"],

@@ -119,7 +119,7 @@ creating duplicate run folders.
 - `--plot-with-trustrank`: shade nodes by TrustRank scores (personalized
   PageRank with `trustrank_alpha`, `trustrank_epsilon`).
 - `--plot-with-maxflow`: shade nodes by max-flow scores with
-  `maxflow_seed_capacity`. If `maxflow_sweep` is enabled, it prints bimodality
+  `maxflow_initial_seed_capacity`. If `maxflow_sweep` is enabled, it prints bimodality
   coefficients and shows a small sweep plot. Set
   `maxflow_sweep_post_threshold_steps` to keep sweeping for extra iterations
   after hitting the bimodality threshold (default 0).
@@ -173,9 +173,13 @@ Sybil detection parameters are configured separately via
 step runs on the generated graph and only affects plots/diagnostics.
 
 Useful parameters include:
-- `seed_count`, `trust_steps`, `trust_capacity`: trust propagation settings.
+- `seed_count`, `seed_selection`, `trust_steps`, `trust_capacity`: trust
+  propagation settings.
+- `seed_selection`: `honest` (default) picks from non-attacker orgs only;
+  `original` includes attackers in the seed pool.
+- `seed_min_attackers`: minimum attacker seeds (requires `seed_selection: original`).
 - `trustrank_alpha`, `trustrank_epsilon`: TrustRank settings.
-- `maxflow_seed_capacity`, `maxflow_mode` (currently only `standard`):
+- `maxflow_initial_seed_capacity`, `maxflow_mode` (currently only `standard`):
   max-flow scoring settings.
 - `maxflow_sweep`, `maxflow_sweep_factor`,
   `maxflow_sweep_bimodality_threshold`: sweep controls.
