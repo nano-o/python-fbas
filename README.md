@@ -112,7 +112,7 @@ python-fbas random-quorum
 ```
 *Requires `pyunigen` (install with `pip install .[unigen]`).*
 
-**Generate a random Sybil-attack FBAS (or top-tier if sybils=0):**
+**Generate a random Sybil-attack FBAS (or top-tier if num-sybil-clusters=0):**
 ```bash
 python-fbas random-sybil-attack-fbas --orgs 5 --sybils 3 --print-fbas
 python-fbas random-sybil-attack-fbas --generator-config python-fbas.generator.cfg.example --print-fbas
