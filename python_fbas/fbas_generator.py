@@ -297,13 +297,16 @@ def gen_random_sybil_attack_org_graph(
             if quorum is None:
                 continue
 
-        attackers = set(original.nodes) - set(quorum)
+        quorum_set = set(quorum)
+        honest_orgs = [node for node in original.nodes if node in quorum_set]
+        attackers = [node for node in original.nodes if node not in quorum_set]
         if not attackers:
             continue
+        attackers_set = set(attackers)
 
         for attacker in attackers:
             for target in list(original.successors(attacker)):
-                if target in quorum:
+                if target in quorum_set:
                     original.remove_edge(attacker, target)
 
         combined = nx.DiGraph()
@@ -323,9 +326,8 @@ def gen_random_sybil_attack_org_graph(
                 f"sybil-bridge-{i}" for i in range(num_sybil_bridge_orgs)
             ]
             combined.add_nodes_from(bridge_nodes)
-        honest_orgs = list(quorum)
         for org in original.nodes:
-            role = "attacker" if org in attackers else "honest"
+            role = "attacker" if org in attackers_set else "honest"
             combined.nodes[org]["role"] = role
         for sybil_org in sybil_nodes:
             combined.nodes[sybil_org]["role"] = "sybil"
@@ -363,12 +365,8 @@ def gen_random_sybil_attack_org_graph(
             combined.nodes[attacker]["threshold"] = rng.randint(1, out_degree)
 
         if config.connect_sybil_to_honest or config.connect_sybil_to_attacker:
-            honest_targets = (
-                list(quorum) if config.connect_sybil_to_honest else []
-            )
-            attacker_targets = (
-                list(attackers) if config.connect_sybil_to_attacker else []
-            )
+            honest_targets = honest_orgs if config.connect_sybil_to_honest else []
+            attacker_targets = attackers if config.connect_sybil_to_attacker else []
             original_targets = honest_targets + attacker_targets
             if original_targets:
                 for sybil_org in sybil_nodes:
@@ -436,10 +434,10 @@ def gen_random_sybil_attack_org_graph(
                 or config.connect_sybil2_to_sybil_bridge
             ):
                 sybil2_targets_honest = (
-                    list(quorum) if config.connect_sybil2_to_honest else []
+                    honest_orgs if config.connect_sybil2_to_honest else []
                 )
                 sybil2_targets_attackers = (
-                    list(attackers) if config.connect_sybil2_to_attacker else []
+                    attackers if config.connect_sybil2_to_attacker else []
                 )
                 sybil2_targets_sybil1 = (
                     sybil_nodes if config.connect_sybil2_to_sybil1 else []

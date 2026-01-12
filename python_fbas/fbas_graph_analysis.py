@@ -100,6 +100,10 @@ def solve_constraints(constraints: list[Formula]) -> "slv.SatResult":
     return slv.solve_sat(clauses)
 
 
+def _sorted_validators(fbas: FBASGraph) -> list[str]:
+    return sorted(fbas.get_validators())
+
+
 def quorum_constraints(fbas: FBASGraph,
                        make_atom: Callable[[str], Atom],
                        *,
@@ -114,7 +118,8 @@ def quorum_constraints(fbas: FBASGraph,
                 Implies(
                     make_atom(q),
                     AtLeast(fbas.threshold(q), *vs)))
-    for v in fbas.get_validators():
+    validators = _sorted_validators(fbas)
+    for v in validators:
         qset = fbas.qset_vertex_of(v)
         if qset:
             constraints.append(Implies(make_atom(v), make_atom(qset)))
@@ -122,10 +127,10 @@ def quorum_constraints(fbas: FBASGraph,
             constraints.append(Not(make_atom(v)))
     # also require that the quorum contain at least one validator for which we
     # have a qset:
-    constraints += [Or(*[make_atom(v)
-                         for v in fbas.get_validators()
+    constraints += [Or(*[make_atom(v) for v in validators
                          if fbas.qset_vertex_of(v)])]
     return constraints
+
 
 def not_quorum_constraint(fbas: FBASGraph,
                            make_atom: Callable[[str], Atom],
@@ -217,7 +222,8 @@ def random_quorum(
         raise ImportError(
             "UniGen support not available. Install pysat with UniGen dependencies.")
 
-    if not fbas.get_validators():
+    validators = _sorted_validators(fbas)
+    if not validators:
         logging.info("The FBAS has no validators!")
         return None
 
@@ -230,7 +236,7 @@ def random_quorum(
 
     sample_over = [
         abs(variables[Atom(v).identifier])
-        for v in fbas.get_validators()
+        for v in validators
         if Atom(v).identifier in variables
     ]
     if not sample_over:
@@ -285,7 +291,7 @@ def find_disjoint_quorums(
         for q in ['A', 'B']:  # our two quorums
             constraints += quorum_constraints(fbas, partial(in_quorum, q))
         # no validator can be in both quorums:
-        for v in fbas.get_validators():
+        for v in _sorted_validators(fbas):
             constraints += [Or(Not(in_quorum('A', v)),
                                Not(in_quorum('B', v)))]
 
@@ -737,7 +743,7 @@ def find_min_quorum(
     if not fbas.get_validators():
         logging.info("The FBAS has no validators!")
         return []
-    validators = list(fbas.get_validators())
+    validators = _sorted_validators(fbas)
 
     quorum_a_tagger = Tagger("quorum_A")
     quorum_b_tagger = Tagger("quorum_B")
@@ -834,7 +840,7 @@ def find_min_cardinality_min_quorum(
         logging.info("The FBAS has no validators!")
         return []
 
-    validators = list(fbas.get_validators())
+    validators = _sorted_validators(fbas)
     validator_atoms = [Atom(v) for v in validators]
     validator_not_atoms = [Not(atom) for atom in validator_atoms]
     max_cardinality = len(validators)

@@ -86,17 +86,16 @@ class QSet:
 
     def to_json(self) -> Dict[str, Any]:
         """Convert a QSet to stellarbeat.io format."""
-        result = {
+        inner_qsets = [inner.to_json() for inner in self.inner_quorum_sets]
+        inner_qsets_sorted = sorted(
+            inner_qsets,
+            key=lambda qset: json.dumps(qset, sort_keys=True),
+        )
+        return {
             "threshold": self.threshold,
-            "validators": list(self.validators),
-            "innerQuorumSets": []
+            "validators": sorted(self.validators),
+            "innerQuorumSets": inner_qsets_sorted,
         }
-
-        # Recursively convert inner quorum sets
-        for inner_qset in self.inner_quorum_sets:
-            result["innerQuorumSets"].append(inner_qset.to_json())
-
-        return result
 
 
 def deserialize(
