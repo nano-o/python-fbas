@@ -53,6 +53,7 @@ GENERATOR_DEFAULTS: dict[str, Any] = {
     "quorum_selection": "random",
     "record_run": True,
     "runs_dir": "runs",
+    "max_threshold_ratio": 0.85,
     "original_edge_probability": 0.5,
     "sybil_sybil_edge_probability": 0.5,
     "sybil2_sybil2_edge_probability": 0.5,
@@ -801,6 +802,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         graph = gen_random_top_tier_org_graph(
             params["orgs"],
             edge_probability=params["original_edge_probability"],
+            max_threshold_ratio=params["max_threshold_ratio"],
             rng=rng,
         )
     else:
@@ -869,6 +871,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             num_sybil_orgs_2=params["sybils_cluster_2"],
             num_sybil_bridge_orgs=params["sybil_bridge_orgs"],
             quorum_selection=params["quorum_selection"],
+            max_threshold_ratio=params["max_threshold_ratio"],
             config=config,
             rng=rng,
         )
@@ -1347,6 +1350,11 @@ def main() -> None:
         "--runs-dir",
         default=None,
         help="Directory to store reproducible run configs")
+    parser_random_sybil_attack.add_argument(
+        "--max-threshold-ratio",
+        type=float,
+        default=None,
+        help="Maximum threshold as a fraction of outgoing neighbors")
     parser_random_sybil_attack.add_argument(
         "--original-edge-probability", type=float, default=None,
         help="Probability of an original-org edge")

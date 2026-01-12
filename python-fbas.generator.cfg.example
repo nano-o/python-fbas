@@ -10,6 +10,7 @@ sybil_bridge_orgs: 2
 quorum_selection: min
 record_run: true
 runs_dir: runs
+max_threshold_ratio: 0.85
 original_edge_probability: 0.5
 sybil_sybil_edge_probability: 0.7
 sybil2_sybil2_edge_probability: 0.7

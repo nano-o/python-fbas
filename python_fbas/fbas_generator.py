@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 
@@ -48,6 +49,7 @@ def gen_random_top_tier_org_graph(
     num_orgs: int,
     *,
     edge_probability: float = 0.66,
+    max_threshold_ratio: float = 0.85,
     rng: random.Random | None = None,
     org_prefix: str = "org",
 ) -> nx.DiGraph:
@@ -55,15 +57,18 @@ def gen_random_top_tier_org_graph(
     Generate a random top-tier org graph.
 
     The result is a directed graph whose vertices are organizations labeled
-    with a "threshold" attribute between half and all of their out-degree. Each
-    potential edge is added with the given probability, with a fallback to
-    ensure at least one outgoing edge per org.
+    with a "threshold" attribute between half and max_threshold_ratio of their
+    out-degree. Each potential edge is added with the given probability, with a
+    fallback to ensure at least one outgoing edge per org.
     """
     if num_orgs < 2:
         raise ValueError("num_orgs must be at least 2 to form a top-tier org graph")
 
     if not 0 <= edge_probability <= 1:
         raise ValueError("edge_probability must be between 0 and 1")
+
+    if not 0 < max_threshold_ratio <= 1:
+        raise ValueError("max_threshold_ratio must be in (0, 1]")
 
     if rng is None:
         rng = random.Random()
@@ -80,7 +85,14 @@ def gen_random_top_tier_org_graph(
             targets = [rng.choice(candidates)]
         graph.add_edges_from((org, target) for target in targets)
         min_threshold = (len(targets) + 1) // 2
-        graph.nodes[org]["threshold"] = rng.randint(min_threshold, len(targets))
+        max_threshold = max(
+            min_threshold,
+            math.floor(len(targets) * max_threshold_ratio),
+        )
+        graph.nodes[org]["threshold"] = rng.randint(
+            min_threshold,
+            max_threshold,
+        )
 
     return graph
 
@@ -127,6 +139,7 @@ def gen_random_top_tier_org_fbas(
     num_orgs: int,
     *,
     edge_probability: float = 0.66,
+    max_threshold_ratio: float = 0.85,
     rng: random.Random | None = None,
     max_attempts: int = 100,
 ) -> FBASGraph:
@@ -145,6 +158,7 @@ def gen_random_top_tier_org_fbas(
         top_tier = gen_random_top_tier_org_graph(
             num_orgs,
             edge_probability=edge_probability,
+            max_threshold_ratio=max_threshold_ratio,
             rng=rng,
         )
         fbas = top_tier_org_graph_to_fbas_graph(top_tier)
@@ -164,6 +178,7 @@ def gen_random_sybil_attack_org_graph(
     num_sybil_orgs_2: int = 0,
     num_sybil_bridge_orgs: int = 0,
     quorum_selection: str = "random",
+    max_threshold_ratio: float = 0.85,
     config: SybilAttackConfig | None = None,
     rng: random.Random | None = None,
 ) -> nx.DiGraph:
@@ -245,6 +260,7 @@ def gen_random_sybil_attack_org_graph(
         original = gen_random_top_tier_org_graph(
             num_orgs,
             edge_probability=config.original_edge_probability,
+            max_threshold_ratio=max_threshold_ratio,
             rng=rng,
             org_prefix="org",
         )
@@ -254,6 +270,7 @@ def gen_random_sybil_attack_org_graph(
         sybil = gen_random_top_tier_org_graph(
             num_sybil_orgs,
             edge_probability=config.sybil_sybil_edge_probability,
+            max_threshold_ratio=max_threshold_ratio,
             rng=rng,
             org_prefix="sybil",
         )
@@ -262,6 +279,7 @@ def gen_random_sybil_attack_org_graph(
             sybil2 = gen_random_top_tier_org_graph(
                 num_sybil_orgs_2,
                 edge_probability=config.sybil2_sybil2_edge_probability,
+                max_threshold_ratio=max_threshold_ratio,
                 rng=rng,
                 org_prefix="sybil2",
             )
@@ -479,6 +497,7 @@ def gen_random_sybil_attack_fbas(
     num_sybil_orgs_2: int = 0,
     num_sybil_bridge_orgs: int = 0,
     quorum_selection: str = "random",
+    max_threshold_ratio: float = 0.85,
     config: SybilAttackConfig | None = None,
     rng: random.Random | None = None,
 ) -> FBASGraph:
@@ -494,6 +513,7 @@ def gen_random_sybil_attack_fbas(
         num_sybil_orgs_2=num_sybil_orgs_2,
         num_sybil_bridge_orgs=num_sybil_bridge_orgs,
         quorum_selection=quorum_selection,
+        max_threshold_ratio=max_threshold_ratio,
         config=config,
         rng=rng,
     )

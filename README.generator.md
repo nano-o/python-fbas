@@ -149,6 +149,8 @@ Shape controls:
 - `num_sybil_clusters`: 0 (no sybils), 1 (single cluster), or 2 (two clusters).
 - `sybils_cluster_2`: size of Sybil cluster 2 (when `num_sybil_clusters=2`).
 - `sybil_bridge_orgs`: number of `sybil_sybil_bridge` nodes (when `num_sybil_clusters=2`).
+- `max_threshold_ratio`: upper bound on the quorum threshold as a fraction of
+  outgoing neighbors (default 0.85).
 
 Quorum selection:
 - `quorum_selection`: `random` (default) or `min` (requires QBF).
