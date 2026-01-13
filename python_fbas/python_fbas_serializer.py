@@ -32,7 +32,7 @@ def serialize(fbas: FBASGraph) -> str:
     """
     # Collect validator data
     validators_data = []
-    for v in fbas.get_validators():
+    for v in sorted(fbas.get_validators()):
         attrs = fbas.vertice_attrs(v).copy()
 
         # Remove quorum set related fields to avoid duplication
@@ -52,12 +52,13 @@ def serialize(fbas: FBASGraph) -> str:
 
     # Collect qset data
     qsets_data = {}
-    qset_nodes = [
-        q for q in fbas.vertices() if not fbas.is_validator(q)]
+    qset_nodes = sorted(
+        q for q in fbas.vertices() if not fbas.is_validator(q)
+    )
     for qset_id in qset_nodes:
         if qset_id in fbas.graph_view():
             threshold = fbas.threshold(qset_id)
-            members = list(fbas.graph_view().successors(qset_id))
+            members = sorted(fbas.graph_view().successors(qset_id))
             qsets_data[qset_id] = {
                 "threshold": threshold,
                 "members": members
