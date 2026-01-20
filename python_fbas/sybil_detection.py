@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
+import math
 from typing import Final, Iterable
 
 import networkx as nx
@@ -15,6 +16,8 @@ DEFAULT_MAXFLOW_MODE: Final[str] = "standard"
 MAXFLOW_MODES: Final[tuple[str, ...]] = ("standard",)
 DEFAULT_BIMODALITY_THRESHOLD: Final[float] = 5 / 9
 DEFAULT_MAXFLOW_SWEEP_POST_THRESHOLD_STEPS: Final[int] = 0
+DEFAULT_TOP_TIER_LAMBDA: Final[float] = 1.0
+DEFAULT_TOP_TIER_SCORE_THRESHOLD: Final[float] = 0.65
 
 
 def compute_trust_scores(
@@ -173,6 +176,86 @@ def compute_bimodality_coefficient(values: Iterable[float]) -> float:
     g2 = m4 / (m2 ** 2) - 3.0
     correction = 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
     return (g1 ** 2 + 1) / (g2 + correction)
+
+
+def compute_top_tier_score(
+    graph: nx.DiGraph,
+    *,
+    lambda_: float = DEFAULT_TOP_TIER_LAMBDA,
+) -> float:
+    """
+    Compute a top-tier score for a digraph based on missing arc regularity.
+
+    The score treats a "complete" digraph as having every ordered pair
+    (u -> v) present for u != v (self-loops ignored). It measures how many
+    arcs are missing on average and how uneven that missingness is across
+    vertices, separately for out- and in-degrees.
+
+    For each vertex v:
+      - d_out(v) = out-degree excluding any self-loop
+      - d_in(v) = in-degree excluding any self-loop
+      - x_out(v) = (n - 1) - d_out(v)  (missing out-arcs)
+      - x_in(v)  = (n - 1) - d_in(v)   (missing in-arcs)
+
+    Let mu_out/mu_in be the means of x_out/x_in and sigma_out/sigma_in be
+    their standard deviations. The score is:
+
+        S = 1 - (mu_out + mu_in) / (2(n-1)) - lambda * (sigma_out + sigma_in) / (2(n-1))
+
+    Higher scores mean closer to a complete, regular digraph. For n >= 2 the
+    score is typically in [0, 1], with 1.0 for a complete digraph. lambda
+    controls how strongly unevenness is penalized: lambda = 0 ignores
+    dispersion and only penalizes missing arcs on average, while larger values
+    make outlier vertices reduce the score more aggressively. Runs in O(n + m).
+    """
+    if not math.isfinite(lambda_) or lambda_ < 0:
+        raise ValueError("lambda must be finite and non-negative")
+
+    n = graph.number_of_nodes()
+    if n < 2:
+        return 0.0
+
+    missing_out: list[float] = []
+    missing_in: list[float] = []
+    for node in graph.nodes:
+        out_degree = graph.out_degree(node)
+        in_degree = graph.in_degree(node)
+        if graph.has_edge(node, node):
+            out_degree -= 1
+            in_degree -= 1
+        missing_out.append((n - 1) - out_degree)
+        missing_in.append((n - 1) - in_degree)
+
+    mu_out = sum(missing_out) / n
+    mu_in = sum(missing_in) / n
+    sigma_out = math.sqrt(
+        sum((value - mu_out) ** 2 for value in missing_out) / n
+    )
+    sigma_in = math.sqrt(
+        sum((value - mu_in) ** 2 for value in missing_in) / n
+    )
+
+    denom = 2 * (n - 1)
+    return (
+        1.0
+        - (mu_out + mu_in) / denom
+        - lambda_ * (sigma_out + sigma_in) / denom
+    )
+
+
+def is_top_tier(
+    graph: nx.DiGraph,
+    *,
+    score_threshold: float = DEFAULT_TOP_TIER_SCORE_THRESHOLD,
+    lambda_: float = DEFAULT_TOP_TIER_LAMBDA,
+) -> bool:
+    """
+    Return True if the graph meets the top-tier score threshold.
+    """
+    if not math.isfinite(score_threshold):
+        raise ValueError("score_threshold must be finite")
+    score = compute_top_tier_score(graph, lambda_=lambda_)
+    return score >= score_threshold
 
 
 def _normalize_maxflow_mode(mode: str) -> str:

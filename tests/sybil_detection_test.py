@@ -8,6 +8,7 @@ import python_fbas.sybil_detection as sybil_detection
 from python_fbas.fbas_generator import (
     SybilAttackConfig,
     gen_random_sybil_attack_org_graph,
+    gen_random_top_tier_org_graph,
 )
 from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
@@ -15,6 +16,7 @@ from python_fbas.sybil_detection import (
     compute_maxflow_scores_sweep,
     compute_trust_scores,
     compute_trustrank_scores,
+    is_top_tier,
 )
 
 
@@ -328,3 +330,34 @@ def test_maxflow_scores_sweep_runs_post_threshold_steps(monkeypatch):
     assert capacities == [0.25, 0.5, 1.0]
     assert bcs == [1.0, 1.0, 1.0]
     assert scores["a"] == 1.0
+
+
+def test_is_top_tier_complete_digraph():
+    graph = nx.complete_graph(6, create_using=nx.DiGraph)
+    assert is_top_tier(graph)
+
+
+def test_is_top_tier_regular_missing_cycle():
+    n = 6
+    graph = nx.complete_graph(n, create_using=nx.DiGraph)
+    for i in range(n):
+        graph.remove_edge(i, (i + 1) % n)
+    assert is_top_tier(graph)
+
+
+def test_is_top_tier_outlier_fails():
+    n = 6
+    graph = nx.complete_graph(n, create_using=nx.DiGraph)
+    for i in range(1, n):
+        graph.remove_edge(0, i)
+        graph.remove_edge(i, 0)
+    assert not is_top_tier(graph)
+
+
+def test_is_top_tier_random_generated_graphs():
+    rng = random.Random(123)
+    graphs = [
+        gen_random_top_tier_org_graph(12, edge_probability=0.85, rng=rng)
+        for _ in range(3)
+    ]
+    assert all(is_top_tier(graph) for graph in graphs)

@@ -98,6 +98,8 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
     "maxflow_sweep_post_threshold_steps": 0,
     "maxflow_sweep_max_steps": 8,
+    "top_tier_lambda": 1.0,
+    "top_tier_score_threshold": 0.65,
 }
 
 
