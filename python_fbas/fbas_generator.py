@@ -185,16 +185,32 @@ def gen_random_sybil_attack_org_graph(
     """
     Generate a top-tier org graph that simulates a Sybil attack.
 
-    The procedure:
-    - Build an original top-tier org graph and a separate Sybil org graph.
-    - Sample a random quorum in the original graph; its complement are attackers.
-    - Remove attacker edges to non-attacker orgs.
-    - For each attacker, add edges to Sybil orgs based on probability and
-      randomize its threshold.
-    - Choose a quorum using either random sampling or minimal-quorum search.
-    - Optionally add a second Sybil cluster behind a sybil-bridge restriction.
-    - Optionally add probabilistic edges between attackers, to honest orgs,
-      and from Sybil orgs to honest orgs and/or attackers.
+    This uses rejection sampling and returns the first construction that meets
+    the quorum constraints.
+
+    Procedure (per attempt):
+    1) Generate an "original" top-tier org graph and reject it if its FBAS has
+       disjoint quorums.
+    2) Select a quorum in the original FBAS (random or minimum-cardinality).
+       Nodes in the quorum are "honest"; the complement are "attackers". Reject
+       if there are no attackers.
+    3) Remove attacker -> honest edges from the original graph.
+    4) Generate a Sybil cluster (sybil-*) and optionally a second cluster
+       (sybil2-*) plus bridge nodes (sybil-bridge-*). For two clusters, add at
+       least one edge from each sybil1 to a bridge and from each bridge to a
+       sybil2; optional sybil1->sybil2 and bridge->bridge edges are added based
+       on the config probabilities.
+    5) Merge nodes/edges and annotate roles: honest/attacker/sybil/
+       sybil_sybil_bridge, plus sybil_cluster for sybil nodes.
+    6) Add edges from each attacker to sybil nodes (at least one per attacker).
+       Optional attacker->attacker and attacker->honest edges are added per
+       config.
+    7) Optionally add edges from sybils to honest/attackers, and from sybil2
+       nodes to honest/attackers/sybil1/bridges.
+    8) Recompute thresholds for attackers and for any sybil/bridge nodes that
+       gained new outgoing edges; thresholds are uniform in
+       [ceil(out_degree / 2), floor(out_degree * max_threshold_ratio)] (with the
+       upper bound clamped to be at least the lower bound).
     """
     if num_orgs < 2:
         raise ValueError("num_orgs must be at least 2")
@@ -255,6 +271,14 @@ def gen_random_sybil_attack_org_graph(
 
     if rng is None:
         rng = random.Random()
+
+    def random_threshold(out_degree: int) -> int:
+        min_threshold = (out_degree + 1) // 2
+        max_threshold = max(
+            min_threshold,
+            math.floor(out_degree * max_threshold_ratio),
+        )
+        return rng.randint(min_threshold, max_threshold)
 
     for _ in range(config.max_attempts):
         original = gen_random_top_tier_org_graph(
@@ -345,11 +369,11 @@ def gen_random_sybil_attack_org_graph(
                 sybil_targets = [rng.choice(sybil_nodes)]
             combined.add_edges_from((attacker, target) for target in sybil_targets)
 
-        if config.connect_attacker_to_attacker:
-            for other_attacker in attackers:
-                if other_attacker != attacker:
-                    if rng.random() < config.attacker_to_attacker_edge_probability:
-                        combined.add_edge(attacker, other_attacker)
+            if config.connect_attacker_to_attacker:
+                for other_attacker in attackers:
+                    if other_attacker != attacker:
+                        if rng.random() < config.attacker_to_attacker_edge_probability:
+                            combined.add_edge(attacker, other_attacker)
 
             if config.connect_attacker_to_honest and honest_orgs:
                 for target in honest_orgs:
@@ -362,7 +386,7 @@ def gen_random_sybil_attack_org_graph(
                 fallback = rng.choice(sybil_nodes)
                 combined.add_edge(attacker, fallback)
                 out_degree = 1
-            combined.nodes[attacker]["threshold"] = rng.randint(1, out_degree)
+            combined.nodes[attacker]["threshold"] = random_threshold(out_degree)
 
         if config.connect_sybil_to_honest or config.connect_sybil_to_attacker:
             honest_targets = honest_orgs if config.connect_sybil_to_honest else []
@@ -380,9 +404,8 @@ def gen_random_sybil_attack_org_graph(
                             combined.add_edge(sybil_org, target)
                     if num_sybil_clusters == 1:
                         out_degree = combined.out_degree(sybil_org)
-                        combined.nodes[sybil_org]["threshold"] = rng.randint(
-                            1,
-                            out_degree,
+                        combined.nodes[sybil_org]["threshold"] = random_threshold(
+                            out_degree
                         )
 
         if num_sybil_clusters == 2:
@@ -425,7 +448,7 @@ def gen_random_sybil_attack_org_graph(
                     fallback = rng.choice(sybil2_nodes)
                     combined.add_edge(bridge_org, fallback)
                     out_degree = 1
-                combined.nodes[bridge_org]["threshold"] = rng.randint(1, out_degree)
+                combined.nodes[bridge_org]["threshold"] = random_threshold(out_degree)
 
             if (
                 config.connect_sybil2_to_honest
@@ -471,14 +494,13 @@ def gen_random_sybil_attack_org_graph(
                         if rng.random() < edge_probability:
                             combined.add_edge(sybil2_org, target)
                     out_degree = combined.out_degree(sybil2_org)
-                    combined.nodes[sybil2_org]["threshold"] = rng.randint(
-                        1,
-                        out_degree,
+                    combined.nodes[sybil2_org]["threshold"] = random_threshold(
+                        out_degree
                     )
 
             for sybil_org in sybil_nodes:
                 out_degree = combined.out_degree(sybil_org)
-                combined.nodes[sybil_org]["threshold"] = rng.randint(1, out_degree)
+                combined.nodes[sybil_org]["threshold"] = random_threshold(out_degree)
 
         return combined
 
