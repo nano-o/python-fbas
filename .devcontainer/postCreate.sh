@@ -12,7 +12,7 @@ import importlib.util
 raise SystemExit(0 if importlib.util.find_spec("pytest") else 1)
 PY
 then
-  EXTRAS="${PYTHON_FBAS_EXTRAS:-.[dev,qbf]}"
+  EXTRAS="${PYTHON_FBAS_EXTRAS:-.[dev,qbf,unigen]}"
   pip install -e "${EXTRAS}"
 fi
 

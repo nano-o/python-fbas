@@ -4,7 +4,6 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "workspaceFolder": "/workspaces/python-fbas",
   "remoteUser": "vscode",
   "postCreateCommand": "bash .devcontainer/postCreate.sh",
   "customizations": {
@@ -13,7 +12,9 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-toolsai.jupyter",
-        "charliermarsh.ruff"
+        "charliermarsh.ruff",
+        "github.copilot",
+        "github.copilot-chat"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python"
