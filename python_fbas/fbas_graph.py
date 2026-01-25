@@ -1,7 +1,6 @@
 """
 Federated byzantine agreement systems (FBAS) represented as directed graphs.
-Each vertex in the graph is either a validator vertex or a quorum set vertex,
-which has a threshold attribute.
+Each vertex in the graph is either a validator vertex or a qset set vertex with a threshold attribute.
 """
 
 from copy import copy
@@ -641,3 +640,67 @@ class FBASGraph:
             v2 in combinations(
                 self._validators,
                 2) if v1 != v2)
+
+    def qset_subgraph(self, v: str) -> 'FBASGraph':
+        """
+        Returns the qset subgraph of validator v.
+
+        This is the subgraph containing:
+        1. All qset vertices reachable from v by traversing only qset vertices
+        2. All validators that are direct members of the reached qset vertices
+        3. The validator v itself
+
+        If v has no qset, returns an FBASGraph containing only v.
+        """
+        assert v in self._validators, f"{v} is not a validator"
+
+        result = FBASGraph()
+
+        qset_root = self.qset_vertex_of(v)
+        if qset_root is None:
+            # Validator has no qset, return graph with just the validator
+            result._graph.add_node(v, **self.vertice_attrs(v))
+            result._validators.add(v)
+            return result
+
+        # BFS/DFS to find all reachable qset vertices
+        qset_vertices_to_include: set[str] = set()
+        validators_to_include: set[str] = {v}
+        queue = [qset_root]
+
+        while queue:
+            current = queue.pop()
+            if current in qset_vertices_to_include:
+                continue
+            qset_vertices_to_include.add(current)
+
+            for successor in self._graph.successors(current):
+                if successor in self._validators:
+                    validators_to_include.add(successor)
+                else:
+                    # It's a qset vertex, continue traversal
+                    queue.append(successor)
+
+        # Build the result graph
+        # First add all validators (they have no threshold)
+        for val in validators_to_include:
+            result._graph.add_node(val, **self.vertice_attrs(val))
+            result._validators.add(val)
+
+        # Then add all qset vertices with their thresholds and edges
+        for qset_id in qset_vertices_to_include:
+            threshold = self.threshold(qset_id)
+            result._graph.add_node(qset_id, threshold=threshold)
+
+            # Add edges to successors (which are already in our result graph)
+            for successor in self._graph.successors(qset_id):
+                result._graph.add_edge(qset_id, successor)
+
+            # Update the _qsets cache
+            members = frozenset(self._graph.successors(qset_id))
+            result._qsets[(threshold, members)] = qset_id
+
+        # Add edge from v to its qset
+        result._graph.add_edge(v, qset_root)
+
+        return result

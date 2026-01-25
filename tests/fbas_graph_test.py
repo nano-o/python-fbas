@@ -340,3 +340,151 @@ def test_qset_reachability_check():
 
     # This should pass - all qset connections go through validators
     fbas3.check_integrity()
+
+
+def test_qset_subgraph_simple():
+    """Test qset_subgraph with a simple flat quorum set."""
+    fbas = FBASGraph()
+    fbas.add_validator('V1')
+    fbas.add_validator('V2')
+    fbas.add_validator('V3')
+
+    # V1's qset includes V2 and V3 with threshold 2
+    qset = fbas.add_qset(threshold=2, components=['V1', 'V2', 'V3'])
+    fbas.update_validator('V1', qset=qset)
+
+    subgraph = fbas.qset_subgraph('V1')
+    subgraph.check_integrity()
+
+    # Should contain all 3 validators and 1 qset vertex
+    assert subgraph.get_validators() == frozenset(['V1', 'V2', 'V3'])
+    assert len(list(subgraph.get_qset_vertices())) == 1
+    assert subgraph.has_qset('V1')
+    # V2 and V3 should not have qsets in the subgraph
+    assert not subgraph.has_qset('V2')
+    assert not subgraph.has_qset('V3')
+
+
+def test_qset_subgraph_nested():
+    """Test qset_subgraph with nested inner quorum sets."""
+    fbas = FBASGraph()
+    fbas.add_validator('V1')
+    fbas.add_validator('V2')
+    fbas.add_validator('V3')
+    fbas.add_validator('V4')
+
+    # Create nested structure: V1 -> outer_qset -> (V2, inner_qset -> (V3, V4))
+    inner_qset = fbas.add_qset(threshold=1, components=['V3', 'V4'])
+    outer_qset = fbas.add_qset(threshold=2, components=['V2', inner_qset])
+    fbas.update_validator('V1', qset=outer_qset)
+
+    subgraph = fbas.qset_subgraph('V1')
+    subgraph.check_integrity()
+
+    # Should contain all 4 validators and 2 qset vertices
+    assert subgraph.get_validators() == frozenset(['V1', 'V2', 'V3', 'V4'])
+    assert len(list(subgraph.get_qset_vertices())) == 2
+    assert subgraph.has_qset('V1')
+
+    # V2 has no qset in the original graph, so its subgraph should only contain V2
+    subgraph_v2 = fbas.qset_subgraph('V2')
+    subgraph_v2.check_integrity()
+    assert subgraph_v2.get_validators() == frozenset(['V2'])
+    assert len(list(subgraph_v2.get_qset_vertices())) == 0
+    assert not subgraph_v2.has_qset('V2')
+
+    # Now give V2 a qset that references V3 and V4
+    v2_qset = fbas.add_qset(threshold=1, components=['V3', 'V4'])
+    fbas.update_validator('V2', qset=v2_qset)
+
+    subgraph_v2_with_qset = fbas.qset_subgraph('V2')
+    subgraph_v2_with_qset.check_integrity()
+    assert subgraph_v2_with_qset.get_validators() == frozenset(['V2', 'V3', 'V4'])
+    assert len(list(subgraph_v2_with_qset.get_qset_vertices())) == 1
+    assert subgraph_v2_with_qset.has_qset('V2')
+
+
+def test_qset_subgraph_validator_without_qset():
+    """Test qset_subgraph for a validator without a quorum set."""
+    fbas = FBASGraph()
+    fbas.add_validator('V1')
+    fbas.add_validator('V2')
+
+    # Only V2 has a qset
+    qset = fbas.add_qset(threshold=1, components=['V1'])
+    fbas.update_validator('V2', qset=qset)
+
+    # V1 has no qset
+    subgraph = fbas.qset_subgraph('V1')
+    subgraph.check_integrity()
+
+    # Should contain only V1
+    assert subgraph.get_validators() == frozenset(['V1'])
+    assert len(list(subgraph.get_qset_vertices())) == 0
+    assert not subgraph.has_qset('V1')
+
+
+def test_qset_subgraph_does_not_follow_other_validators_qsets():
+    """Test that qset_subgraph doesn't follow qsets of other validators."""
+    fbas = FBASGraph()
+    fbas.add_validator('V1')
+    fbas.add_validator('V2')
+    fbas.add_validator('V3')
+
+    # V1's qset references V2
+    qset1 = fbas.add_qset(threshold=1, components=['V2'])
+    fbas.update_validator('V1', qset=qset1)
+
+    # V2's qset references V3
+    qset2 = fbas.add_qset(threshold=1, components=['V3'])
+    fbas.update_validator('V2', qset=qset2)
+
+    subgraph = fbas.qset_subgraph('V1')
+    subgraph.check_integrity()
+
+    # Should contain V1 and V2, but NOT V3 (which is only in V2's qset)
+    assert subgraph.get_validators() == frozenset(['V1', 'V2'])
+    assert len(list(subgraph.get_qset_vertices())) == 1
+    assert subgraph.has_qset('V1')
+    assert not subgraph.has_qset('V2')
+
+
+def test_qset_subgraph_from_test_file():
+    """Test qset_subgraph on a real FBAS from test data."""
+    fbas = load_fbas_from_test_file('conflicted.json')
+
+    # PK11's qset should contain PK11, PK12, PK13
+    subgraph = fbas.qset_subgraph('PK11')
+    subgraph.check_integrity()
+
+    assert 'PK11' in subgraph.get_validators()
+    assert 'PK12' in subgraph.get_validators()
+    assert 'PK13' in subgraph.get_validators()
+    # Should not contain validators from the other disjoint group
+    assert 'PK21' not in subgraph.get_validators()
+    assert 'PK22' not in subgraph.get_validators()
+    assert 'PK23' not in subgraph.get_validators()
+
+
+def test_qset_subgraph_preserves_thresholds():
+    """Test that qset_subgraph preserves threshold values."""
+    fbas = FBASGraph()
+    fbas.add_validator('V1')
+    fbas.add_validator('V2')
+    fbas.add_validator('V3')
+
+    inner_qset = fbas.add_qset(threshold=2, components=['V2', 'V3'])
+    outer_qset = fbas.add_qset(threshold=1, components=[inner_qset])
+    fbas.update_validator('V1', qset=outer_qset)
+
+    subgraph = fbas.qset_subgraph('V1')
+    subgraph.check_integrity()
+
+    # Verify thresholds are preserved
+    v1_qset = subgraph.qset_vertex_of('V1')
+    assert subgraph.threshold(v1_qset) == 1
+
+    # The inner qset should also have threshold 2
+    for qset_id in subgraph.get_qset_vertices():
+        if qset_id != v1_qset:
+            assert subgraph.threshold(qset_id) == 2
