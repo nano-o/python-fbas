@@ -164,6 +164,9 @@ def deserialize(
         if home_domain_counts.get(home_domain) != len(qset.validators):
             return None
         if home_domain in fbas.graph_view():
+            logging.warning(
+                "homeDomain '%s' is already in use as a vertex ID; using generated qset ID instead",
+                home_domain)
             return None
         return home_domain
 
