@@ -35,8 +35,8 @@ from python_fbas.fbas_generator import (
     SybilAttackConfig,
     gen_random_sybil_attack_org_graph,
     gen_random_top_tier_org_graph,
-    top_tier_org_graph_to_fbas_graph,
 )
+from python_fbas.org_graph import org_graph_to_fbas
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
@@ -879,7 +879,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             config=config,
             rng=rng,
         )
-    fbas = top_tier_org_graph_to_fbas_graph(graph)
+    fbas = org_graph_to_fbas(graph)
     if args.print_fbas:
         print(serialize(fbas, format="stellarbeat"))
     sybil_defaults = SYBIL_DETECTION_DEFAULTS

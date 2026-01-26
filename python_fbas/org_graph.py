@@ -131,3 +131,115 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
                 org_graph.add_edge(org_a, org_b)
 
     return org_graph
+
+
+def org_graph_to_fbas(org_graph: nx.DiGraph) -> FBASGraph:
+    """
+    Convert an org graph into an FBASGraph.
+
+    For each org in the org graph:
+    - Create 3 validators named {org}_0, {org}_1, {org}_2
+    - Create an org qset containing those 3 validators with threshold 2
+    - Give each validator a qset derived from the org graph edges:
+      the qset contains the org qsets of the orgs that this org points to,
+      with the threshold from the org graph node.
+
+    Args:
+        org_graph: A directed graph where each node represents an organization
+                   and has a "threshold" attribute. Edges represent dependencies
+                   between organizations.
+
+    Returns:
+        An FBASGraph representing the org-structured FBAS.
+    """
+    fbas = FBASGraph()
+
+    # Step 1: Create 3 validators for each org
+    for org in org_graph.nodes:
+        for i in range(3):
+            fbas.add_validator(f"{org}_{i}")
+
+    # Step 2: Create org qsets (threshold 2, containing the 3 validators)
+    org_to_org_qset: dict[str, str] = {}
+    for org in org_graph.nodes:
+        validators = [f"{org}_{i}" for i in range(3)]
+        org_qset_id = fbas.add_qset(2, validators)
+        org_to_org_qset[org] = org_qset_id
+
+    # Step 3: Create validator qsets based on org graph edges and assign to validators
+    for org in org_graph.nodes:
+        out_orgs = list(org_graph.successors(org))
+        if not out_orgs:
+            raise ValueError(
+                f"Org graph node {org} has no outgoing edges; cannot build qset")
+
+        threshold = org_graph.nodes[org].get("threshold")
+        if threshold is None:
+            # Default to 2/3 (rounded up) of the number of children
+            threshold = (2 * len(out_orgs) + 2) // 3
+
+        if not isinstance(threshold, int):
+            raise ValueError(
+                f"Org graph node {org} has non-integer threshold {threshold}")
+
+        if not 1 <= threshold <= len(out_orgs):
+            raise ValueError(
+                f"Org graph node {org} has threshold {threshold} outside "
+                f"[1, {len(out_orgs)}]")
+
+        # Build the validator qset from the org qsets of the target orgs
+        target_org_qsets = [org_to_org_qset[target_org] for target_org in out_orgs]
+        validator_qset_id = fbas.add_qset(threshold, target_org_qsets)
+
+        # Assign this qset to all 3 validators of this org
+        for i in range(3):
+            fbas.update_validator(f"{org}_{i}", qset=validator_qset_id)
+
+    return fbas
+
+
+def org_graph_to_fbas_fake(org_graph: nx.DiGraph) -> FBASGraph:
+    """
+    Convert an org graph into a simplified FBASGraph where each org is a single validator.
+
+    This is a "fake" org-structured FBAS used for quorum analysis in the generator.
+    Each org vertex becomes a validator whose quorum set is formed by its
+    outgoing neighbors (as validators, not org qsets) and the vertex "threshold" attribute.
+
+    Args:
+        org_graph: A directed graph where each node represents an organization
+                   and has a "threshold" attribute. Edges represent dependencies
+                   between organizations.
+
+    Returns:
+        An FBASGraph where each org is a single validator.
+    """
+    fbas = FBASGraph()
+
+    for org in org_graph.nodes:
+        fbas.add_validator(org)
+
+    for org in org_graph.nodes:
+        out_orgs = list(org_graph.successors(org))
+        if not out_orgs:
+            raise ValueError(
+                f"Org graph node {org} has no outgoing edges; cannot build qset")
+
+        threshold = org_graph.nodes[org].get("threshold")
+        if threshold is None:
+            # Default to 2/3 (rounded up) of the number of children
+            threshold = (2 * len(out_orgs) + 2) // 3
+
+        if not isinstance(threshold, int):
+            raise ValueError(
+                f"Org graph node {org} has non-integer threshold {threshold}")
+
+        if not 1 <= threshold <= len(out_orgs):
+            raise ValueError(
+                f"Org graph node {org} has threshold {threshold} outside "
+                f"[1, {len(out_orgs)}]")
+
+        qset_id = fbas.add_qset(threshold, out_orgs)
+        fbas.update_validator(org, qset=qset_id)
+
+    return fbas

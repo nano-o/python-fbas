@@ -12,6 +12,7 @@ from python_fbas.fbas_graph_analysis import (
     find_min_cardinality_min_quorum,
     random_quorum,
 )
+from python_fbas.org_graph import org_graph_to_fbas, org_graph_to_fbas_fake
 
 
 @dataclass(frozen=True)
@@ -97,44 +98,6 @@ def gen_random_top_tier_org_graph(
     return graph
 
 
-def top_tier_org_graph_to_fbas_graph(top_tier: nx.DiGraph) -> FBASGraph:
-    """
-    Convert a top-tier org graph into an FBASGraph using orgs as validators.
-
-    Each org vertex becomes a validator whose quorum set is formed by its
-    outgoing neighbors and the vertex "threshold" attribute.
-    """
-    fbas = FBASGraph()
-
-    for org in top_tier.nodes:
-        fbas.add_validator(org)
-
-    for org in top_tier.nodes:
-        out_orgs = list(top_tier.successors(org))
-        if not out_orgs:
-            raise ValueError(
-                f"Top-tier org graph node {org} has no outgoing edges; cannot build qset")
-
-        threshold = top_tier.nodes[org].get("threshold")
-        if threshold is None:
-            raise ValueError(
-                f"Top-tier org graph node {org} is missing a 'threshold' attribute")
-
-        if not isinstance(threshold, int):
-            raise ValueError(
-                f"Top-tier org graph node {org} has non-integer threshold {threshold}")
-
-        if not 1 <= threshold <= len(out_orgs):
-            raise ValueError(
-                f"Top-tier org graph node {org} has threshold {threshold} outside "
-                f"[1, {len(out_orgs)}]")
-
-        qset_id = fbas.add_qset(threshold, out_orgs)
-        fbas.update_validator(org, qset=qset_id)
-
-    return fbas
-
-
 def gen_random_top_tier_org_fbas(
     num_orgs: int,
     *,
@@ -161,9 +124,11 @@ def gen_random_top_tier_org_fbas(
             max_threshold_ratio=max_threshold_ratio,
             rng=rng,
         )
-        fbas = top_tier_org_graph_to_fbas_graph(top_tier)
-        if find_disjoint_quorums(fbas) is None:
-            return fbas
+        # Use fake FBAS for quorum check (1 validator per org)
+        fake_fbas = org_graph_to_fbas_fake(top_tier)
+        if find_disjoint_quorums(fake_fbas) is None:
+            # Return the real org-structured FBAS
+            return org_graph_to_fbas(top_tier)
 
     raise ValueError(
         "Failed to generate an FBAS with intersecting quorums after "
@@ -288,7 +253,8 @@ def gen_random_sybil_attack_org_graph(
             rng=rng,
             org_prefix="org",
         )
-        original_fbas = top_tier_org_graph_to_fbas_graph(original)
+        # Use fake FBAS for quorum check (1 validator per org)
+        original_fbas = org_graph_to_fbas_fake(original)
         if find_disjoint_quorums(original_fbas) is not None:
             continue
         sybil = gen_random_top_tier_org_graph(
@@ -537,4 +503,4 @@ def gen_random_sybil_attack_fbas(
         config=config,
         rng=rng,
     )
-    return top_tier_org_graph_to_fbas_graph(graph)
+    return org_graph_to_fbas(graph)

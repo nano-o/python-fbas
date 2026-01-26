@@ -1,9 +1,12 @@
 """Tests for org_graph module."""
 
+import random
+
 import pytest
 
 from python_fbas.fbas_graph import FBASGraph
-from python_fbas.org_graph import fbas_to_org_graph
+from python_fbas.fbas_generator import gen_random_top_tier_org_graph
+from python_fbas.org_graph import fbas_to_org_graph, org_graph_to_fbas
 from python_fbas.serialization import deserialize
 
 
@@ -245,3 +248,39 @@ class TestFbasToOrgGraph:
         assert len(result.nodes()) == 7
         # Fully connected: each org references all 6 others
         assert len(result.edges()) == 42
+
+    def test_generated_top_tier_is_org_structured(self):
+        """Test that FBASes generated from random top-tier org graphs are org-structured."""
+        rng = random.Random(42)
+
+        for num_orgs in [3, 5, 7, 10]:
+            org_graph = gen_random_top_tier_org_graph(
+                num_orgs,
+                edge_probability=0.7,
+                rng=rng,
+            )
+            fbas = org_graph_to_fbas(org_graph)
+
+            result = fbas_to_org_graph(fbas)
+
+            assert result is not None, f"FBAS with {num_orgs} orgs should be org-structured"
+            # Each org has 3 validators
+            assert len(fbas.get_validators()) == num_orgs * 3
+            # Org graph should have same number of nodes as original
+            assert len(result.nodes()) == num_orgs
+
+    def test_generated_top_tier_multiple_seeds(self):
+        """Test org-structured property holds across multiple random seeds."""
+        for seed in range(10):
+            rng = random.Random(seed)
+            org_graph = gen_random_top_tier_org_graph(
+                num_orgs=6,
+                edge_probability=0.66,
+                rng=rng,
+            )
+            fbas = org_graph_to_fbas(org_graph)
+
+            result = fbas_to_org_graph(fbas)
+
+            assert result is not None, f"FBAS with seed {seed} should be org-structured"
+            assert len(result.nodes()) == 6
