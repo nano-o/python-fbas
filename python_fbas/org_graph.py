@@ -12,7 +12,7 @@ import networkx as nx
 
 from python_fbas.fbas_graph import FBASGraph
 
-def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGraph | None:
+def fbas_to_org_graph(fbas: FBASGraph) -> nx.DiGraph | None:
     """
     If the FBAS is not org-structured, return None.
     Otherwise, return the org-graph representation of the FBAS:
@@ -21,8 +21,6 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
 
     Args:
         fbas: The FBAS graph to analyze.
-        check_same_qset: If True, verify that all validators in an org have the same qset.
-                         If False (default), this check is skipped.
     """
     graph = fbas.graph_view()
     validators = fbas.get_validators()
@@ -59,14 +57,13 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
         # Check that all validators in this leaf qset have the same qset
         validator_qsets = [fbas.qset_vertex_of(v) for v in member_validators]
 
-        if check_same_qset:
-            # All validators must have a qset defined
-            if any(q is None for q in validator_qsets):
-                return None
+        # All validators must have a qset defined
+        if any(q is None for q in validator_qsets):
+            return None
 
-            # All validators must have the same qset
-            if len(set(validator_qsets)) != 1:
-                return None
+        # All validators must have the same qset
+        if len(set(validator_qsets)) != 1:
+            return None
 
         # Check that these validators only appear in this leaf_q (and not in any other qset)
         for v in member_validators:
@@ -89,10 +86,6 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
     # Step 5: Build the org-graph
     org_graph = nx.DiGraph()
 
-    # Add vertices for each org qset
-    for org_q in org_qsets:
-        org_graph.add_node(org_q)
-
     # Helper function to check if a qset contains another qset (possibly deeply nested)
     def contains_qset(qset: str, target: str, visited: set[str] | None = None) -> bool:
         """Check if target qset is reachable from qset through qset vertices only."""
@@ -110,8 +103,9 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
                     return True
         return False
 
-    # Step 6: Add edges between org qsets
+    # Step 6: Add edges between org qsets and collect threshold info
     # For each org A, find the qset of its validators and check if it contains org B
+    org_thresholds: dict[str, int | None] = {}
     for org_a in org_qsets:
         # Get one validator from org_a to find the common qset of org_a's validators
         member_validators = [v for v in graph.successors(org_a) if v in validators]
@@ -122,6 +116,9 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
         if validator_qset is None:
             continue
 
+        # Store the threshold of the validator's qset for this org
+        org_thresholds[org_a] = graph.nodes[validator_qset].get('threshold')
+
         # Check if this validator's qset contains or equals any other org qset
         for org_b in org_qsets:
             if org_a == org_b:
@@ -129,6 +126,14 @@ def fbas_to_org_graph(fbas: FBASGraph, check_same_qset: bool = False) -> nx.DiGr
             # Check if validator_qset contains org_b or is org_b
             if validator_qset == org_b or contains_qset(validator_qset, org_b):
                 org_graph.add_edge(org_a, org_b)
+
+    # Add vertices for each org qset with their threshold attributes
+    for org_q in org_qsets:
+        threshold = org_thresholds.get(org_q)
+        if threshold is not None:
+            org_graph.add_node(org_q, threshold=threshold)
+        else:
+            org_graph.add_node(org_q)
 
     return org_graph
 
@@ -198,7 +203,7 @@ def org_graph_to_fbas(org_graph: nx.DiGraph) -> FBASGraph:
     return fbas
 
 
-def org_graph_to_fbas_fake(org_graph: nx.DiGraph) -> FBASGraph:
+def org_graph_to_org_level_fbas(org_graph: nx.DiGraph) -> FBASGraph:
     """
     Convert an org graph into a simplified FBASGraph where each org is a single validator.
 

@@ -12,7 +12,7 @@ from python_fbas.fbas_graph_analysis import (
     find_min_cardinality_min_quorum,
     random_quorum,
 )
-from python_fbas.org_graph import org_graph_to_fbas, org_graph_to_fbas_fake
+from python_fbas.org_graph import org_graph_to_fbas, org_graph_to_org_level_fbas
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,7 @@ def gen_random_top_tier_org_fbas(
             rng=rng,
         )
         # Use fake FBAS for quorum check (1 validator per org)
-        fake_fbas = org_graph_to_fbas_fake(top_tier)
+        fake_fbas = org_graph_to_org_level_fbas(top_tier)
         if find_disjoint_quorums(fake_fbas) is None:
             # Return the real org-structured FBAS
             return org_graph_to_fbas(top_tier)
@@ -254,7 +254,7 @@ def gen_random_sybil_attack_org_graph(
             org_prefix="org",
         )
         # Use fake FBAS for quorum check (1 validator per org)
-        original_fbas = org_graph_to_fbas_fake(original)
+        original_fbas = org_graph_to_org_level_fbas(original)
         if find_disjoint_quorums(original_fbas) is not None:
             continue
         sybil = gen_random_top_tier_org_graph(

@@ -42,6 +42,50 @@ class TestFbasToOrgGraph:
         # Both orgs point to each other since their validators' qset contains both org qsets
         assert set(result.edges()) == {(org1_qset, org2_qset), (org2_qset, org1_qset)}
 
+    def test_thresholds_preserved(self):
+        """Test that threshold attributes are preserved in the org-graph."""
+        fbas = FBASGraph()
+
+        # Org 1: validators v1, v2, v3
+        for i in range(1, 4):
+            fbas.add_validator(f'v{i}')
+        # Org 2: validators v4, v5, v6
+        for i in range(4, 7):
+            fbas.add_validator(f'v{i}')
+        # Org 3: validators v7, v8, v9
+        for i in range(7, 10):
+            fbas.add_validator(f'v{i}')
+
+        # Create org qsets
+        org1_qset = fbas.add_qset(2, ['v1', 'v2', 'v3'])
+        org2_qset = fbas.add_qset(2, ['v4', 'v5', 'v6'])
+        org3_qset = fbas.add_qset(2, ['v7', 'v8', 'v9'])
+
+        # Org1 validators' qset with threshold 2 (out of 3 orgs)
+        v1_qset = fbas.add_qset(2, [org1_qset, org2_qset, org3_qset])
+        for i in range(1, 4):
+            fbas.update_validator(f'v{i}', qset=v1_qset)
+
+        # Org2 validators' qset with threshold 3 (out of 3 orgs)
+        v2_qset = fbas.add_qset(3, [org1_qset, org2_qset, org3_qset])
+        for i in range(4, 7):
+            fbas.update_validator(f'v{i}', qset=v2_qset)
+
+        # Org3 validators' qset with threshold 1 (out of 3 orgs)
+        v3_qset = fbas.add_qset(1, [org1_qset, org2_qset, org3_qset])
+        for i in range(7, 10):
+            fbas.update_validator(f'v{i}', qset=v3_qset)
+
+        result = fbas_to_org_graph(fbas)
+
+        assert result is not None
+        assert set(result.nodes()) == {org1_qset, org2_qset, org3_qset}
+
+        # Check thresholds are preserved
+        assert result.nodes[org1_qset].get('threshold') == 2
+        assert result.nodes[org2_qset].get('threshold') == 3
+        assert result.nodes[org3_qset].get('threshold') == 1
+
     def test_single_org(self):
         """Test an FBAS with a single organization."""
         fbas = FBASGraph()
@@ -99,7 +143,7 @@ class TestFbasToOrgGraph:
         assert result.out_degree(org3_qset) == 2
 
     def test_validator_missing_qset_returns_none(self):
-        """Test that FBAS with validator missing qset returns None when check_same_qset=True."""
+        """Test that FBAS with validator missing qset returns None."""
         fbas = FBASGraph()
 
         fbas.add_validator('v1')
@@ -111,12 +155,12 @@ class TestFbasToOrgGraph:
         fbas.update_validator('v2', qset=org_qset)
         # v3 has no qset assigned
 
-        result = fbas_to_org_graph(fbas, check_same_qset=True)
+        result = fbas_to_org_graph(fbas)
 
         assert result is None
 
     def test_validators_with_different_qsets_returns_none(self):
-        """Test that validators in same org with different qsets returns None when check_same_qset=True."""
+        """Test that validators in same org with different qsets returns None."""
         fbas = FBASGraph()
 
         fbas.add_validator('v1')
@@ -134,7 +178,7 @@ class TestFbasToOrgGraph:
         fbas.update_validator('v2', qset=q2)
         fbas.update_validator('v3', qset=q1)
 
-        result = fbas_to_org_graph(fbas, check_same_qset=True)
+        result = fbas_to_org_graph(fbas)
 
         assert result is None
 
