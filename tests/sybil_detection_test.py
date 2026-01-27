@@ -10,6 +10,7 @@ from python_fbas.fbas_generator import (
     gen_random_sybil_attack_org_graph,
     gen_random_top_tier_org_graph,
 )
+from python_fbas.org_graph import fbas_to_org_graph
 from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
@@ -18,6 +19,7 @@ from python_fbas.sybil_detection import (
     compute_trustrank_scores,
     is_top_tier,
 )
+from test_utils import load_fbas_from_test_file
 
 
 def test_trust_scores_simple_chain():
@@ -361,3 +363,11 @@ def test_is_top_tier_random_generated_graphs():
         for _ in range(3)
     ]
     assert all(is_top_tier(graph) for graph in graphs)
+
+
+def test_is_top_tier_small_top_tier_json():
+    fbas = load_fbas_from_test_file("top_tier.json")
+    org_graph = fbas_to_org_graph(fbas)
+
+    assert org_graph is not None
+    assert is_top_tier(org_graph)
