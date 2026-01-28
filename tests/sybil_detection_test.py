@@ -17,6 +17,7 @@ from python_fbas.sybil_detection import (
     compute_maxflow_scores_sweep,
     compute_trust_scores,
     compute_trustrank_scores,
+    extract_non_sybil_cluster_maxflow_sweep,
     is_top_tier,
 )
 from test_utils import load_fbas_from_test_file
@@ -363,6 +364,43 @@ def test_is_top_tier_random_generated_graphs():
         for _ in range(3)
     ]
     assert all(is_top_tier(graph) for graph in graphs)
+
+
+def test_extract_non_sybil_cluster_maxflow_sweep_high_scores(monkeypatch):
+    graph = nx.DiGraph()
+    graph.add_nodes_from(["a", "b", "c", "d"])
+    fake_scores = {"a": 0.1, "b": 0.2, "c": 1.5, "d": 1.6}
+
+    def fake_sweep(_graph, _seeds, **_kwargs):
+        return fake_scores, [1.0], [0.7]
+
+    monkeypatch.setattr(sybil_detection, "compute_maxflow_scores_sweep", fake_sweep)
+    cluster, scores, capacities, bcs = extract_non_sybil_cluster_maxflow_sweep(
+        graph,
+        ["seed"],
+    )
+
+    assert cluster == {"c", "d"}
+    assert scores == fake_scores
+    assert capacities == [1.0]
+    assert bcs == [0.7]
+
+
+def test_extract_non_sybil_cluster_maxflow_sweep_all_equal(monkeypatch):
+    graph = nx.DiGraph()
+    graph.add_nodes_from(["a", "b", "c"])
+    fake_scores = {"a": 1.0, "b": 1.0, "c": 1.0}
+
+    def fake_sweep(_graph, _seeds, **_kwargs):
+        return fake_scores, [1.0], [0.0]
+
+    monkeypatch.setattr(sybil_detection, "compute_maxflow_scores_sweep", fake_sweep)
+    cluster, _scores, _capacities, _bcs = extract_non_sybil_cluster_maxflow_sweep(
+        graph,
+        ["seed"],
+    )
+
+    assert cluster == {"a", "b", "c"}
 
 
 def test_is_top_tier_small_top_tier_json():

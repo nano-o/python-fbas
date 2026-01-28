@@ -464,3 +464,93 @@ def compute_maxflow_scores_sweep(
         current_capacity,
     )
     return scores, capacities, bcs
+
+
+def _cluster_high_score_nodes(
+    scores: dict[str, float],
+    *,
+    max_iters: int = 100,
+) -> set[str]:
+    """
+    Partition 1D scores into low/high clusters via a simple 2-means iteration.
+
+    The algorithm is k-means in 1D with k=2:
+      1) Initialize centers to (min_score, max_score).
+      2) Split scores by the midpoint between centers.
+      3) Recompute each center as the mean of its assigned cluster.
+      4) Repeat until centers stop changing or max_iters is reached.
+
+    The returned set is the cluster with the higher center. If all scores are
+    identical or a split degenerates into an empty cluster, the full node set
+    is returned.
+    """
+    if max_iters <= 0:
+        raise ValueError("max_iters must be positive")
+    if not scores:
+        return set()
+    values = list(scores.values())
+    if any(not math.isfinite(value) for value in values):
+        raise ValueError("scores must be finite")
+    min_score = min(values)
+    max_score = max(values)
+    if min_score == max_score:
+        return set(scores.keys())
+
+    low_center = min_score
+    high_center = max_score
+    high_cluster: set[str] = set()
+
+    for _ in range(max_iters):
+        midpoint = (low_center + high_center) / 2.0
+        low_cluster: set[str] = set()
+        high_cluster = set()
+        for node, score in scores.items():
+            if score >= midpoint:
+                high_cluster.add(node)
+            else:
+                low_cluster.add(node)
+        if not low_cluster or not high_cluster:
+            return set(scores.keys())
+        new_low = sum(scores[node] for node in low_cluster) / len(low_cluster)
+        new_high = sum(scores[node] for node in high_cluster) / len(high_cluster)
+        if new_low == low_center and new_high == high_center:
+            return high_cluster
+        low_center = new_low
+        high_center = new_high
+
+    return high_cluster
+
+
+def extract_non_sybil_cluster_maxflow_sweep(
+    graph: nx.DiGraph,
+    seeds: str | Iterable[str],
+    *,
+    seed_capacity: float = DEFAULT_MAXFLOW_SEED_CAPACITY,
+    mode: str = DEFAULT_MAXFLOW_MODE,
+    sweep_factor: float = 2.0,
+    sweep_bimodality_threshold: float = DEFAULT_BIMODALITY_THRESHOLD,
+    sweep_max_steps: int = 8,
+    sweep_post_threshold_steps: int = DEFAULT_MAXFLOW_SWEEP_POST_THRESHOLD_STEPS,
+    kmeans_max_iters: int = 100,
+) -> tuple[set[str], dict[str, float], list[float], list[float]]:
+    """
+    Run a max-flow sweep, then cluster nodes by the final scores (scores only),
+    and return the higher-score cluster as the non-sybil set.
+
+    Returns (non_sybil_nodes, scores, capacities, bimodality_coeffs).
+    """
+    scores, capacities, bcs = compute_maxflow_scores_sweep(
+        graph,
+        seeds,
+        seed_capacity=seed_capacity,
+        mode=mode,
+        sweep_factor=sweep_factor,
+        sweep_bimodality_threshold=sweep_bimodality_threshold,
+        sweep_max_steps=sweep_max_steps,
+        sweep_post_threshold_steps=sweep_post_threshold_steps,
+    )
+    non_sybil_nodes = _cluster_high_score_nodes(
+        scores,
+        max_iters=kmeans_max_iters,
+    )
+    return non_sybil_nodes, scores, capacities, bcs
