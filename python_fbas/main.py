@@ -36,13 +36,14 @@ from python_fbas.fbas_generator import (
     gen_random_sybil_attack_org_graph,
     gen_random_top_tier_org_graph,
 )
-from python_fbas.org_graph import org_graph_to_fbas
+from python_fbas.org_graph import org_graph_to_org_level_fbas
 from python_fbas.sybil_detection import (
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
     compute_trust_scores,
     compute_trustrank_scores,
     extract_non_sybil_cluster_maxflow_sweep,
+    extract_non_sybil_cluster_from_scores,
 )
 
 GENERATOR_DEFAULTS: dict[str, Any] = {
@@ -809,9 +810,12 @@ def _plot_random_org_graph(
 def _format_non_sybil_cluster_lines(
     nodes: Collection[str],
     *,
+    label: str = "Non-sybil cluster",
     max_line_length: int = 80,
 ) -> list[str]:
-    label = "Non-sybil cluster (max-flow sweep):"
+    label = label.strip()
+    if not label.endswith(":"):
+        label = f"{label}:"
     if not nodes:
         return [f"{label} <empty>"]
     lines: list[str] = []
@@ -980,7 +984,7 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             config=config,
             rng=rng,
         )
-    fbas = org_graph_to_fbas(graph)
+    fbas = org_graph_to_org_level_fbas(graph)
     if args.print_fbas:
         print(serialize(fbas, format="stellarbeat"))
     sybil_defaults = SYBIL_DETECTION_DEFAULTS
@@ -1255,29 +1259,26 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 seed_capacity=sybil_params["maxflow_initial_seed_capacity"],
                 mode=sybil_params["maxflow_mode"],
             )
-        if args.print_non_sybil_cluster:
-            if non_sybil_nodes is None:
-                non_sybil_nodes, *_ = extract_non_sybil_cluster_maxflow_sweep(
-                    graph,
-                    trust_seeds,
-                    seed_capacity=sybil_params["maxflow_initial_seed_capacity"],
-                    mode=sybil_params["maxflow_mode"],
-                    sweep_factor=sybil_params["maxflow_sweep_factor"],
-                    sweep_bimodality_threshold=(
-                        sybil_params["maxflow_sweep_bimodality_threshold"]
-                    ),
-                    sweep_post_threshold_steps=(
-                        sybil_params["maxflow_sweep_post_threshold_steps"]
-                    ),
-                    sweep_max_steps=sybil_params["maxflow_sweep_max_steps"],
+            if args.print_non_sybil_cluster:
+                non_sybil_nodes = extract_non_sybil_cluster_from_scores(
+                    trust_scores,
                 )
+        if args.print_non_sybil_cluster:
+            cluster_label = (
+                "Non-sybil cluster (max-flow sweep)"
+                if sybil_params["maxflow_sweep"]
+                else "Non-sybil cluster (max-flow scores)"
+            )
             if non_sybil_nodes:
-                print("Non-sybil cluster (max-flow sweep):")
+                print(f"{cluster_label}:")
                 for node in sorted(non_sybil_nodes):
                     print(f"  {node}")
             else:
-                print("Non-sybil cluster (max-flow sweep): <empty>")
-            footer_lines = _format_non_sybil_cluster_lines(non_sybil_nodes or set())
+                print(f"{cluster_label}: <empty>")
+            footer_lines = _format_non_sybil_cluster_lines(
+                non_sybil_nodes or set(),
+                label=cluster_label,
+            )
         _plot_random_org_graph(
             graph,
             seed=params["seed"],
@@ -1696,8 +1697,8 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--print-non-sybil-cluster",
         action="store_true",
-        help="Print the non-sybil cluster from max-flow sweep scores "
-             "(requires --plot-with-maxflow)")
+        help="Print the non-sybil cluster from max-flow scores "
+             "(uses sweep scores when enabled; requires --plot-with-maxflow)")
     parser_random_sybil_attack.add_argument(
         "--seed", type=int, default=None,
         help="Random seed (optional)")

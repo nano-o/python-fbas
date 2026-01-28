@@ -124,7 +124,7 @@ def gen_random_top_tier_org_fbas(
             max_threshold_ratio=max_threshold_ratio,
             rng=rng,
         )
-        # Use fake FBAS for quorum check (1 validator per org)
+        # Use org-level FBAS for quorum check (1 validator per org)
         fake_fbas = org_graph_to_org_level_fbas(top_tier)
         if find_disjoint_quorums(fake_fbas) is None:
             # Return the real org-structured FBAS

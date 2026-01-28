@@ -44,6 +44,7 @@ the bimodality threshold:
 ```bash
 python-fbas random-sybil-attack-fbas \
   --plot-with-maxflow \
+  --print-non-sybil-cluster \
   --sybil-detection-maxflow-sweep \
   --sybil-detection-maxflow-sweep-post-threshold-steps 2
 ```
@@ -52,6 +53,7 @@ python-fbas random-sybil-attack-fbas \
 
 The generator builds a directed graph of orgs and then maps each org to a
 validator with a threshold-based quorum set. Nodes get a `role` attribute:
+- The exported FBAS uses this org-level representation (one validator per org).
 - `honest` and `attacker` come from the original graph and its sampled quorum.
 - `sybil` are nodes in Sybil cluster 1 (with `sybil_cluster=1`).
 - `sybil` are nodes in Sybil cluster 2 (with `sybil_cluster=2`).
@@ -101,6 +103,7 @@ disable recording.
 
 If you do not supply `--seed`, the command generates one, prints it to stderr,
 and writes it into the recorded generator config so the run can be reproduced.
+Use `--seed` to force a specific seed.
 
 To reproduce a recorded run, point the generator at the run directory:
 ```bash
@@ -113,24 +116,30 @@ creating duplicate run folders.
 ## Output and plotting
 
 - `--print-fbas`: print the generated FBAS JSON to stdout.
-- `--plot`: draw the org graph layout (roles, edges, thresholds).
+- `--plot`: draw the org graph layout (roles and edges).
 - `--plot-with-trust`: shade nodes by trust scores computed with bounded
   capacity-limited propagation (`trust_steps`, `trust_capacity`).
 - `--plot-with-trustrank`: shade nodes by TrustRank scores (personalized
   PageRank with `trustrank_alpha`, `trustrank_epsilon`).
 - `--plot-with-maxflow`: shade nodes by max-flow scores with
-  `maxflow_initial_seed_capacity`. If `maxflow_sweep` is enabled, it prints bimodality
-  coefficients and shows a small sweep plot. Set
+  `maxflow_initial_seed_capacity`. If `maxflow_sweep` is enabled, it uses the
+  final sweep scores, prints bimodality coefficients, and shows a small sweep
+  plot. Set
   `maxflow_sweep_post_threshold_steps` to keep sweeping for extra iterations
   after hitting the bimodality threshold (default 0).
+- `--print-non-sybil-cluster`: print the high-score cluster inferred from
+  max-flow scores and annotate it on the plot. If `maxflow_sweep` is enabled,
+  the sweep’s final scores are used. Requires
+  `--plot-with-maxflow`.
 
 Only one of `--plot-with-trust`, `--plot-with-trustrank`, or
 `--plot-with-maxflow` can be enabled at a time.
 
 ### Plot details
 
-- Trust seeds are chosen from honest nodes (`seed_count`), or all honest nodes
-  if `seed_count` exceeds the honest set. If no honest nodes exist, seeds are
+- Trust seeds are chosen from honest nodes (`seed_count`) by default; with
+  `seed_selection=original`, attackers may be included. If `seed_count` exceeds
+  the candidate set, all candidates are used; if no candidates exist, seeds are
   drawn from all nodes.
 - Node labels include trust scores when a trust plot is selected.
 - Legend and edge styles:
@@ -140,6 +149,8 @@ Only one of `--plot-with-trust`, `--plot-with-trustrank`, or
   - Attacker -> sybil edges are solid red.
   - Sybil -> honest edges are dashed gray.
   - Sybil -> sybil edges are dotted gray.
+  - When `--print-non-sybil-cluster` is enabled, green dots mark the inferred
+    non-sybil cluster and red dots mark the remaining nodes.
 
 ## Key parameters
 
@@ -185,5 +196,6 @@ Useful parameters include:
   `maxflow_sweep_bimodality_threshold`: sweep controls.
 - `maxflow_sweep_post_threshold_steps`: extra sweep iterations after the
   threshold is reached.
+- `maxflow_sweep_max_steps`: maximum number of sweep steps.
 
 Use `python-fbas show-sybil-detection-config` to see all available settings.

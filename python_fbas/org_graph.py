@@ -207,9 +207,10 @@ def org_graph_to_org_level_fbas(org_graph: nx.DiGraph) -> FBASGraph:
     """
     Convert an org graph into a simplified FBASGraph where each org is a single validator.
 
-    This is a "fake" org-structured FBAS used for quorum analysis in the generator.
     Each org vertex becomes a validator whose quorum set is formed by its
-    outgoing neighbors (as validators, not org qsets) and the vertex "threshold" attribute.
+    outgoing neighbors (as validators, not org qsets) and the vertex "threshold"
+    attribute. This representation is useful for org-level analysis and for
+    exporting a compact FBAS.
 
     Args:
         org_graph: A directed graph where each node represents an organization

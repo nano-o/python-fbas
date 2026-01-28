@@ -521,6 +521,17 @@ def _cluster_high_score_nodes(
     return high_cluster
 
 
+def extract_non_sybil_cluster_from_scores(
+    scores: dict[str, float],
+    *,
+    kmeans_max_iters: int = 100,
+) -> set[str]:
+    """
+    Cluster nodes by score only and return the higher-score cluster.
+    """
+    return _cluster_high_score_nodes(scores, max_iters=kmeans_max_iters)
+
+
 def extract_non_sybil_cluster_maxflow_sweep(
     graph: nx.DiGraph,
     seeds: str | Iterable[str],
