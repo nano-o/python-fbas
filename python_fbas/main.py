@@ -44,6 +44,7 @@ from python_fbas.sybil_detection import (
     compute_top_tier_score_details,
     compute_trust_scores,
     compute_trustrank_scores,
+    estimate_seed_reachability_monte_carlo,
     extract_non_sybil_cluster_maxflow_sweep,
     extract_non_sybil_cluster_from_scores,
     is_top_tier,
@@ -103,38 +104,147 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
     "maxflow_sweep_post_threshold_steps": 0,
     "maxflow_sweep_max_steps": 8,
+    "monte_carlo_failure_prob": 0.1,
+    "monte_carlo_trials": 1000,
+    "monte_carlo_remove_seeds": False,
     "top_tier_lambda": 1.0,
     "top_tier_score_threshold": 0.65,
 }
 
 
-def _generator_defaults_yaml() -> str:
-    yaml_lines = [
-        "# python-fbas generator configuration file",
-        "# Use with: python-fbas random-sybil-attack-fbas --generator-config=FILE",
-        "# Add --print-fbas to output the generated FBAS JSON",
-        "",
-    ]
-    for key, value in GENERATOR_DEFAULTS.items():
+def _format_config_yaml(header_lines: list[str], data: dict[str, Any]) -> str:
+    yaml_lines = header_lines[:] + [""]
+    for key, value in data.items():
         value_yaml = yaml.safe_dump(value, default_flow_style=False).strip()
         if value_yaml.endswith("..."):
             value_yaml = value_yaml[:-3].strip()
         yaml_lines.append(f"{key}: {value_yaml}")
     return "\n".join(yaml_lines)
+
+
+def _generator_defaults_yaml() -> str:
+    return _format_config_yaml(
+        [
+            "# python-fbas generator configuration file",
+            "# Use with: python-fbas random-sybil-attack-fbas --generator-config=FILE",
+            "# Add --print-fbas to output the generated FBAS JSON",
+        ],
+        GENERATOR_DEFAULTS,
+    )
 
 
 def _sybil_detection_defaults_yaml() -> str:
-    yaml_lines = [
-        "# python-fbas sybil-detection configuration file",
-        "# Use with: python-fbas show-sybil-detection-config",
-        "",
-    ]
-    for key, value in SYBIL_DETECTION_DEFAULTS.items():
-        value_yaml = yaml.safe_dump(value, default_flow_style=False).strip()
-        if value_yaml.endswith("..."):
-            value_yaml = value_yaml[:-3].strip()
-        yaml_lines.append(f"{key}: {value_yaml}")
-    return "\n".join(yaml_lines)
+    return _format_config_yaml(
+        [
+            "# python-fbas sybil-detection configuration file",
+            "# Use with: python-fbas show-sybil-detection-config",
+        ],
+        SYBIL_DETECTION_DEFAULTS,
+    )
+
+
+def _find_config_path(config_dir: str | None, filename: str) -> str | None:
+    config_dirs = []
+    if config_dir:
+        config_dirs.append(config_dir)
+    config_dirs.append(".")
+    for config_dir in config_dirs:
+        candidate = os.path.join(config_dir, filename)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def _load_generator_params_from_config(config_dir: str | None) -> dict[str, Any]:
+    params = GENERATOR_DEFAULTS.copy()
+    config_path = _find_config_path(config_dir, "python-fbas.generator.cfg")
+    if not config_path:
+        return params
+    config_params = load_from_file(config_path)
+    if not isinstance(config_params, dict):
+        raise ValueError(
+            "--generator-config must contain a YAML mapping of parameters")
+    allowed_keys = set(GENERATOR_DEFAULTS.keys())
+    invalid_keys = set(config_params.keys()) - allowed_keys
+    if invalid_keys:
+        logging.warning(
+            "Ignoring unknown generator config keys: %s",
+            sorted(invalid_keys),
+        )
+        config_params = {
+            key: value
+            for key, value in config_params.items()
+            if key in allowed_keys
+        }
+    params.update(config_params)
+    return params
+
+
+def _load_sybil_params_from_config(config_dir: str | None) -> dict[str, Any]:
+    params = SYBIL_DETECTION_DEFAULTS.copy()
+    config_path = _find_config_path(config_dir, "python-fbas.sybil-detection.cfg")
+    if not config_path:
+        return params
+    sybil_config = load_from_file(config_path)
+    if not isinstance(sybil_config, dict):
+        raise ValueError(
+            "--sybil-detection-config must contain a YAML mapping of parameters")
+    deprecated_sybil_keys = {
+        "steps": "trust_steps",
+        "capacity": "trust_capacity",
+        "maxflow_seed_capacity": "maxflow_initial_seed_capacity",
+    }
+    for old_key, new_key in deprecated_sybil_keys.items():
+        if old_key in sybil_config:
+            if new_key in sybil_config:
+                logging.warning(
+                    "Ignoring deprecated sybil-detection key %s because %s is set",
+                    old_key,
+                    new_key,
+                )
+            else:
+                logging.warning(
+                    "sybil-detection key %s is deprecated; use %s",
+                    old_key,
+                    new_key,
+                )
+                sybil_config[new_key] = sybil_config[old_key]
+            sybil_config.pop(old_key, None)
+    sybil_allowed = set(SYBIL_DETECTION_DEFAULTS.keys())
+    invalid_keys = set(sybil_config.keys()) - sybil_allowed
+    if invalid_keys:
+        logging.warning(
+            "Ignoring unknown sybil-detection config keys: %s",
+            sorted(invalid_keys),
+        )
+        sybil_config = {
+            key: value
+            for key, value in sybil_config.items()
+            if key in sybil_allowed
+        }
+    params.update(sybil_config)
+    return params
+
+
+def _generator_config_yaml(params: dict[str, Any]) -> str:
+    return _format_config_yaml(
+        [
+            "# python-fbas generator configuration file",
+            "# Use with: python-fbas random-sybil-attack-fbas --generator-config=FILE",
+            "# Add --print-fbas to output the generated FBAS JSON",
+        ],
+        params,
+    )
+
+
+def _sybil_detection_config_yaml(params: dict[str, Any]) -> str:
+    return _format_config_yaml(
+        [
+            "# python-fbas sybil-detection configuration file",
+            "# Use with: python-fbas show-sybil-detection-config",
+        ],
+        params,
+    )
 
 
 def _create_run_dir(base_dir: str) -> str:
@@ -249,14 +359,16 @@ def _command_show_config(args: Any) -> None:
     print(yaml_output)
 
 
-def _command_show_generator_config(_args: Any) -> None:
-    """Display generator defaults as YAML."""
-    print(_generator_defaults_yaml())
+def _command_show_generator_config(args: Any) -> None:
+    """Display generator defaults with config overrides as YAML."""
+    params = _load_generator_params_from_config(args.config_dir)
+    print(_generator_config_yaml(params))
 
 
-def _command_show_sybil_detection_config(_args: Any) -> None:
-    """Display sybil-detection defaults as YAML."""
-    print(_sybil_detection_defaults_yaml())
+def _command_show_sybil_detection_config(args: Any) -> None:
+    """Display sybil-detection defaults with config overrides as YAML."""
+    params = _load_sybil_params_from_config(args.config_dir)
+    print(_sybil_detection_config_yaml(params))
 
 
 def _command_check_intersection(args: Any, fbas: FBASGraph) -> None:
@@ -1099,6 +1211,18 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
         sybil_params["maxflow_sweep_max_steps"] = (
             args.sybil_detection_maxflow_sweep_max_steps
         )
+    if args.sybil_detection_monte_carlo_failure_prob is not None:
+        sybil_params["monte_carlo_failure_prob"] = (
+            args.sybil_detection_monte_carlo_failure_prob
+        )
+    if args.sybil_detection_monte_carlo_trials is not None:
+        sybil_params["monte_carlo_trials"] = (
+            args.sybil_detection_monte_carlo_trials
+        )
+    if args.sybil_detection_monte_carlo_remove_seeds is not None:
+        sybil_params["monte_carlo_remove_seeds"] = (
+            args.sybil_detection_monte_carlo_remove_seeds
+        )
 
     record_run = params["record_run"]
     if record_run and args.config_dir:
@@ -1125,12 +1249,13 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             args.plot_with_trustrank,
             args.plot_with_maxflow,
             args.conductance_sweep,
+            args.monte_carlo_estimator,
         )
         if enabled
     ) > 1:
         raise ValueError(
             "Choose only one of --plot-with-trust, --plot-with-trustrank, or "
-            "--plot-with-maxflow, or --conductance-sweep")
+            "--plot-with-maxflow, --conductance-sweep, or --monte-carlo-estimator")
     if args.print_non_sybil_cluster and not args.plot_with_maxflow:
         raise ValueError(
             "--print-non-sybil-cluster requires --plot-with-maxflow")
@@ -1388,6 +1513,22 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             highlight_nodes=cluster,
             footer_lines=footer_lines,
         )
+    elif args.monte_carlo_estimator:
+        trust_seeds = _choose_trust_seeds()
+        mc_scores = estimate_seed_reachability_monte_carlo(
+            graph,
+            trust_seeds,
+            failure_prob=sybil_params["monte_carlo_failure_prob"],
+            trials=sybil_params["monte_carlo_trials"],
+            remove_seeds=sybil_params["monte_carlo_remove_seeds"],
+            rng=rng,
+        )
+        _plot_random_org_graph(
+            graph,
+            seed=params["seed"],
+            trust_scores=mc_scores,
+            trust_seeds=trust_seeds,
+        )
     elif args.plot:
         _plot_random_org_graph(graph, seed=params["seed"])
 
@@ -1469,12 +1610,12 @@ def main() -> None:
 
     parser_show_generator_config = subparsers.add_parser(
         'show-generator-config',
-        help="Display generator defaults as YAML")
+        help="Display generator config (defaults + config file) as YAML")
     parser_show_generator_config.set_defaults(func=_command_show_generator_config)
 
     parser_show_sybil_detection_config = subparsers.add_parser(
         'show-sybil-detection-config',
-        help="Display sybil-detection defaults as YAML")
+        help="Display sybil-detection config (defaults + config file) as YAML")
     parser_show_sybil_detection_config.set_defaults(
         func=_command_show_sybil_detection_config)
 
@@ -1788,6 +1929,25 @@ def main() -> None:
         "--conductance-sweep",
         action="store_true",
         help="Plot the org graph with PPR scores and a conductance-sweep cluster")
+    parser_random_sybil_attack.add_argument(
+        "--monte-carlo-estimator",
+        action="store_true",
+        help="Plot the org graph with Monte Carlo reachability scores")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-monte-carlo-failure-prob",
+        type=float,
+        default=None,
+        help="Monte Carlo node failure probability for --monte-carlo-estimator")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-monte-carlo-trials",
+        type=int,
+        default=None,
+        help="Monte Carlo trial count for --monte-carlo-estimator")
+    parser_random_sybil_attack.add_argument(
+        "--sybil-detection-monte-carlo-remove-seeds",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Allow seed removal in Monte Carlo trials")
     parser_random_sybil_attack.add_argument(
         "--print-non-sybil-cluster",
         action="store_true",
