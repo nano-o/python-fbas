@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 import math
+import random
 from typing import Final, Iterable
 
 import networkx as nx
@@ -622,6 +623,68 @@ def conductance_sweep_cluster(
     if best_k == 0:
         return set(ordered_nodes)
     return set(ordered_nodes[:best_k])
+
+
+def estimate_seed_reachability_monte_carlo(
+    graph: nx.DiGraph,
+    seeds: str | Iterable[str],
+    *,
+    failure_prob: float = 0.1,
+    trials: int = 1000,
+    remove_seeds: bool = False,
+    rng: random.Random | None = None,
+) -> dict[str, float]:
+    """
+    Estimate seed reachability under random node failures via Monte Carlo.
+
+    Each trial removes non-seed nodes independently with probability
+    `failure_prob` (seeds are kept unless remove_seeds=True). The score for a
+    node is the fraction of trials in which it is reachable from any active
+    seed via directed paths. Returns a mapping of node -> probability.
+    """
+    if isinstance(seeds, str):
+        seed_list = [seeds]
+    else:
+        seed_list = list(seeds)
+    if not seed_list:
+        raise ValueError("seeds must be non-empty")
+    missing = [seed for seed in seed_list if seed not in graph]
+    if missing:
+        raise ValueError(f"seeds not found in graph: {missing}")
+    if not (0.0 <= failure_prob <= 1.0):
+        raise ValueError("failure_prob must be in [0, 1]")
+    if trials <= 0:
+        raise ValueError("trials must be positive")
+
+    rng = rng or random.Random()
+    nodes = list(graph.nodes)
+    counts = {node: 0 for node in nodes}
+    seed_set = set(seed_list)
+
+    for _ in range(trials):
+        active: set[str] = set()
+        for node in nodes:
+            if node in seed_set and not remove_seeds:
+                active.add(node)
+                continue
+            if rng.random() >= failure_prob:
+                active.add(node)
+        active_seeds = seed_set & active
+        if not active_seeds:
+            continue
+        # BFS/DFS from all active seeds over directed edges.
+        reachable = set(active_seeds)
+        stack = list(active_seeds)
+        while stack:
+            node = stack.pop()
+            for succ in graph.successors(node):
+                if succ in active and succ not in reachable:
+                    reachable.add(succ)
+                    stack.append(succ)
+        for node in reachable:
+            counts[node] += 1
+
+    return {node: counts[node] / trials for node in nodes}
 
 
 def extract_non_sybil_cluster_maxflow_sweep(

@@ -54,6 +54,11 @@ Plot with personalized PageRank and conductance sweep clustering:
 python-fbas random-sybil-attack-fbas --conductance-sweep
 ```
 
+Plot with Monte Carlo reachability estimation:
+```bash
+python-fbas random-sybil-attack-fbas --monte-carlo-estimator
+```
+
 ## Graph shape and roles
 
 The generator builds a directed graph of orgs and then maps each org to a
@@ -135,6 +140,9 @@ creating duplicate run folders.
 - `--conductance-sweep`: shade nodes by personalized PageRank (TrustRank) scores
   and highlight the lowest-conductance prefix set. The plot footer includes the
   top-tier check for the identified cluster.
+- `--monte-carlo-estimator`: shade nodes by Monte Carlo reachability from the
+  seed set under random node failures (configurable via
+  `monte_carlo_failure_prob`, `monte_carlo_trials`, `monte_carlo_remove_seeds`).
 - `--print-non-sybil-cluster`: print the high-score cluster inferred from
   max-flow scores and annotate it on the plot. If `maxflow_sweep` is enabled,
   the sweep’s final scores are used. Requires
@@ -207,5 +215,8 @@ Useful parameters include:
 - `maxflow_sweep_post_threshold_steps`: extra sweep iterations after the
   threshold is reached.
 - `maxflow_sweep_max_steps`: maximum number of sweep steps.
+- `monte_carlo_failure_prob`: per-node failure probability for Monte Carlo reachability.
+- `monte_carlo_trials`: number of Monte Carlo trials.
+- `monte_carlo_remove_seeds`: whether seeds can fail during trials.
 
 Use `python-fbas show-sybil-detection-config` to see all available settings.

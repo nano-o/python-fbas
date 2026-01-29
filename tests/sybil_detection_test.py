@@ -13,6 +13,7 @@ from python_fbas.fbas_generator import (
 from python_fbas.org_graph import fbas_to_org_graph
 from python_fbas.solver import HAS_QBF
 from python_fbas.sybil_detection import (
+    estimate_seed_reachability_monte_carlo,
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
     compute_trust_scores,
@@ -401,6 +402,64 @@ def test_extract_non_sybil_cluster_maxflow_sweep_all_equal(monkeypatch):
     )
 
     assert cluster == {"a", "b", "c"}
+
+
+def test_monte_carlo_seed_reachability_deterministic():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+    ])
+    graph.add_node("c")
+
+    scores = estimate_seed_reachability_monte_carlo(
+        graph,
+        ["seed"],
+        failure_prob=0.0,
+        trials=5,
+        rng=random.Random(0),
+    )
+    assert scores["seed"] == 1.0
+    assert scores["a"] == 1.0
+    assert scores["b"] == 1.0
+    assert scores["c"] == 0.0
+
+
+def test_monte_carlo_seed_reachability_all_fail():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+    ])
+    scores = estimate_seed_reachability_monte_carlo(
+        graph,
+        ["seed"],
+        failure_prob=1.0,
+        trials=5,
+        rng=random.Random(0),
+    )
+    assert scores["seed"] == 1.0
+    assert scores["a"] == 0.0
+    assert scores["b"] == 0.0
+
+
+def test_monte_carlo_seed_reachability_remove_seeds():
+    graph = nx.DiGraph()
+    graph.add_edges_from([
+        ("seed", "a"),
+        ("a", "b"),
+    ])
+    scores = estimate_seed_reachability_monte_carlo(
+        graph,
+        ["seed"],
+        failure_prob=1.0,
+        trials=5,
+        remove_seeds=True,
+        rng=random.Random(0),
+    )
+    assert scores["seed"] == 0.0
+    assert scores["a"] == 0.0
+    assert scores["b"] == 0.0
 
 
 def test_is_top_tier_small_top_tier_json():
