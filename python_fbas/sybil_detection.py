@@ -208,12 +208,32 @@ def compute_top_tier_score(
     dispersion and only penalizes missing arcs on average, while larger values
     make outlier vertices reduce the score more aggressively. Runs in O(n + m).
     """
+    details = compute_top_tier_score_details(graph, lambda_=lambda_)
+    return details["score"]
+
+
+def compute_top_tier_score_details(
+    graph: nx.DiGraph,
+    *,
+    lambda_: float = DEFAULT_TOP_TIER_LAMBDA,
+) -> dict[str, float]:
+    """
+    Compute the top-tier score and its components for inspection/debugging.
+    """
     if not math.isfinite(lambda_) or lambda_ < 0:
         raise ValueError("lambda must be finite and non-negative")
 
     n = graph.number_of_nodes()
     if n < 2:
-        return 0.0
+        return {
+            "n": float(n),
+            "score": 0.0,
+            "mu_out": 0.0,
+            "mu_in": 0.0,
+            "sigma_out": 0.0,
+            "sigma_in": 0.0,
+            "lambda": float(lambda_),
+        }
 
     missing_out: list[float] = []
     missing_in: list[float] = []
@@ -236,11 +256,20 @@ def compute_top_tier_score(
     )
 
     denom = 2 * (n - 1)
-    return (
+    score = (
         1.0
         - (mu_out + mu_in) / denom
         - lambda_ * (sigma_out + sigma_in) / denom
     )
+    return {
+        "n": float(n),
+        "score": score,
+        "mu_out": mu_out,
+        "mu_in": mu_in,
+        "sigma_out": sigma_out,
+        "sigma_in": sigma_in,
+        "lambda": float(lambda_),
+    }
 
 
 def is_top_tier(
@@ -530,6 +559,69 @@ def extract_non_sybil_cluster_from_scores(
     Cluster nodes by score only and return the higher-score cluster.
     """
     return _cluster_high_score_nodes(scores, max_iters=kmeans_max_iters)
+
+
+def conductance_sweep_cluster(
+    graph: nx.DiGraph,
+    scores: dict[str, float],
+    *,
+    normalize_by_degree: bool = True,
+) -> set[str]:
+    """
+    Return the lowest-conductance prefix when nodes are ordered by PPR scores.
+
+    Conductance is computed on the undirected version of the graph.
+    If normalize_by_degree is True, nodes are ranked by score/degree (standard
+    PPR sweep); otherwise by raw score. Returns all nodes if conductance is
+    undefined (e.g., no edges).
+    """
+    if not scores:
+        return set()
+
+    undirected = graph.to_undirected()
+    degrees = dict(undirected.degree())
+    total_volume = sum(degrees.values())
+    if total_volume == 0:
+        return set(scores.keys())
+
+    def rank(node: str) -> float:
+        score = scores.get(node, 0.0)
+        if normalize_by_degree:
+            degree = degrees.get(node, 0)
+            if degree > 0:
+                return score / degree
+        return score
+
+    ordered_nodes = sorted(
+        scores.keys(),
+        key=lambda node: (-rank(node), -scores.get(node, 0.0), str(node)),
+    )
+    seen: set[str] = set()
+    cut = 0
+    volume = 0
+    best_phi = float("inf")
+    best_k = 0
+
+    for idx, node in enumerate(ordered_nodes, start=1):
+        seen.add(node)
+        volume += degrees.get(node, 0)
+        for neighbor in undirected.neighbors(node):
+            if neighbor in seen:
+                cut -= 1
+            else:
+                cut += 1
+        complement_volume = total_volume - volume
+        denom = min(volume, complement_volume)
+        if denom <= 0:
+            continue
+        phi = cut / denom
+        if phi < best_phi:
+            best_phi = phi
+            best_k = idx
+
+    if best_k == 0:
+        return set(ordered_nodes)
+    return set(ordered_nodes[:best_k])
 
 
 def extract_non_sybil_cluster_maxflow_sweep(

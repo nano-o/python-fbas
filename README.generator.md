@@ -49,6 +49,11 @@ python-fbas random-sybil-attack-fbas \
   --sybil-detection-maxflow-sweep-post-threshold-steps 2
 ```
 
+Plot with personalized PageRank and conductance sweep clustering:
+```bash
+python-fbas random-sybil-attack-fbas --conductance-sweep
+```
+
 ## Graph shape and roles
 
 The generator builds a directed graph of orgs and then maps each org to a
@@ -127,6 +132,9 @@ creating duplicate run folders.
   plot. Set
   `maxflow_sweep_post_threshold_steps` to keep sweeping for extra iterations
   after hitting the bimodality threshold (default 0).
+- `--conductance-sweep`: shade nodes by personalized PageRank (TrustRank) scores
+  and highlight the lowest-conductance prefix set. The plot footer includes the
+  top-tier check for the identified cluster.
 - `--print-non-sybil-cluster`: print the high-score cluster inferred from
   max-flow scores and annotate it on the plot. If `maxflow_sweep` is enabled,
   the sweep’s final scores are used. Requires
@@ -151,6 +159,8 @@ Only one of `--plot-with-trust`, `--plot-with-trustrank`, or
   - Sybil -> sybil edges are dotted gray.
   - When `--print-non-sybil-cluster` is enabled, green dots mark the inferred
     non-sybil cluster and red dots mark the remaining nodes.
+  - When `--conductance-sweep` is enabled, green dots mark the conductance-sweep
+    cluster and red dots mark the remaining nodes.
 
 ## Key parameters
 

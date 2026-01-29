@@ -38,12 +38,15 @@ from python_fbas.fbas_generator import (
 )
 from python_fbas.org_graph import org_graph_to_org_level_fbas
 from python_fbas.sybil_detection import (
+    conductance_sweep_cluster,
     compute_maxflow_scores,
     compute_maxflow_scores_sweep,
+    compute_top_tier_score_details,
     compute_trust_scores,
     compute_trustrank_scores,
     extract_non_sybil_cluster_maxflow_sweep,
     extract_non_sybil_cluster_from_scores,
+    is_top_tier,
 )
 
 GENERATOR_DEFAULTS: dict[str, Any] = {
@@ -95,7 +98,7 @@ SYBIL_DETECTION_DEFAULTS: dict[str, Any] = {
     "trustrank_epsilon": 1e-8,
     "maxflow_initial_seed_capacity": 1.0,
     "maxflow_mode": "standard",
-    "maxflow_sweep": False,
+    "maxflow_sweep": True,
     "maxflow_sweep_factor": 2.0,
     "maxflow_sweep_bimodality_threshold": 0.5555555555555556,
     "maxflow_sweep_post_threshold_steps": 0,
@@ -1121,12 +1124,13 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             args.plot_with_trust,
             args.plot_with_trustrank,
             args.plot_with_maxflow,
+            args.conductance_sweep,
         )
         if enabled
     ) > 1:
         raise ValueError(
             "Choose only one of --plot-with-trust, --plot-with-trustrank, or "
-            "--plot-with-maxflow")
+            "--plot-with-maxflow, or --conductance-sweep")
     if args.print_non_sybil_cluster and not args.plot_with_maxflow:
         raise ValueError(
             "--print-non-sybil-cluster requires --plot-with-maxflow")
@@ -1269,16 +1273,48 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
                 if sybil_params["maxflow_sweep"]
                 else "Non-sybil cluster (max-flow scores)"
             )
-            if non_sybil_nodes:
-                print(f"{cluster_label}:")
-                for node in sorted(non_sybil_nodes):
-                    print(f"  {node}")
-            else:
-                print(f"{cluster_label}: <empty>")
             footer_lines = _format_non_sybil_cluster_lines(
                 non_sybil_nodes or set(),
                 label=cluster_label,
             )
+            if non_sybil_nodes:
+                if len(non_sybil_nodes) < 2:
+                    footer_lines.append(
+                        "Non-sybil cluster top-tier: n/a (size < 2)"
+                    )
+                else:
+                    subgraph = graph.subgraph(non_sybil_nodes).copy()
+                    top_tier_lambda = sybil_params["top_tier_lambda"]
+                    top_tier_threshold = sybil_params["top_tier_score_threshold"]
+                    details = compute_top_tier_score_details(
+                        subgraph,
+                        lambda_=top_tier_lambda,
+                    )
+                    top_tier_score = details["score"]
+                    is_top = top_tier_score >= top_tier_threshold
+                    footer_lines.append(
+                        "Non-sybil cluster top-tier: "
+                        f"{'yes' if is_top else 'no'}"
+                    )
+                    footer_lines.append(
+                        "Top-tier score: "
+                        f"{top_tier_score:.4f} (threshold {top_tier_threshold:.4f})"
+                    )
+                    print("Top-tier debug (non-sybil cluster):")
+                    print(
+                        "  n="
+                        f"{int(details['n'])} "
+                        f"score={top_tier_score:.6f} "
+                        f"threshold={top_tier_threshold:.6f} "
+                        f"lambda={top_tier_lambda:.6f}"
+                    )
+                    print(
+                        "  mu_out="
+                        f"{details['mu_out']:.6f} "
+                        f"mu_in={details['mu_in']:.6f} "
+                        f"sigma_out={details['sigma_out']:.6f} "
+                        f"sigma_in={details['sigma_in']:.6f}"
+                    )
         _plot_random_org_graph(
             graph,
             seed=params["seed"],
@@ -1298,6 +1334,60 @@ def _command_random_sybil_attack_fbas(args: Any) -> None:
             plt.grid(True, alpha=0.3)
             plt.tight_layout()
             plt.show()
+    elif args.conductance_sweep:
+        trust_seeds = _choose_trust_seeds()
+        ppr_scores = compute_trustrank_scores(
+            graph,
+            trust_seeds,
+            alpha=sybil_params["trustrank_alpha"],
+            epsilon=sybil_params["trustrank_epsilon"],
+        )
+        cluster = conductance_sweep_cluster(graph, ppr_scores)
+        footer_lines: list[str] | None = None
+        if cluster:
+            if len(cluster) < 2:
+                footer_lines = ["Conductance sweep cluster top-tier: n/a (size < 2)"]
+            else:
+                top_tier_lambda = sybil_params["top_tier_lambda"]
+                top_tier_threshold = sybil_params["top_tier_score_threshold"]
+                subgraph = graph.subgraph(cluster).copy()
+                details = compute_top_tier_score_details(
+                    subgraph,
+                    lambda_=top_tier_lambda,
+                )
+                top_tier_score = details["score"]
+                is_top = top_tier_score >= top_tier_threshold
+                footer_lines = [
+                    "Conductance sweep cluster top-tier: "
+                    f"{'yes' if is_top else 'no'}",
+                    "Top-tier score: "
+                    f"{top_tier_score:.4f} (threshold {top_tier_threshold:.4f})",
+                ]
+                print("Top-tier debug (conductance sweep cluster):")
+                print(
+                    "  n="
+                    f"{int(details['n'])} "
+                    f"score={top_tier_score:.6f} "
+                    f"threshold={top_tier_threshold:.6f} "
+                    f"lambda={top_tier_lambda:.6f}"
+                )
+                print(
+                    "  mu_out="
+                    f"{details['mu_out']:.6f} "
+                    f"mu_in={details['mu_in']:.6f} "
+                    f"sigma_out={details['sigma_out']:.6f} "
+                    f"sigma_in={details['sigma_in']:.6f}"
+                )
+        else:
+            footer_lines = ["Conductance sweep cluster top-tier: n/a (empty)"]
+        _plot_random_org_graph(
+            graph,
+            seed=params["seed"],
+            trust_scores=ppr_scores,
+            trust_seeds=trust_seeds,
+            highlight_nodes=cluster,
+            footer_lines=footer_lines,
+        )
     elif args.plot:
         _plot_random_org_graph(graph, seed=params["seed"])
 
@@ -1694,6 +1784,10 @@ def main() -> None:
     parser_random_sybil_attack.add_argument(
         "--plot-with-maxflow", action="store_true",
         help="Plot the org graph with max-flow scores from random honest orgs")
+    parser_random_sybil_attack.add_argument(
+        "--conductance-sweep",
+        action="store_true",
+        help="Plot the org graph with PPR scores and a conductance-sweep cluster")
     parser_random_sybil_attack.add_argument(
         "--print-non-sybil-cluster",
         action="store_true",
