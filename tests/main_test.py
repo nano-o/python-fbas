@@ -126,7 +126,22 @@ def test_min_quorum():
         f"--fbas={FBAS_JSON}",
         "min-quorum"]
     output = run_command(command)
-    assert "Example min quorum:" in output
+    assert "Minimal quorum cardinality is:" in output
+    assert "Example min-cardinality quorum:" in output
+
+
+def test_min_quorum_min_cardinality():
+    """Test the min-quorum command with min-cardinality mode."""
+    command = [
+        sys.executable,
+        "-m",
+        "python_fbas.main",
+        f"--fbas={FBAS_JSON}",
+        "min-quorum",
+        "--mode=min-cardinality"]
+    output = run_command(command)
+    assert "Minimal quorum cardinality is:" in output
+    assert "Example min-cardinality quorum:" in output
 
 
 def test_max_scc():

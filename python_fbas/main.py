@@ -12,7 +12,7 @@ from python_fbas.fbas_graph import FBASGraph
 from python_fbas.fbas_graph_analysis import (
     find_disjoint_quorums,
     find_minimal_splitting_set, find_minimal_blocking_set,
-    min_history_loss_critical_set, find_min_quorum, top_tier, max_scc
+    min_history_loss_critical_set, find_min_quorum, find_min_cardinality_quorum, top_tier, max_scc
 )
 from python_fbas.pubnet_data import get_pubnet_config
 from python_fbas.solver import solvers
@@ -162,9 +162,14 @@ def _command_history_loss(_args: Any, fbas: FBASGraph) -> None:
         f"Corresponding history-less quorum:\n {_format_validators(fbas, result.quorum)}")
 
 
-def _command_min_quorum(_args: Any, fbas: FBASGraph) -> None:
-    result = find_min_quorum(fbas)
-    print(f"Example min quorum:\n{_format_validators(fbas, result)}")
+def _command_min_quorum(args: Any, fbas: FBASGraph) -> None:
+    if args.mode == 'minimal':
+        result = find_min_quorum(fbas)
+        print(f"Example min quorum:\n{_format_validators(fbas, result)}")
+    else:
+        result = find_min_cardinality_quorum(fbas)
+        print(f"Minimal quorum cardinality is: {len(result)}")
+        print(f"Example min-cardinality quorum:\n{_format_validators(fbas, result)}")
 
 
 def _command_top_tier(args: Any, fbas: FBASGraph) -> None:
@@ -308,7 +313,12 @@ def main() -> None:
     parser_history_loss.set_defaults(func=_command_history_loss)
 
     parser_min_quorum = subparsers.add_parser(
-        'min-quorum', help="Find minimal-cardinality quorum")
+        'min-quorum', help="Find a quorum")
+    parser_min_quorum.add_argument(
+        '--mode',
+        default='min-cardinality',
+        choices=['minimal', 'min-cardinality'],
+        help="How to compute a quorum (default: min-cardinality): 'minimal' (subset-minimal via QBF) or 'min-cardinality' (smallest size via MaxSAT)")
     parser_min_quorum.set_defaults(func=_command_min_quorum)
 
     parser_top_tier = subparsers.add_parser(

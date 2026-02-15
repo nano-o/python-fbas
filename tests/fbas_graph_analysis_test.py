@@ -11,7 +11,7 @@ from python_fbas.fbas_graph_analysis import (
     find_minimal_splitting_set,
     find_minimal_blocking_set,
     find_min_quorum,
-    find_min_cardinality_min_quorum,
+    find_min_cardinality_quorum,
     contains_quorum,
     random_quorum,
     top_tier,
@@ -135,9 +135,11 @@ def test_min_quorum():
         assert len(find_min_quorum(fbas1, not_subset_of=['PK1', 'PK2', 'PK3'])) == 3
         assert len(find_min_quorum(fbas1, cardinality=3)) == 3
         assert not find_min_quorum(fbas1, cardinality=2)
-        assert len(find_min_cardinality_min_quorum(fbas1)) == 3
+        assert len(find_min_cardinality_quorum(fbas1)) == 3
+        assert len(find_min_cardinality_quorum(fbas1, not_subset_of=['PK1', 'PK2', 'PK3'])) == 3
     with config.temporary_config(card_encoding='naive'):
         assert len(find_min_quorum(fbas1)) == 3
+        assert len(find_min_cardinality_quorum(fbas1)) == 3
 
 def test_min_quorum_3():
     fbas1 = FBASGraph()
@@ -152,10 +154,16 @@ def test_min_quorum_3():
     with config.temporary_config(card_encoding='naive'):
         assert len(find_min_quorum(fbas1, project_on_scc=False)) == 2
         assert not find_min_quorum(fbas1, project_on_scc=False, not_subset_of=t1)
+        assert len(find_min_cardinality_quorum(fbas1, project_on_scc=False)) == 2
+        assert not find_min_cardinality_quorum(
+            fbas1, project_on_scc=False, not_subset_of=t1)
 
     with config.temporary_config(card_encoding='totalizer'):
         assert len(find_min_quorum(fbas1, project_on_scc=False)) == 2
         assert not find_min_quorum(fbas1, project_on_scc=False, not_subset_of=t1)
+        assert len(find_min_cardinality_quorum(fbas1, project_on_scc=False)) == 2
+        assert not find_min_cardinality_quorum(
+            fbas1, project_on_scc=False, not_subset_of=t1)
 
 @pytest.mark.skip(reason="Takes too long...")
 def test_min_quorum_2():

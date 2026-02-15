@@ -814,14 +814,18 @@ def find_min_quorum(
         return []
 
 
-def find_min_cardinality_min_quorum(
+def find_min_cardinality_quorum(
         fbas: FBASGraph,
         *,
         not_subset_of: Collection[str] | None = None,
         project_on_scc: bool = True) -> Collection[str]:
     """
-    Find a minimal-cardinality quorum in the FBAS graph by sweeping the
-    cardinality and solving the SAT constraints.
+    Find a minimal-cardinality quorum in the FBAS graph using MaxSAT.
+
+    If `not_subset_of` is set, require at least one validator outside that set
+    while preserving the global minimum quorum cardinality. This is implemented
+    by first finding the min quorum size k using MaxSAT and then solving SAT
+    instance asserting a quorum  of size k with a member outside not_subset_of.
     """
     if project_on_scc:
         sccs = sccs_including_quorum(fbas)
@@ -835,37 +839,56 @@ def find_min_cardinality_min_quorum(
         return []
 
     validators = list(fbas.get_validators())
-    validator_atoms = [Atom(v) for v in validators]
-    validator_not_atoms = [Not(atom) for atom in validator_atoms]
-    max_cardinality = len(validators)
-    base_constraints = quorum_constraints(fbas, Atom)
+    quorum_tagger = Tagger("quorum_min_cardinality")
+
+    def in_quorum(v: Any) -> Atom:
+        return quorum_tagger.atom(v)
+
+    base_constraints: list[Formula] = quorum_constraints(fbas, in_quorum)
+
+    wcnf = WCNF()
+    wcnf.extend(to_cnf(base_constraints))
+    for v in validators:
+        wcnf.append(to_cnf(Not(in_quorum(v)))[0], weight=1)
+
+    result = slv.solve_maxsat(wcnf)
+    if not result.sat:
+        logging.info("No minimal-cardinality quorum found!")
+        return []
+
+    min_cardinality = result.optimum
+    assert min_cardinality is not None
+
     not_subset_set = set(not_subset_of) if not_subset_of else None
     if not_subset_set:
-        outside_atoms = [
-            atom for v, atom in zip(validators, validator_atoms)
-            if v not in not_subset_set
-        ]
-        base_constraints.append(Or(*outside_atoms))
-    for cardinality in range(1, max_cardinality + 1):
-        constraints = list(base_constraints)
-        constraints.append(AtLeast(cardinality, *validator_atoms))
-        if cardinality < max_cardinality:
-            constraints.append(
+        outside_atoms = [in_quorum(v) for v in validators if v not in not_subset_set]
+        if not outside_atoms:
+            return []
+        constrained_constraints: list[Formula] = list(base_constraints)
+        constrained_constraints.append(Or(*outside_atoms))
+        validator_atoms = [in_quorum(v) for v in validators]
+        constrained_constraints.append(AtLeast(min_cardinality, *validator_atoms))
+        if min_cardinality < len(validators):
+            constrained_constraints.append(
                 AtLeast(
-                    max_cardinality - cardinality,
-                    *validator_not_atoms))
-        sat_res = solve_constraints(constraints)
-        if sat_res.sat:
-            quorum = decode_model(
-                sat_res.model,
-                predicate=fbas.is_validator)
-            assert fbas.is_quorum(quorum, over_approximate=True)
-            if not_subset_set:
-                assert not set(quorum) <= not_subset_set
-            logging.info("Minimal-cardinality quorum found: %s",
-                         [fbas.format_validator(v) for v in quorum])
-            return quorum
-    return []
+                    len(validators) - min_cardinality,
+                    *[Not(atom) for atom in validator_atoms]))
+        sat_res = solve_constraints(constrained_constraints)
+        if not sat_res.sat:
+            return []
+        model = list(sat_res.model)
+    else:
+        model = list(result.model)
+
+    quorum = [v for v in extract_true_tagged_variables(model, quorum_tagger)
+              if fbas.is_validator(v)]
+    assert fbas.is_quorum(quorum, over_approximate=True)
+    assert len(quorum) == min_cardinality
+    if not_subset_set:
+        assert not set(quorum) <= not_subset_set
+    logging.info("Minimal-cardinality quorum found: %s",
+                 [fbas.format_validator(v) for v in quorum])
+    return quorum
 
 
 def top_tier(fbas: FBASGraph, *, from_validator: str | None = None) -> Collection[str]:

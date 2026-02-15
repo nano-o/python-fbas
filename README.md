@@ -21,8 +21,8 @@ Another related project is [Stellar Observatory](https://github.com/andrenarchy/
 ## Technical approach
 
 - **SAT encoding**: Finding disjoint quorums → SAT instance
-- **MaxSAT encoding**: Finding minimal-size splitting/blocking sets → MaxSAT instance
-- **QBF encoding**: Finding a minimal quorum → QBF instance
+- **MaxSAT encoding**: Finding minimal-size splitting/blocking sets and minimal-cardinality quorums → MaxSAT instance
+- **QBF encoding**: Finding a minimal (subset-minimal) quorum → QBF instance
 - **Solvers**: [pysat](https://pysathq.github.io/) for SAT/MaxSAT, [pyqbf](https://qbf.pages.sai.jku.at/pyqbf/) for QBF
 - **Custom CNF transformation**: Faster than pysat's built-in transformation
 - **Totalizer encoding**: Efficient cardinality constraints (see [paper](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=a9481bf4ce2b5c20d2e282dd69dcb92bddcc36c9))
@@ -64,7 +64,7 @@ If this fails because pyqbf fails to build (which tends to happen), disable QBF 
 ```
 pip install .
 ```
-In this case, computing minimal quorums and computing the top-tier (defined as the union of all minimal quorums) will not be available.
+In this case, computing minimal (subset-minimal) quorums and computing the top-tier (defined as the union of all minimal quorums) will not be available. The default `min-quorum` command still works (it computes a minimal-cardinality quorum); for subset-minimal quorums you need QBF support.
 
 ## Usage
 
@@ -98,6 +98,16 @@ python-fbas min-splitting-set
 **Find minimal blocking set:**
 ```bash
 python-fbas min-blocking-set
+```
+
+**Find a minimal-cardinality quorum (smallest size; default):**
+```bash
+python-fbas min-quorum
+```
+
+**Find a minimal quorum (subset-minimal):**
+```bash
+python-fbas min-quorum --mode=minimal
 ```
 
 **Find top-tier (union of minimal quorums):**
