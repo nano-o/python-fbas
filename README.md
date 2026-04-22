@@ -60,7 +60,8 @@ Install the package:
 ```
 pip install .[qbf]
 ```
-If this fails because pyqbf fails to build (which tends to happen), disable QBF support:
+This installs the optional `pyqbf` dependency from PyPI for QBF support.
+If this fails because `pyqbf` fails to build in your environment, disable QBF support:
 ```
 pip install .
 ```
