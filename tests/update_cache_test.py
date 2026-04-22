@@ -4,6 +4,7 @@ import sys
 
 
 class TestUpdateCache:
+    @pytest.mark.network
     def test_update_cache_default_url(self):
         """Test update-cache without --fbas uses default URL."""
         cmd = [
@@ -19,6 +20,7 @@ class TestUpdateCache:
         assert "Updating cache for URL:" in result.stdout
         assert "Successfully updated cache for default URL:" in result.stderr
 
+    @pytest.mark.network
     def test_update_cache_with_url(self):
         """Test update-cache with --fbas URL."""
         cmd = [
@@ -50,6 +52,7 @@ class TestUpdateCache:
         assert "Error: Cannot update cache for local files" in result.stderr
         assert "Cache updates only work with URLs" in result.stderr
 
+    @pytest.mark.network
     def test_update_cache_with_invalid_url(self):
         """Test update-cache with invalid URL shows appropriate error."""
         cmd = [
@@ -67,6 +70,7 @@ class TestUpdateCache:
         assert "Failed to update cache for URL: https://invalid-domain-12345.com" in result.stderr
         assert "Error:" in result.stderr
 
+    @pytest.mark.network
     def test_update_cache_with_invalid_json_url(self):
         """Test update-cache with URL that returns invalid JSON."""
         cmd = [

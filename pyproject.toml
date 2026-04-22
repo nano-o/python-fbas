@@ -37,3 +37,8 @@ python-fbas = "python_fbas.main:main"
 where = ["."]
 include = ["python_fbas*"]
 exclude = ["fbas_analyzer*", "benchmark_results*", "tests*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "network: test requires live network access",
+]

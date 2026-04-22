@@ -37,6 +37,7 @@ class TestOptionalFbas:
         assert f"Using local FBAS file: {fbas_file}" in result.stderr
         assert "disjoint quorums" in result.stdout or "No disjoint quorums found" in result.stdout
 
+    @pytest.mark.network
     def test_fbas_explicit_url_still_works(self):
         """Test that explicit --fbas with URL still works."""
         url = "https://radar.withobsrvr.com/api/v1/node"
@@ -72,6 +73,7 @@ class TestOptionalFbas:
         assert result.returncode == 0
         assert "Using local FBAS file:" in result.stderr
 
+    @pytest.mark.network
     def test_update_cache_validation(self):
         """Test that --update-cache validation works with default URL."""
         cmd = [

@@ -4,6 +4,7 @@ import sys
 
 
 class TestErrorHandling:
+    @pytest.mark.network
     def test_invalid_json_url_error(self):
         """Test that URLs returning non-JSON data show clear error."""
         cmd = [
@@ -33,6 +34,7 @@ class TestErrorHandling:
         assert result.returncode == 1
         assert "Error: File not found: nonexistent-file.json" in result.stderr
 
+    @pytest.mark.network
     def test_nonexistent_url_error(self):
         """Test that non-existent URLs show clear error."""
         cmd = [

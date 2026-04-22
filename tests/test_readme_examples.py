@@ -203,9 +203,17 @@ def _run_block(block, mode, tmpdir):
 
 
 BLOCKS = _load_readme_blocks()
+PARAMS = [
+    pytest.param(
+        block,
+        id=f"block_{i + 1}",
+        marks=[pytest.mark.network] if _block_needs_network(block) else [],
+    )
+    for i, block in enumerate(BLOCKS)
+]
 
 
-@pytest.mark.parametrize("block", BLOCKS, ids=[f"block_{i+1}" for i in range(len(BLOCKS))])
+@pytest.mark.parametrize("block", PARAMS)
 def test_readme_examples(block):
     mode = _mode()
     if mode == "docker" and not shutil.which("docker"):

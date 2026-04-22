@@ -6,6 +6,7 @@ import json
 from platformdirs import user_cache_dir
 
 
+@pytest.mark.network
 class TestPerUrlCaching:
     def _get_cache_filename(self, url: str) -> str:
         """Generate cache filename for URL (same logic as in pubnet_data.py)."""
