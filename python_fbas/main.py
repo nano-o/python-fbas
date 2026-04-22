@@ -442,6 +442,12 @@ def main() -> None:
                 unknown_label,
             )
     if args.reachable_from:
+        if args.reachable_from not in fbas.get_validators():
+            logging.error(
+                "Error: Unknown validator for --reachable-from: %s",
+                args.reachable_from,
+            )
+            sys.exit(1)
         fbas = fbas.restrict_to_reachable(args.reachable_from)
 
     args.func(args, fbas)
