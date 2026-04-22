@@ -27,6 +27,39 @@ docker compose -f docker-compose.ai.yml up -d
 
 To update dependencies, `rm ~/.python-fbas-container-setup` and re-run the container, or delete the venv at `~/.venv`.
 
+## Network tests
+
+Tests marked `@pytest.mark.network` are skipped by default. Enable them with:
+
+```bash
+python3 -m pytest --run-network
+```
+
+The live data source used by network tests is configurable. The primary URL
+defaults to `https://radar.withobsrvr.com/api/v1/node` and the alternate URL
+defaults to `https://api.stellaratlas.io/v1/node`.
+
+Override them with pytest flags:
+
+```bash
+python3 -m pytest --run-network \
+  --network-url=https://api.stellaratlas.io/v1/node \
+  --network-alt-url=https://radar.withobsrvr.com/api/v1/node
+```
+
+Or use environment variables:
+
+```bash
+PYTEST_RUN_NETWORK=1 \
+PYTEST_NETWORK_URL=https://api.stellaratlas.io/v1/node \
+PYTEST_NETWORK_ALT_URL=https://radar.withobsrvr.com/api/v1/node \
+python3 -m pytest
+```
+
+Some tests exercise the default configured URL versus an explicitly provided
+alternate URL, so `PYTEST_NETWORK_ALT_URL` should differ from
+`PYTEST_NETWORK_URL`.
+
 ## Performance tests
 
 Performance regression sweeps are run via `scripts/perf_test.py`. By default it

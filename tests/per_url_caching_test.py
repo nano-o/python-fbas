@@ -45,13 +45,14 @@ class TestPerUrlCaching:
         filename = self._get_cache_filename(url)
         return os.path.join(cache_dir, filename)
 
-    def test_different_urls_create_separate_cache_files(self):
+    def test_different_urls_create_separate_cache_files(self, network_url, network_alt_url, network_config_file):
         """Test that different URLs create separate cache files."""
         # Test with default URL first
         cmd1 = [
             sys.executable,
             "-m",
             "python_fbas.main",
+            f"--config-file={network_config_file}",
             "update-cache"
         ]
         result1 = subprocess.run(cmd1, capture_output=True, text=True)
@@ -62,18 +63,18 @@ class TestPerUrlCaching:
             sys.executable,
             "-m",
             "python_fbas.main",
-            "--fbas=https://api.stellaratlas.io/v1/node",
+            f"--fbas={network_alt_url}",
             "update-cache"
         ]
         result2 = subprocess.run(cmd2, capture_output=True, text=True)
-        assert result2.returncode == 0, f"StellarAtlas update-cache failed: {result2.stderr}"
+        assert result2.returncode == 0, f"Alternate update-cache failed: {result2.stderr}"
 
         # Check that both cache files exist
-        default_url = "https://radar.withobsrvr.com/api/v1/node"  # from config
-        stellaratlas_url = "https://api.stellaratlas.io/v1/node"
+        default_url = network_url
+        alt_url = network_alt_url
 
         default_cache_path = self._get_cache_path(default_url)
-        stellaratlas_cache_path = self._get_cache_path(stellaratlas_url)
+        alt_cache_path = self._get_cache_path(alt_url)
 
         # Debug: check what files actually exist
         cache_dir = user_cache_dir('python-fbas', 'SDF')
@@ -83,20 +84,21 @@ class TestPerUrlCaching:
         assert os.path.exists(
             default_cache_path), f"Default cache file should exist at {default_cache_path}. Actual files: {actual_files}"
         assert os.path.exists(
-            stellaratlas_cache_path), f"StellarAtlas cache file should exist at {stellaratlas_cache_path}. Actual files: {actual_files}"
+            alt_cache_path), f"Alternate cache file should exist at {alt_cache_path}. Actual files: {actual_files}"
 
         # Verify they have different filenames
-        assert default_cache_path != stellaratlas_cache_path
+        assert default_cache_path != alt_cache_path
 
-    def test_cache_persistence_across_different_urls(self):
+    def test_cache_persistence_across_different_urls(self, network_url, network_alt_url, network_config_file):
         """Test that cache for one URL persists when using another URL."""
-        default_url = "https://radar.withobsrvr.com/api/v1/node"
+        default_url = network_url
 
         # Update cache for default URL
         cmd1 = [
             sys.executable,
             "-m",
             "python_fbas.main",
+            f"--config-file={network_config_file}",
             "update-cache"
         ]
         result1 = subprocess.run(cmd1, capture_output=True, text=True)
@@ -111,7 +113,7 @@ class TestPerUrlCaching:
             sys.executable,
             "-m",
             "python_fbas.main",
-            "--fbas=https://api.stellaratlas.io/v1/node",
+            f"--fbas={network_alt_url}",
             "update-cache"
         ]
         result2 = subprocess.run(cmd2, capture_output=True, text=True)
@@ -122,9 +124,9 @@ class TestPerUrlCaching:
         default_mtime_after = os.path.getmtime(default_cache_path)
         assert default_mtime_before == default_mtime_after, "Default cache should not be modified when updating different URL"
 
-    def test_cached_data_contains_correct_url(self):
+    def test_cached_data_contains_correct_url(self, network_alt_url):
         """Test that cached data contains the correct source URL."""
-        url = "https://api.stellaratlas.io/v1/node"
+        url = network_alt_url
 
         # Update cache for specific URL
         cmd = [
@@ -149,9 +151,9 @@ class TestPerUrlCaching:
         assert 'validators' in cache_data
         assert isinstance(cache_data['validators'], list)
 
-    def test_cached_data_used_message_includes_url(self):
+    def test_cached_data_used_message_includes_url(self, network_alt_url):
         """Test that cache usage messages include the specific URL."""
-        url = "https://api.stellaratlas.io/v1/node"
+        url = network_alt_url
 
         # First update cache
         cmd1 = [
@@ -178,9 +180,9 @@ class TestPerUrlCaching:
         # Verify cache usage message includes URL
         assert f"Cache: Using cached data for {url}" in result2.stdout
 
-    def test_update_cache_shows_specific_url_and_file(self):
+    def test_update_cache_shows_specific_url_and_file(self, network_alt_url):
         """Test that update-cache shows both URL and cache file path."""
-        url = "https://api.stellaratlas.io/v1/node"
+        url = network_alt_url
 
         cmd = [
             sys.executable,

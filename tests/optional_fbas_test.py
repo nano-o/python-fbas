@@ -38,9 +38,9 @@ class TestOptionalFbas:
         assert "disjoint quorums" in result.stdout or "No disjoint quorums found" in result.stdout
 
     @pytest.mark.network
-    def test_fbas_explicit_url_still_works(self):
+    def test_fbas_explicit_url_still_works(self, network_url):
         """Test that explicit --fbas with URL still works."""
-        url = "https://radar.withobsrvr.com/api/v1/node"
+        url = network_url
 
         cmd = [
             sys.executable,
@@ -74,13 +74,14 @@ class TestOptionalFbas:
         assert "Using local FBAS file:" in result.stderr
 
     @pytest.mark.network
-    def test_update_cache_validation(self):
+    def test_update_cache_validation(self, network_config_file):
         """Test that --update-cache validation works with default URL."""
         cmd = [
             sys.executable,
             "-m",
             "python_fbas.main",
             "--log-level=INFO",
+            f"--config-file={network_config_file}",
             "--update-cache",
             "check-intersection"
         ]
