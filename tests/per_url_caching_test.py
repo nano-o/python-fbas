@@ -5,44 +5,15 @@ import os
 import json
 from platformdirs import user_cache_dir
 
+from python_fbas.pubnet_data import _get_cache_filename
+
 
 @pytest.mark.network
 class TestPerUrlCaching:
-    def _get_cache_filename(self, url: str) -> str:
-        """Generate cache filename for URL (same logic as in pubnet_data.py)."""
-        from urllib.parse import quote
-
-        # Remove protocol for cleaner filenames
-        url_without_protocol = url.replace(
-            'https://',
-            '').replace(
-            'http://',
-            '')
-
-        # Use percent-encoding (RFC 3986) for cross-platform safety
-        encoded = quote(url_without_protocol, safe='-._~')
-
-        # Handle very long URLs by truncating if necessary
-        max_length = 200
-        if len(encoded) > max_length:
-            if '/' in url_without_protocol:
-                domain, path = url_without_protocol.split('/', 1)
-                domain_encoded = quote(domain, safe='-._~')
-                remaining_length = max_length - len(domain_encoded) - 1
-                if remaining_length > 10:
-                    path_encoded = quote(path, safe='-._~')[:remaining_length]
-                    encoded = f"{domain_encoded}_{path_encoded}"
-                else:
-                    encoded = domain_encoded
-            else:
-                encoded = encoded[:max_length]
-
-        return f"stellar_network_data_{encoded}.json"
-
     def _get_cache_path(self, url: str) -> str:
         """Get full path to cache file for URL."""
         cache_dir = user_cache_dir('python-fbas', 'SDF', ensure_exists=True)
-        filename = self._get_cache_filename(url)
+        filename = _get_cache_filename(url)
         return os.path.join(cache_dir, filename)
 
     def test_different_urls_create_separate_cache_files(self, network_url, network_alt_url, network_config_file):

@@ -3,6 +3,7 @@ Module to fetch data from a source conforming to the stellarbeat.io API.
 
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -14,7 +15,7 @@ from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 from platformdirs import user_cache_dir
 from python_fbas.config import get
 
-def _fetch_from_url(url: str = None) -> list[dict]:
+def _fetch_from_url(url: str | None = None) -> list[dict]:
     """
     Get data from url defined in the config file or provided url.
     """
@@ -23,59 +24,50 @@ def _fetch_from_url(url: str = None) -> list[dict]:
     logging.info("Fetching data from %s", url)
     try:
         response = http_get(url, timeout=5)
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                if not isinstance(data, list):
-                    raise ValueError(f"URL {url} returned invalid data format. Expected a JSON array of validators, got {type(data).__name__}")
-                return data
-            except (RequestsJSONDecodeError, ValueError) as e:
-                if isinstance(e, RequestsJSONDecodeError):
-                    raise ValueError(f"URL {url} did not return valid JSON data. Please check that the URL points to a Stellar network API endpoint") from e
-                raise
         response.raise_for_status()
     except Exception as e:
-        if isinstance(e, ValueError):
-            raise
-        raise IOError(f"Failed to fetch Stellar network data from {url}: {e}") from e
+        raise IOError(
+            f"Failed to fetch Stellar network data from {url}: {e}") from e
+    if response.status_code != 200:
+        raise IOError(
+            f"Failed to fetch Stellar network data from {url}: "
+            f"unexpected HTTP status {response.status_code}")
+    try:
+        data = response.json()
+    except RequestsJSONDecodeError as e:
+        raise ValueError(
+            f"URL {url} did not return valid JSON data. Please check that the URL points to a Stellar network API endpoint") from e
+    if not isinstance(data, list):
+        raise ValueError(
+            f"URL {url} returned invalid data format. Expected a JSON array of validators, got {type(data).__name__}")
+    return data
 
 def _get_cache_filename(url: str) -> str:
-    """Generate a cache filename for a given URL using RFC 3986 percent-encoding.
-    
-    This approach is cross-platform and standards-compliant, ensuring that:
-    - All special characters are properly encoded
-    - Filenames work on Windows, macOS, and Linux
-    - The encoding is reversible and unambiguous
-    - Very long URLs are handled gracefully
+    """Generate a unique cache filename for a given URL.
+
+    The filename is a human-readable, percent-encoded (RFC 3986) rendering of
+    the URL followed by a digest of the full URL. The digest is what
+    guarantees that distinct URLs never share a cache file: the readable part
+    alone is ambiguous because it omits the protocol and because long URLs
+    are truncated.
     """
-    # Remove protocol for cleaner filenames
+    # Remove protocol for a cleaner readable part
     url_without_protocol = url.replace('https://', '').replace('http://', '')
-    
+
     # Use percent-encoding (RFC 3986) for cross-platform safety
-    # The 'safe' parameter allows common URL characters that are also safe in filenames
+    # The 'safe' parameter allows common URL characters that are also safe in
+    # filenames
     encoded = quote(url_without_protocol, safe='-._~')
-    
-    # Handle very long URLs by truncating if necessary
-    max_length = 200  # Conservative limit for most filesystems
-    if len(encoded) > max_length:
-        # Keep the domain part if possible
-        if '/' in url_without_protocol:
-            domain, path = url_without_protocol.split('/', 1)
-            domain_encoded = quote(domain, safe='-._~')
-            remaining_length = max_length - len(domain_encoded) - 1  # -1 for separator
-            if remaining_length > 10:  # Ensure we have meaningful path info
-                path_encoded = quote(path, safe='-._~')[:remaining_length]
-                encoded = f"{domain_encoded}_{path_encoded}"
-            else:
-                encoded = domain_encoded
-        else:
-            # Just truncate if no path separator
-            encoded = encoded[:max_length]
-    
-    return f"stellar_network_data_{encoded}.json"
+
+    # Truncate long URLs; uniqueness is ensured by the digest
+    max_length = 150  # conservative limit for most filesystems
+    encoded = encoded[:max_length]
+
+    digest = hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]
+    return f"stellar_network_data_{encoded}_{digest}.json"
 
 
-def get_pubnet_config(update=False, url: str = None) -> list[dict]:
+def get_pubnet_config(update=False, url: str | None = None) -> list[dict]:
     """
     When update is true, fetch new data from the url and update the cache file for that URL.
     Otherwise, use cached data for the URL if available, or fetch fresh data if not cached.
@@ -119,6 +111,12 @@ def get_pubnet_config(update=False, url: str = None) -> list[dict]:
                 or 'validators' not in cache_data
                 or not isinstance(cache_data['validators'], list)):
             raise ValueError("Cache data missing 'validators' list")
+
+        # Never serve data that was fetched from a different URL:
+        if cache_data.get('source_url') != current_url:
+            raise ValueError(
+                f"Cache file was created for URL "
+                f"{cache_data.get('source_url')!r}, not {current_url!r}")
 
         # Use cached data
         cached_at = cache_data.get('cached_at', 'unknown time')
