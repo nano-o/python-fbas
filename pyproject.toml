@@ -17,7 +17,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-qbf = ["pyqbf==1.1.1"]
+# cmeel is a runtime dependency of pyqbf (its wheel installs under a
+# cmeel.prefix/ directory that cmeel's path hook adds to sys.path), but some
+# installers (e.g. uv) fail to pick it up from pyqbf's sdist metadata, so we
+# declare it explicitly.
+qbf = ["pyqbf==1.1.1.1", "cmeel"]
 dev = [
     "pip-tools",
     "pytest",
