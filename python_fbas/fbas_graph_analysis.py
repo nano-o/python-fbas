@@ -292,7 +292,7 @@ def find_disjoint_quorums(
     with timed("CNF conversion"):
         clauses = to_cnf(constraints)
 
-    sat_res = solve_constraints(constraints)
+    sat_res = slv.solve_sat(clauses)
     res = sat_res.sat
 
     if config.get().output:
@@ -475,7 +475,7 @@ def max_scc(fbas: FBASGraph) -> Collection[str]:
     if sccs:
         return {v for v in sccs[0] if fbas.is_validator(v)}
     else:
-        return {}
+        return set()
 
 
 def find_minimal_blocking_set(fbas: FBASGraph) -> Collection[str] | None:
@@ -782,12 +782,17 @@ def find_min_quorum(
     qb_clauses = to_cnf(qb_constraints)
     pcnf = PCNF(from_clauses=qa_clauses + qb_clauses)  # type: ignore
 
+    # NOTE: a vertex atom that appears in no constraint (e.g. for an isolated
+    # validator without a qset) is never registered in `variables` and does not
+    # need to be quantified over.
     qa_atoms: set[int] = atoms_of_clauses(qa_clauses)
     qa_vertex_atoms: set[int] = set(
-        abs(variables[in_quorum_a(n).identifier]) for n in fbas.vertices())
+        abs(variables[in_quorum_a(n).identifier]) for n in fbas.vertices()
+        if in_quorum_a(n).identifier in variables)
     qb_atoms: set[int] = atoms_of_clauses(qb_clauses)
     qb_vertex_atoms: set[int] = set(
-        abs(variables[in_quorum_b(n).identifier]) for n in fbas.vertices())
+        abs(variables[in_quorum_b(n).identifier]) for n in fbas.vertices()
+        if in_quorum_b(n).identifier in variables)
     tseitin_atoms: set[int] = \
         (qa_atoms | qb_atoms) - (qb_vertex_atoms | qa_vertex_atoms)
 

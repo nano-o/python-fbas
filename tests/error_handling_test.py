@@ -68,10 +68,9 @@ class TestErrorHandling:
 
     def test_invalid_json_data_format_error(self):
         """Test error handling for URLs that return JSON but wrong format."""
-        # This would test a URL that returns valid JSON but not a list of validators
-        # For now, we'll just verify our error handling logic exists
-        # (Hard to test without a controllable test server)
-        pass
+        # This would test a URL that returns valid JSON but not a list of
+        # validators.
+        pytest.skip("needs a controllable test server returning non-list JSON")
 
 
 if __name__ == '__main__':

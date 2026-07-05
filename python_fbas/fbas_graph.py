@@ -245,6 +245,8 @@ class FBASGraph:
             *,
             qset: str | None = None,
             **attrs) -> None:
+        if v in self._graph and v not in self._validators:
+            raise ValueError(f"ID {v} is already used by a qset vertex")
         self._graph.add_node(v, **attrs)
         self._validators.add(v)
         if qset:
@@ -457,7 +459,7 @@ class FBASGraph:
         Returns a new fbas that only contains the validators reachable from the set vs.
         """
         assert set(vs) <= self._validators
-        reachable: set[str] = set.union(
+        reachable: set[str] = set().union(
             *[set(nx.descendants(self._graph, v)) | {v} for v in vs])
         fbas = copy(self)
         fbas._graph = self._graph.subgraph(reachable).copy()
@@ -635,9 +637,9 @@ class FBASGraph:
         TODO move to separate module
         """
         return min(
-            self.intersection_bound_heuristic(
+            (self.intersection_bound_heuristic(
                 self.qset_vertex_of(v1),
-                self.qset_vertex_of(v2)) for v1,
-            v2 in combinations(
-                self._validators,
-                2) if v1 != v2)
+                self.qset_vertex_of(v2))
+             for v1, v2 in combinations(self._validators, 2)
+             if self.has_qset(v1) and self.has_qset(v2)),
+            default=0)

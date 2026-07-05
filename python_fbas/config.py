@@ -82,7 +82,7 @@ def to_yaml() -> str:
         "# Data source": ["stellar_data_url"],
         "# Solver settings": ["sat_solver", "card_encoding", "max_sat_algo"],
         "# Output settings": ["validator_display", "output"],
-        "# Optional settings": ["group_by"]
+        "# Optional settings": ["group_by", "deserialization_mode"]
     }
 
     for section_comment, keys in sections.items():
@@ -148,6 +148,11 @@ def load_config_file(config_path: Optional[str] = None) -> None:
             'id', 'name', 'both']:
         raise ValueError(
             f"Invalid validator_display in config file: {config_data['validator_display']}")
+
+    if 'deserialization_mode' in config_data and config_data['deserialization_mode'] not in [
+            'strict', 'indulgent']:
+        raise ValueError(
+            f"Invalid deserialization_mode in config file: {config_data['deserialization_mode']}")
 
     # Update configuration
     update(**config_data)

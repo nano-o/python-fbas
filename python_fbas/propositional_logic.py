@@ -205,8 +205,6 @@ def to_cnf(arg: list[Formula] | Formula, polarity: int = 1) -> Clauses:
                 return [[-var(cast(Atom, a).identifier) for a in ops]
                         + [var(c.identifier)]]
             case Implies(operands=atoms) if all(isinstance(a, Atom) for a in atoms):
-                logging.info(f"to_cnf_top: {fmla}")
-                # return to_cnf(Or(Not(And(*atoms[:-1])), atoms[-1]), polarity=1)
                 return [[-var(cast(Atom, a).identifier) for a in atoms[:-1]]
                         + [var(cast(Atom, atoms[-1]).identifier)]]
             case _:

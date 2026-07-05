@@ -242,8 +242,9 @@ def main() -> None:
 
     parser.add_argument(
         '--validator-display',
-        default='both',
-        help="How to display validators in output. Can be 'id', 'name', or 'both'")
+        default=None,
+        choices=['id', 'name', 'both'],
+        help="How to display validators in output (default: both)")
     parser.add_argument(
         '--update-cache',
         action='store_true',
@@ -255,16 +256,18 @@ def main() -> None:
 
     parser.add_argument(
         '--cardinality-encoding',
-        default='totalizer',
-        help="Cardinality encoding, either 'naive' or 'totalizer'")
+        default=None,
+        choices=['naive', 'totalizer'],
+        help="Cardinality encoding (default: totalizer)")
     parser.add_argument(
         '--sat-solver',
-        default='cryptominisat5',
-        help=f"SAT solver to use ({solvers}). See the documentation of the pysat package for more information.")
+        default=None,
+        help=f"SAT solver to use ({solvers}); default: cryptominisat5. See the documentation of the pysat package for more information.")
     parser.add_argument(
         '--max-sat-algo',
-        default='LSU',
-        help="MaxSAT algorithm to use (LSU or RC2)")
+        default=None,
+        choices=['LSU', 'RC2'],
+        help="MaxSAT algorithm to use (default: LSU)")
     parser.add_argument(
         '--output-problem',
         default=None,
@@ -369,19 +372,19 @@ def main() -> None:
     # CLI arguments override config file settings
     config_kwargs = {}
 
-    # Only set CLI values that are not defaults (to preserve config file
-    # values)
+    # Only set CLI values that were explicitly provided (to preserve config
+    # file values); the built-in defaults come from the Config dataclass.
     if args.output_problem is not None:
         config_kwargs['output'] = args.output_problem
-    if args.cardinality_encoding != 'totalizer':  # default value
+    if args.cardinality_encoding is not None:
         config_kwargs['card_encoding'] = args.cardinality_encoding
     if args.group_by is not None:
         config_kwargs['group_by'] = args.group_by
-    if args.sat_solver != 'cryptominisat5':  # default value
+    if args.sat_solver is not None:
         config_kwargs['sat_solver'] = args.sat_solver
-    if args.max_sat_algo != 'LSU':  # default value
+    if args.max_sat_algo is not None:
         config_kwargs['max_sat_algo'] = args.max_sat_algo
-    if args.validator_display != 'both':  # default value
+    if args.validator_display is not None:
         config_kwargs['validator_display'] = args.validator_display
     if args.fbas and (args.fbas.startswith('http://')
                       or args.fbas.startswith('https://')):
