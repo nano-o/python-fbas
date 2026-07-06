@@ -190,7 +190,7 @@ def deserialize(
         # the graph:
         q = attrs.pop('quorumSet', None)
         pk = v['publicKey']
-        fbas.update_validator(pk, qset=None, **attrs)
+        fbas.update_validator(pk, qset=None, attrs=attrs)
         if q:
             try:
                 qset_id = _process_qset(QSet.from_json(q))

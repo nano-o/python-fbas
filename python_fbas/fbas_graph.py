@@ -233,21 +233,32 @@ class FBASGraph:
             v: str,
             *,
             qset: str | None = None,
-            **attrs) -> None:
-        """Add a validator to the graph."""
+            attrs: Mapping[str, Any] | None = None,
+            **kwattrs) -> None:
+        """Add a validator to the graph.
+
+        Metadata may be passed as keyword arguments (`name=...`) for trusted
+        callers, or, for untrusted/external data with arbitrary keys, via the
+        `attrs` mapping. Routing external data through `attrs` avoids
+        collisions between arbitrary metadata keys and this method's own
+        parameter names (e.g. a metadata key literally named "qset" or "v").
+        """
         if v in self._validators:
             raise ValueError(f"Validator {v} already exists in the graph")
-        self.update_validator(v, qset=qset, **attrs)
+        self.update_validator(v, qset=qset, attrs=attrs, **kwattrs)
 
     def update_validator(
             self,
             v: str,
             *,
             qset: str | None = None,
-            **attrs) -> None:
+            attrs: Mapping[str, Any] | None = None,
+            **kwattrs) -> None:
         if v in self._graph and v not in self._validators:
             raise ValueError(f"ID {v} is already used by a qset vertex")
-        self._graph.add_node(v, **attrs)
+        merged = dict(attrs) if attrs else {}
+        merged.update(kwattrs)
+        self._graph.add_node(v, **merged)
         self._validators.add(v)
         if qset:
             # check that qset is a valid qset vertex:

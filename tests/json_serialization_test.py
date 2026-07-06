@@ -879,3 +879,99 @@ class TestEdgeCases:
         fbas2 = deserialize(json_str)
 
         assert qset_of(fbas, 'v1') == qset_of(fbas2, 'v1')
+
+
+class TestMalformedDataHandling:
+    """Reserved-key crashes and dangling references (issue #8).
+
+    Structural contradictions (duplicate IDs, cycles) remain hard errors; these
+    tests cover *incomplete* data, which is governed by deserialization_mode.
+    """
+
+    def test_reserved_metadata_key_qset_stellarbeat(self):
+        """A validator metadata key literally named 'qset' must not crash."""
+        fbas = deserialize(json.dumps([{"publicKey": "GA", "qset": 1}]))
+        assert "GA" in fbas.get_validators()
+        assert not fbas.has_qset("GA")
+        # the key is preserved as ordinary metadata:
+        assert fbas.vertice_attrs("GA").get("qset") == 1
+
+    def test_reserved_metadata_key_v_stellarbeat(self):
+        """A validator metadata key literally named 'v' must not crash."""
+        fbas = deserialize(json.dumps([{"publicKey": "GB", "v": 1}]))
+        assert "GB" in fbas.get_validators()
+        assert fbas.vertice_attrs("GB").get("v") == 1
+
+    def test_reserved_metadata_key_python_fbas(self):
+        """python-fbas attrs with reserved keys must not crash."""
+        data = {
+            "validators": [
+                {"id": "GA", "qset": None, "attrs": {"qset": 1, "v": 2}}
+            ],
+            "qsets": {},
+        }
+        fbas = deserialize(json.dumps(data))
+        assert fbas.vertice_attrs("GA").get("qset") == 1
+        assert fbas.vertice_attrs("GA").get("v") == 2
+
+    def test_dangling_member_indulgent_drops_qset(self):
+        from python_fbas.config import temporary_config
+        data = {
+            "validators": [{"id": "GA", "qset": "q1", "attrs": {}}],
+            "qsets": {"q1": {"threshold": 1, "members": ["missing_q"]}},
+        }
+        with temporary_config(deserialization_mode="indulgent"):
+            fbas = deserialize(json.dumps(data))
+        assert "GA" in fbas.get_validators()
+        assert not fbas.has_qset("GA")
+
+    def test_dangling_member_strict_raises(self):
+        from python_fbas.config import temporary_config
+        data = {
+            "validators": [{"id": "GA", "qset": "q1", "attrs": {}}],
+            "qsets": {"q1": {"threshold": 1, "members": ["missing_q"]}},
+        }
+        with temporary_config(deserialization_mode="strict"):
+            with pytest.raises(ValueError, match="undefined member"):
+                deserialize(json.dumps(data))
+
+    def test_dangling_validator_qset_indulgent_leaves_no_qset(self):
+        from python_fbas.config import temporary_config
+        data = {
+            "validators": [{"id": "GA", "qset": "nonexistent", "attrs": {}}],
+            "qsets": {},
+        }
+        with temporary_config(deserialization_mode="indulgent"):
+            fbas = deserialize(json.dumps(data))
+        assert "GA" in fbas.get_validators()
+        assert not fbas.has_qset("GA")
+
+    def test_dangling_validator_qset_strict_raises(self):
+        from python_fbas.config import temporary_config
+        data = {
+            "validators": [{"id": "GA", "qset": "nonexistent", "attrs": {}}],
+            "qsets": {},
+        }
+        with temporary_config(deserialization_mode="strict"):
+            with pytest.raises(ValueError, match="undefined quorum set"):
+                deserialize(json.dumps(data))
+
+    def test_nested_dangling_member_drops_dependent_qsets(self):
+        """A dangling reference deep in a qset tree drops the whole chain."""
+        from python_fbas.config import temporary_config
+        data = {
+            "validators": [
+                {"id": "GA", "qset": "outer", "attrs": {}},
+                {"id": "GB", "qset": None, "attrs": {}},
+            ],
+            "qsets": {
+                "outer": {"threshold": 1, "members": ["GB", "inner"]},
+                "inner": {"threshold": 1, "members": ["ghost"]},
+            },
+        }
+        with temporary_config(deserialization_mode="indulgent"):
+            fbas = deserialize(json.dumps(data))
+        assert not fbas.has_qset("GA")
+        with temporary_config(deserialization_mode="strict"):
+            with pytest.raises(ValueError, match="undefined member"):
+                deserialize(json.dumps(data))

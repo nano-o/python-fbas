@@ -22,6 +22,12 @@ import json
 import logging
 
 from python_fbas.fbas_graph import FBASGraph
+from python_fbas.config import get as get_config
+
+
+class _SkipQSet(Exception):
+    """Internal signal: a quorum set cannot be resolved and is being dropped
+    (used to unwind the recursive builder in indulgent mode)."""
 
 
 def serialize(fbas: FBASGraph) -> str:
@@ -91,7 +97,23 @@ def deserialize(json_str: str) -> FBASGraph:
         raise ValueError(
             "JSON data must contain 'validators' and 'qsets' keys")
 
+    if not isinstance(data["validators"], list):
+        raise ValueError("'validators' must be a list")
+    if not isinstance(data["qsets"], dict):
+        raise ValueError("'qsets' must be a dictionary")
+
+    # In "strict" mode, incomplete data (e.g. a reference to a quorum set or
+    # member that is not declared) is a hard error. In "indulgent" mode
+    # (the default) we tolerate it: the affected quorum set is dropped and any
+    # validator pointing at it is left without a quorum set, with a warning.
+    # Note that *structural contradictions* (duplicate IDs, ID collisions,
+    # cycles) are always errors regardless of mode -- they cannot be resolved
+    # by dropping incomplete parts.
+    strict = get_config().deserialization_mode == "strict"
+
     fbas = FBASGraph()
+
+    qsets = data["qsets"]
 
     # add all validators
     for v_data in data["validators"]:
@@ -105,11 +127,25 @@ def deserialize(json_str: str) -> FBASGraph:
 
         validator_id = v_data["id"]
         attrs = v_data.get("attrs", {})
+        if not isinstance(attrs, dict):
+            logging.warning(
+                "Ignoring non-dict attrs for validator %s", validator_id)
+            attrs = {}
 
-        fbas.add_validator(validator_id, qset=None, **attrs)
+        # pass metadata via `attrs=` so that arbitrary keys (including "qset"
+        # or "v") cannot collide with add_validator's own parameters:
+        fbas.add_validator(validator_id, qset=None, attrs=attrs)
 
     # add the qsets
     qset_id_map: dict[str, str] = {}
+
+    def _fail_qset(qid, msg) -> None:
+        """Reject a quorum set: raise in strict mode, otherwise warn and unwind
+        (dropping this quorum set and any that depend on it)."""
+        if strict:
+            raise ValueError(msg)
+        logging.warning("%s; dropping quorum set %s", msg, qid)
+        raise _SkipQSet()
 
     def _add_qset(qid, qset, stack):
         # assuming all validators have been added already...
@@ -123,6 +159,10 @@ def deserialize(json_str: str) -> FBASGraph:
             qset_id_map[qid] = qid
             return qid
 
+        if not isinstance(qset, dict) or "threshold" not in qset \
+                or "members" not in qset:
+            _fail_qset(qid, f"Quorum set {qid!r} is malformed")
+
         stack.add(qid)
         threshold = qset["threshold"]
         members = qset["members"]
@@ -132,28 +172,50 @@ def deserialize(json_str: str) -> FBASGraph:
                 remapped_members.append(member)
                 continue
             if member not in fbas.vertices():
-                _add_qset(member, data['qsets'][member], stack)
+                if member not in qsets:
+                    _fail_qset(
+                        qid,
+                        f"Quorum set {qid!r} references undefined member "
+                        f"{member!r}")
+                _add_qset(member, qsets[member], stack)
             remapped_members.append(qset_id_map.get(member, member))
         actual_id = fbas.add_qset(threshold, remapped_members, qset_id=qid)
         qset_id_map[qid] = actual_id
         stack.remove(qid)
         return actual_id
 
-    for qset_id, qset in data["qsets"].items():
-        _add_qset(qset_id, qset, set())
+    for qset_id, qset in qsets.items():
+        try:
+            _add_qset(qset_id, qset, set())
+        except _SkipQSet:
+            continue
 
     # connect validators to their qsets
     for v_data in data["validators"]:
-        if "id" not in v_data:
+        if not isinstance(v_data, dict) or "id" not in v_data:
             continue
 
         validator_id = v_data["id"]
-        qset_id = v_data.get("qset")
+        raw_qset_id = v_data.get("qset")
+        if not raw_qset_id:
+            continue
+        raw_qset_id = str(raw_qset_id)
 
-        if qset_id:
-            qset_id = qset_id_map.get(qset_id, qset_id)
-        if qset_id and qset_id in fbas.graph_view():
-            fbas.update_validator(validator_id, qset=qset_id)
+        resolved = qset_id_map.get(raw_qset_id, raw_qset_id)
+        if resolved in fbas.graph_view() and not fbas.is_validator(resolved):
+            fbas.update_validator(validator_id, qset=resolved)
+        elif raw_qset_id in qsets:
+            # declared but dropped above (indulgent mode); already warned:
+            logging.warning(
+                "Validator %s references quorum set %s which was dropped; "
+                "leaving it without a quorum set", validator_id, raw_qset_id)
+        else:
+            msg = (f"Validator {validator_id} references undefined quorum set "
+                   f"{raw_qset_id!r}")
+            if strict:
+                raise ValueError(msg)
+            logging.warning(
+                "%s; leaving it without a quorum set", msg)
 
     fbas.check_integrity()
 
