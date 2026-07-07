@@ -153,6 +153,18 @@ def _ensure_mount_docker_line(line):
     return line.replace("docker run", 'docker run -v "$PWD:/work" -w /work', 1)
 
 
+def _ensure_tmpdir_mount_docker_line(line, tmpdir):
+    """Ensure a `docker run` line bind-mounts tmpdir at its own absolute path,
+    so a seeded config file (referenced by absolute path) is readable inside
+    the container."""
+    if "docker run" not in line:
+        return line
+    spec = f'-v "{tmpdir}:{tmpdir}"'
+    if spec in line:
+        return line
+    return line.replace("docker run", f"docker run {spec}", 1)
+
+
 def _rewrite_docker_to_local(line):
     if "giulianolosa/python-fbas:latest" not in line:
         return line
@@ -189,6 +201,8 @@ def _rewrite_block(block, mode, tmpdir, needs_mount):
         if mode == "docker":
             if "giulianolosa/python-fbas:latest" in line:
                 new_line = _ensure_mount_docker_line(line) if needs_mount else line
+                if has_config:
+                    new_line = _ensure_tmpdir_mount_docker_line(new_line, tmpdir)
             elif re.match(r"^\s*python-fbas\b", line):
                 prefix = "docker run --rm"
                 if needs_mount:
@@ -315,3 +329,17 @@ def test_relative_config_file_block_is_seeded_and_hermetic():
     with tempfile.TemporaryDirectory(prefix="python-fbas-readme-") as tmpdir:
         # _run_block asserts a zero exit code; a missing config would exit 1.
         _run_block(block, "local", tmpdir)
+
+
+@pytest.mark.parametrize("block", [
+    "python-fbas --config-file=my-config.yaml min-splitting-set",
+    "docker run --rm giulianolosa/python-fbas:latest --config-file=my-config.yaml min-splitting-set",
+])
+def test_docker_mode_mounts_tmpdir_for_relative_config(block):
+    """In docker mode, a rewritten (absolute-tmpdir) --config-file must be
+    accompanied by a bind mount of that tmpdir, for both converted and
+    pre-existing `docker run` lines."""
+    tmpdir = "/tmp/python-fbas-readme-xyz"
+    rewritten = _rewrite_block(block, "docker", tmpdir, _block_needs_mount(block))
+    assert f"--config-file={tmpdir}/my-config.yaml" in rewritten
+    assert f'-v "{tmpdir}:{tmpdir}"' in rewritten
