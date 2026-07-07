@@ -7,6 +7,17 @@ from pathlib import Path
 
 import pytest
 
+from dataclasses import fields
+from python_fbas.config import Config, temporary_config, to_yaml
+
+
+def _default_config_yaml():
+    """A config file as a fresh `show-config` would emit it (i.e. defaults),
+    independent of any process-wide config state left behind by other tests."""
+    defaults = {f.name: getattr(Config(), f.name) for f in fields(Config)}
+    with temporary_config(**defaults):
+        return to_yaml()
+
 
 README_PATH = Path(__file__).resolve().parents[1] / "README.md"
 NETWORK_COMMANDS = {
@@ -19,7 +30,10 @@ NETWORK_COMMANDS = {
     "max-scc",
     "to-json",
     "update-cache",
+    "validator-metadata",
 }
+
+CONFIG_FILE_RE = re.compile(r"--config-file=(?P<q>['\"]?)(?P<path>[^\s'\"]+)(?P=q)")
 
 
 def _parse_fenced_blocks(text):
@@ -83,19 +97,52 @@ def _block_needs_network(block):
 
 
 def _line_needs_mount(line):
+    # Relative --fbas paths are read from the working directory (mounted at
+    # /work in docker). Relative --config-file inputs are handled separately:
+    # the harness seeds them into the per-test tmpdir (see _relative_config_paths).
     fbas_value = _extract_fbas_value(line)
     if fbas_value and not (fbas_value.startswith("http://") or fbas_value.startswith("https://")):
         return True
-    config_match = re.search(r"--config-file=([^\s]+)", line)
-    if config_match:
-        path = config_match.group(1)
-        if not path.startswith("/"):
-            return True
     return False
 
 
 def _block_needs_mount(block):
     return any(_line_needs_mount(line) for line in block.splitlines())
+
+
+def _is_relative_path(path):
+    return not path.startswith(("/", "$", "~"))
+
+
+def _relative_config_paths(block):
+    """Basenames of relative --config-file inputs referenced by the block.
+
+    Such files are not created by the block itself (a README reader would have
+    generated them in a previous step), so the harness seeds them into the
+    per-test tmpdir before running.
+    """
+    names = []
+    for line in block.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        for match in CONFIG_FILE_RE.finditer(line):
+            path = match.group("path")
+            if _is_relative_path(path):
+                names.append(os.path.basename(path))
+    return names
+
+
+def _rewrite_config_file(line, tmpdir):
+    def repl(match):
+        quote = match.group("q")
+        path = match.group("path")
+        if not _is_relative_path(path):
+            return match.group(0)
+        target = os.path.join(tmpdir, os.path.basename(path))
+        return f"--config-file={quote}{target}{quote}"
+
+    return CONFIG_FILE_RE.sub(repl, line)
 
 
 def _ensure_mount_docker_line(line):
@@ -132,6 +179,7 @@ def _rewrite_redirections(line, tmpdir):
 
 
 def _rewrite_block(block, mode, tmpdir, needs_mount):
+    has_config = bool(_relative_config_paths(block))
     lines = []
     for line in block.splitlines():
         stripped = line.strip()
@@ -145,6 +193,9 @@ def _rewrite_block(block, mode, tmpdir, needs_mount):
                 prefix = "docker run --rm"
                 if needs_mount:
                     prefix += ' -v "$PWD:/work" -w /work'
+                if has_config:
+                    # make the seeded config readable at its absolute path
+                    prefix += f' -v "{tmpdir}:{tmpdir}"'
                 prefix += " giulianolosa/python-fbas:latest"
                 new_line = re.sub(r"^\s*python-fbas\b", prefix, line, 1)
             else:
@@ -152,6 +203,7 @@ def _rewrite_block(block, mode, tmpdir, needs_mount):
         else:
             new_line = _rewrite_docker_to_local(line)
         new_line = _rewrite_redirections(new_line, tmpdir)
+        new_line = _rewrite_config_file(new_line, tmpdir)
         lines.append(new_line)
     return "\n".join(lines)
 
@@ -180,6 +232,11 @@ def _mode():
 
 def _run_block(block, mode, tmpdir):
     needs_mount = _block_needs_mount(block)
+    # Seed any relative --config-file inputs the block expects to already exist
+    # (the README shows generating them with `show-config` in a separate step).
+    for name in _relative_config_paths(block):
+        with open(os.path.join(tmpdir, name), "w", encoding="utf-8") as f:
+            f.write(_default_config_yaml())
     rewritten = _rewrite_block(block, mode, tmpdir, needs_mount)
     print(f"\nREADME command (mode={mode}):\n{rewritten}\n", flush=True)
     script = "set -e\nset -o pipefail\n" + rewritten
@@ -223,3 +280,38 @@ def test_readme_examples(block):
         pytest.skip(skip_reason)
     with tempfile.TemporaryDirectory(prefix="python-fbas-readme-") as tmpdir:
         _run_block(block, mode, tmpdir)
+
+
+# Hermetic regression tests for the block-classification / seeding logic, so
+# these gaps can't silently return without needing --run-network.
+
+def test_commands_without_fbas_are_network_classified():
+    """Every README command that loads FBAS data from the default source
+    (i.e. has no --fbas) must be classified as needing network, so it is not
+    silently exercised against the live default URL on a plain test run."""
+    for block in BLOCKS:
+        for line in block.splitlines():
+            stripped = line.strip()
+            if not re.match(r"^\s*python-fbas\b", stripped):
+                continue
+            if _extract_fbas_value(stripped):
+                continue  # explicit --fbas: classification handled elsewhere
+            if any(re.search(rf"\b{re.escape(cmd)}\b", stripped)
+                   for cmd in NETWORK_COMMANDS):
+                assert _block_needs_network(block), (
+                    f"block loads default-source data but is not network-marked:\n{block}")
+
+
+def test_relative_config_file_block_is_seeded_and_hermetic():
+    """A README block that reads a relative --config-file must run without
+    depending on any file outside its own tmpdir."""
+    if not shutil.which("python-fbas"):
+        pytest.skip("python-fbas console script not installed")
+    # Same shape as the README "use config file" example, but reading a local
+    # data file so we exercise config-file seeding without any network.
+    block = ("python-fbas --config-file=my-config.yaml "
+             "--fbas=tests/test_data/small/circular_1.json check-intersection")
+    assert _relative_config_paths(block) == ["my-config.yaml"]
+    with tempfile.TemporaryDirectory(prefix="python-fbas-readme-") as tmpdir:
+        # _run_block asserts a zero exit code; a missing config would exit 1.
+        _run_block(block, "local", tmpdir)
